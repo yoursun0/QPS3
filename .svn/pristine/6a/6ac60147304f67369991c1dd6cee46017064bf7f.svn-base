@@ -1,0 +1,441 @@
+/**********************************************************************************
+ * Author            : Master Concept Ltd.
+ * Version           : 1.0
+ * Create Date       : June 20, 2013
+ * Last Updated Date : July 14, 2013
+ *********************************************************************************/
+package qpses.util;
+
+import java.awt.image.BufferedImage;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+
+import java.text.SimpleDateFormat;
+import java.text.NumberFormat;
+import java.text.DecimalFormat;
+
+import java.util.Properties;
+import java.util.Locale;
+import java.util.Date;
+import java.util.Calendar;
+import java.util.Iterator;
+import java.util.UUID;
+
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
+
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
+
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.commons.io.IOUtils;
+
+import org.apache.log4j.Logger;
+
+import org.jpedal.PdfDecoder;
+import org.jpedal.objects.PdfImageData;
+
+public final class SysManager
+{
+    // Get class name
+    private static String MyClassName = SysManager.class.getName();
+    
+    // Set up Log4j
+    private static Logger logger = Logger.getLogger(MyClassName);
+    
+    // Set Date Format
+    private static final String dateFormat = "dd.MM.yyyy HH:mm:ss";
+    private static final String timestampFormat = "yyyyMMddHHmmss";
+    
+    // Log the class name when the class is used
+    static
+    { logger.debug(MyClassName + " started"); }
+    
+    /** Log the class name when the class is finalized */
+    protected void finalize()
+    { logger.debug("[" + MyClassName + "]" + " " + "ended"); }
+    
+    /** Get system environment resource */
+    public static Object getResource(String lookupValue) throws SysException
+    {
+        String myName = "[" + MyClassName + "." + "getResource" + "]";
+        logger.debug(myName + " " + "started");
+        logger.debug(myName + " " + "Looking up environment resource [" + lookupValue + "]");
+        
+        Object retResource = null;
+        
+        try
+        {
+            Context aInitContext = new InitialContext();
+            Context aContext     = (Context) aInitContext.lookup("java:comp/env");
+            retResource          = aContext.lookup(lookupValue);
+        }
+        catch (NamingException ex)
+        {
+            String errMsg = "Cannot find environment resource: " + lookupValue;
+            throw new SysException(myName, errMsg);
+        }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+        return retResource;
+    }
+    
+    /** Get system property name */
+    public static String getProperty(String name) throws SysException
+    {
+        String myName = "[" + MyClassName + "." + "getProperty" + "]";
+        logger.debug(myName + " " + "started");
+        logger.debug(myName + " " + "Getting property value [" + name + "]");
+        
+        String retValue = "";
+        
+        try
+        {
+            InputStream in = SysManager.class.getResourceAsStream("/System.properties");
+            
+            if (in == null)
+            { throw new SysException(myName, "Cannot find System.properties"); }
+            
+            Properties properties = new Properties();
+            properties.load(in);
+            
+            String value = properties.getProperty(name);
+            retValue     = (value == null) ? properties.getProperty(name) : value;
+            
+            if (retValue == null)
+            { throw new SysException(myName, "Cannot get property value: [" + name + "]"); }
+        }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+        return retValue;
+    }
+    
+    /** Convert sql date format to string */
+    public static String getStringfromSQLDate(java.sql.Date aDate) throws SysException
+    {
+    	if (aDate == null){
+    		return "";
+    	}
+        String myName = "[" + MyClassName + "." + "getStringfromSQLDate" + "]";
+        logger.debug(myName + " " + "started");
+        
+        SimpleDateFormat sdfOrg = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
+        SimpleDateFormat sdfNew = new SimpleDateFormat("dd-MMM-yyyy", Locale.ENGLISH);
+        
+        String aDTString  = aDate.toString();
+        String returnDate = "";
+        
+        try
+        { returnDate = sdfNew.format(sdfOrg.parse(aDTString)); }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+        
+        return returnDate;
+    }
+    
+    /** Convert sql date format to string */
+    public static String getSpecialFormatStringfromSQLDate(java.sql.Date aDate) throws SysException
+    {
+    	if (aDate == null){
+    		return "";
+    	}
+        String myName = "[" + MyClassName + "." + "getStringfromSQLDate" + "]";
+        logger.debug(myName + " " + "started");
+        
+        SimpleDateFormat sdfOrg = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
+        SimpleDateFormat sdfNew = new SimpleDateFormat("dd/mm/yy", Locale.ENGLISH);
+        
+        String aDTString  = aDate.toString();
+        String returnDate = "";
+        
+        try
+        { returnDate = sdfNew.format(sdfOrg.parse(aDTString)); }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+        
+        return returnDate;
+    }
+    
+    /** Convert sql datetime format to string */
+    public static String getStringfromSQLDateTime(String aDateTime) throws SysException
+    {
+        String myName = "[" + MyClassName + "." + "getStringfromSQLDateTime" + "]";
+        logger.debug(myName + " " + "started");
+        
+        SimpleDateFormat sdfOrg = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH);
+        SimpleDateFormat sdfNew = new SimpleDateFormat("dd-MMM-yyyy HH:mm", Locale.ENGLISH);
+        
+        String returnDate ="";
+        try
+        {
+            returnDate = sdfNew.format(sdfOrg.parse(aDateTime));
+        }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+        
+        return returnDate;
+    }
+    
+    /** Format decimal number for display (e.g. in reports) */
+    public static String formatDecimal(double aNumber) throws SysException
+    {
+        String myName = "[" + MyClassName + "." + "formatDecimal" + "]";
+        logger.debug(myName + " " + "started");
+        
+        String resultStr = null;
+        
+        try
+        {
+            if (aNumber == -999)
+                resultStr = "<No offer>";
+            else
+            {
+                NumberFormat formatter = new DecimalFormat("#,###,###,##0.00########");
+                resultStr = formatter.format(aNumber);
+            }
+        }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+        
+        return resultStr;
+    }
+    
+    /** Get current date and time */
+    public static String getCurDateTimeStr(String format) throws SysException
+    {
+        String myName = "[" + MyClassName + "." + "getCurDateTimeStr" + "]";
+        logger.debug(myName + " " + "started");
+        
+        SimpleDateFormat sdf = null;
+        Calendar curCalendar = null;
+        
+        try
+        {
+            curCalendar = Calendar.getInstance();
+            // sdf = new SimpleDateFormat("yyyyMMddkkmmssSSS");
+            sdf = new SimpleDateFormat(format,Locale.ENGLISH);
+        }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+        
+        return sdf.format(curCalendar.getTime());
+    }
+    
+    /** Get current date and time */
+    public static java.sql.Date getCurDateTime() throws SysException
+    {
+        String myName = "[" + MyClassName + "." + "getCurDateTimeStr" + "]";
+        logger.debug(myName + " " + "started");
+        
+        Calendar curCalendar = null;
+        
+        try
+        {
+            curCalendar = Calendar.getInstance();
+        }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+        
+        return new java.sql.Date(curCalendar.getTime().getTime());
+    }
+    
+    /** Convert to sql date format */
+    public static java.sql.Date getSQLDate(Date aDate) throws SysException
+    {
+        String myName = "[" + MyClassName + "." + "getSQLDate" + "]";
+        logger.debug(myName + " " + "started");
+        
+        java.sql.Date returnDate = null;
+        
+        try
+        {
+            SimpleDateFormat sdfNew = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
+            returnDate = java.sql.Date.valueOf(sdfNew.format(aDate));
+        }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+        
+        return returnDate;
+    }
+    
+    /** Convert to sql date format */
+    public static java.sql.Date getSQLDate(String aDTString) throws SysException
+    {
+        String myName = "[" + MyClassName + "." + "getSQLDate" + "]";
+        logger.debug(myName + " " + "started");
+        
+        java.sql.Date returnDate = null;
+        
+        try
+        {
+            SimpleDateFormat sdfOrg = new SimpleDateFormat("dd-MMM-yyyy", Locale.ENGLISH);
+            SimpleDateFormat sdfNew = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
+            
+            Date aDate = sdfOrg.parse(aDTString);
+            returnDate = java.sql.Date.valueOf(sdfNew.format(aDate));
+        }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+        
+        return returnDate;
+    }
+    
+    public static String getFormatDateTimeStr(String aDTString, String orgFormat, String newFormat) throws SysException
+    {
+        String myName = "[" + MyClassName + "." + "getFormatDateTimeStr" + "]";
+        logger.debug(myName + " " + "started");
+        //yyyyMMddkkmmssSSS
+        String retDate = "";
+        
+        try
+        {
+            if (aDTString.equals("")) return "";
+            
+            SimpleDateFormat sdfOrg = new SimpleDateFormat(orgFormat, Locale.ENGLISH);
+            SimpleDateFormat sdfNew = new SimpleDateFormat(newFormat, Locale.ENGLISH);
+            
+            Date aDate = sdfOrg.parse(aDTString);
+            retDate    = sdfNew.format(aDate);
+        }
+        catch(Exception ex)
+        {throw new SysException(myName, ex.getMessage());}
+        
+        logger.debug(myName + " " + "ended");
+        
+        return retDate;
+    }
+    
+    /*
+    public static String getRandNum()
+    {
+        Random aRandom = new Random();
+        return (aRandom.nextInt(10000) + 1) + "." + (aRandom.nextInt(100)) ;
+    }
+     */
+    
+    public static String getFileName(String uri)
+    {
+        uri = uri.substring(uri.lastIndexOf("/") + 1);
+        
+        if (uri.indexOf("?") > 0)
+        { uri = uri.substring(0, uri.lastIndexOf("?")); }
+        
+        return uri;
+    }
+    
+    public static int pdfToImage(byte[] pdfFileBytes, HttpServletResponse response, String imageFileName, int page) throws SysException
+    {
+        String myName = "[" + MyClassName + "." + "pdfToImage" + "]";
+        logger.debug(myName + " " + "started");
+        
+        int noOfPage = 0;
+        
+        try
+        {
+            // Response Setting
+            response.setContentType("application/jpeg");
+            response.setHeader("Content-Disposition", "attachment;filename=\"" + imageFileName + "\"");
+            response.setHeader("Expires", "0");
+            response.setHeader("Cache-Control", "must-revalidate, post-check=0, pre-check=0");
+            response.setHeader("Pragma", "public");
+            
+            PdfDecoder decoder = new PdfDecoder();
+            
+            decoder.openPdfArray(pdfFileBytes);
+            
+            noOfPage = decoder.getPageCount();
+            
+            if (decoder.isFileViewable())
+            {
+                BufferedOutputStream out   = new BufferedOutputStream(response.getOutputStream());
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ImageOutputStream ios      = ImageIO.createImageOutputStream(baos);
+                
+                BufferedImage image= null;
+                
+                Iterator writerIter = ImageIO.getImageWritersByMIMEType("image/jpeg");
+                
+                boolean foundWriter = false;
+                
+                while (writerIter.hasNext() && !foundWriter)
+                {
+                    foundWriter = true;
+                    ImageWriter iwriter = (ImageWriter) writerIter.next();
+                    iwriter.setOutput(ios);
+                    
+                    ImageWriteParam param = iwriter.getDefaultWriteParam();
+                    
+                    param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                    //param.setCompressionQuality(0.75f);
+                    param.setCompressionQuality(0.9f);
+                    iwriter.prepareWriteSequence(null);
+                    
+                    image = decoder.getPageAsImage(page);
+                    PdfImageData imagedata = decoder.getPdfImageData();
+                    
+                    IIOImage iioImage = new IIOImage(image, null, null);
+                    
+                    iwriter.writeToSequence(iioImage, param);
+                    
+                    iwriter.endWriteSequence();
+                    ios.flush();
+                    iwriter.dispose();
+                    ios.close();
+                    
+                    IOUtils.write(baos.toByteArray(), out);
+                    
+                    out.flush();
+                }
+            }
+        }
+        catch (Exception ex)
+        {throw new SysException(myName, ex.getMessage());}
+        
+        logger.debug(myName + " " + "ended");
+        
+        return noOfPage;
+    }
+    
+    public static String generateRandomPassword(int length)
+    {
+    	String randomStr = UUID.randomUUID().toString();
+    	while(randomStr.length() < length) {
+    	     randomStr += UUID.randomUUID().toString();
+    	}
+    	return randomStr.substring(0, length);
+    }
+    
+    public static String getValue(String temp){
+    	return (temp == null )? "" : temp;
+    }
+    
+    public static int getIntValue(String temp){ 
+    	return ((temp == null )||("".equals(temp)))? -1 : Integer.parseInt(temp);
+    }
+}

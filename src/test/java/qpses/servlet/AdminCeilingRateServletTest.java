@@ -1,0 +1,361 @@
+package qpses.servlet;
+
+import static org.easymock.EasyMock.*;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.ServletInputStream;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.easymock.IMocksControl;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
+
+import qpses.business.CeilingRateInfo;
+import qpses.security.SecurityContext;
+import qpses.util.SysException;
+import qpses.util.SysManager;
+
+@RunWith(value = Parameterized.class)
+public class AdminCeilingRateServletTest {
+
+    private AdminCeilingRateServlet servlet;
+    private IMocksControl control;
+    private HttpServletRequest request;
+    private HttpServletResponse response;
+    private SecurityContext secCtx;
+    private HttpSession session;
+    private ServletOutputStream sos;
+    private ServletInputStream sis;
+    private RequestDispatcher dispatcher;
+    private String category;
+    
+    public AdminCeilingRateServletTest(String category) {
+	    this.category = category;
+	 }
+    
+    @Parameters
+	 public static List<Object[]> data() {
+	   Object[][] data = new Object[][] { { "SC1" }, { "SC2" }, { "SC3" }, { "SC4" }};
+	   return Arrays.asList(data);
+	 }
+	 
+	@Before
+	public void setUp(){
+    	control = createControl();
+        request = control.createMock(HttpServletRequest.class);
+        response = control.createMock(HttpServletResponse.class);
+        session = control.createMock(HttpSession.class);
+        sos = control.createMock(ServletOutputStream.class);
+        sis = control.createMock(ServletInputStream.class);
+        dispatcher = control.createMock(RequestDispatcher.class);
+        secCtx = new SecurityContext();
+		
+		secCtx.setUserId("junit.test");
+		secCtx.setDPDeptId("ogcio");
+		secCtx.setSOADeptId("OGCIO");
+	}
+
+	@After
+	public void tearDown(){
+    	servlet = null;
+    	control = null;
+    	request = null;
+    	response = null;
+    	secCtx = null;
+    	session = null;
+    	sos = null;
+    	sis = null;
+    	dispatcher = null;
+	}
+
+	@Test(expected=javax.servlet.ServletException.class)
+	public void testPerformCeilingRateUpload() throws ServletException, IOException {
+		servlet = new TestForAdminCeilingRateServlet();
+		byte[] fileBytes = new byte[] { (byte)0xe0, 0x4f, (byte)0xd0,
+			    0x20, (byte)0xea, 0x3a, 0x69, 0x10, (byte)0xa2, (byte)0xd8, 0x08, 0x00, 0x2b,
+			    0x30, 0x30, (byte)0x9d };
+		String fileName  = "a.docx";
+		
+		expect(request.getServletPath()).andReturn("/qpsadmin/CeilingRateUpload.servlet").anyTimes();
+		expect(request.getParameter("closing_date")).andReturn("11-May-2013").anyTimes();
+		expect(request.getParameter("contractor_id_list")).andReturn("HP,HKMCI").anyTimes();
+		expect(request.getParameter("contractor_list")).andReturn("HP,HKMCI").anyTimes();
+		expect(request.getParameter("sg")).andReturn("J").anyTimes();
+		expect(request.getParameter("show_subscore_rpt")).andReturn("y").anyTimes();
+		expect(request.getParameter(isA(String.class))).andReturn("1").anyTimes();
+        expect(request.getSession()).andReturn(session).anyTimes();
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx).anyTimes();
+        expect(session.getAttribute("WA_TYPE")).andReturn("proposal").anyTimes();
+        /* expect(session.getAttribute("QPSES_SRV_RPT_FILE_BYTES")).andReturn(fileBytes).anyTimes();
+        expect(session.getAttribute("QPSES_SRV_RPT_FILE_NAME")).andReturn(fileName).anyTimes(); */
+        expect(request.getContentType()).andReturn("multipart/mixed;boundary=gc0p4Jq0M2Yt08jU534c0p").anyTimes();
+        expect(request.getContentLength()).andReturn(100).anyTimes();
+        expect(request.getCharacterEncoding()).andReturn("UTF-8").anyTimes();
+        expect(response.getOutputStream()).andReturn(sos).anyTimes();
+        expect(request.getInputStream()).andReturn(sis).anyTimes();
+        expect(request.getRequestDispatcher(isA(String.class))).andReturn(dispatcher).anyTimes();
+        
+        expect(sis.read(isA(byte[].class),lt(100),gt(-1))).andReturn(1).anyTimes();
+        /* sos.write(fileBytes); 
+        expectLastCall().anyTimes(); */
+        sos.flush();
+        expectLastCall().anyTimes();
+        session.removeAttribute(isA(String.class));
+        expectLastCall().anyTimes();
+        session.setAttribute(isA(String.class),isA(CeilingRateInfo.class));
+        expectLastCall().anyTimes();
+        session.setAttribute(isA(String.class),isA(String.class));
+        expectLastCall().anyTimes();
+        session.setAttribute(isA(String.class),isA(byte[].class));
+        expectLastCall().anyTimes();
+        session.setAttribute(isA(String.class),isA(List.class));
+        expectLastCall().anyTimes();
+        dispatcher.forward(request, response);
+        expectLastCall().anyTimes();
+        response.setContentType(isA(String.class));
+        expectLastCall().anyTimes();
+        response.setContentLength(lt(100));
+        expectLastCall().anyTimes();
+        response.setHeader(isA(String.class),isA(String.class));
+        expectLastCall().anyTimes();
+        control.replay();
+    	
+        servlet.doGet(request, response);
+	}
+	
+	@Test
+	public void testPerformCeilingRateRelease() throws ServletException, IOException {
+		servlet = new TestForAdminCeilingRateServlet();
+		
+        expect(request.getServletPath()).andReturn("/qpsadmin/CeilingRateRelease.servlet").times(0,99);
+        expect(request.getSession()).andReturn(session).times(0,99);
+        expect(request.getHeader("referer")).andReturn("a.jsp").times(0,99);
+        expect(request.getParameter("selectedKey2")).andReturn("11-May-2013").times(0,99);
+        expect(request.getParameter(contains("Date"))).andReturn("11-May-2013").times(0,99);
+        expect(request.getParameter(isA(String.class))).andReturn("1").times(0,99);
+        
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx);
+        
+        // expect(request.getRequestDispatcher("../logout.jsp")).andReturn(dispatcher);
+        
+        session.removeAttribute(isA(String.class));
+        expectLastCall().times(0,99);
+        session.setAttribute(isA(String.class),isA(String.class));
+        expectLastCall().times(0,5);
+        session.setAttribute(isA(String.class),isA(HashMap.class));
+        expectLastCall().times(0,5);
+        session.setAttribute(isA(String.class),isA(CeilingRateInfo.class));
+        expectLastCall().times(0,5);
+        response.sendRedirect(isA(String.class));
+        expectLastCall().times(0,2);
+        control.replay();
+    	
+        servlet.doGet(request, response);
+	}
+	
+	@Test(expected=java.lang.NullPointerException.class)
+	public void testPerformCeilingRateReleaseNoParameters() throws ServletException, IOException {
+		servlet = new TestForAdminCeilingRateServlet();
+		
+        expect(request.getServletPath()).andReturn("/qpsadmin/CeilingRateRelease.servlet").times(0,99);
+        expect(request.getSession()).andReturn(session).times(0,99);
+        expect(request.getHeader("referer")).andReturn("a.jsp").times(0,99);
+        expect(request.getParameter("selectedKey2")).andReturn(null).times(0,99);
+        expect(request.getParameter(contains("Date"))).andReturn("11-May-2013").times(0,99);
+        expect(request.getParameter(isA(String.class))).andReturn("1").times(0,99);
+        expect(request.getRequestDispatcher(isA(String.class))).andReturn(dispatcher).times(0,99);
+        dispatcher.forward(isA(HttpServletRequest.class),isA(HttpServletResponse.class));
+        expectLastCall().times(0,5);
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx);
+        
+        // expect(request.getRequestDispatcher("../logout.jsp")).andReturn(dispatcher);
+        
+        session.removeAttribute(isA(String.class));
+        expectLastCall().times(0,99);
+        session.setAttribute(isA(String.class),isA(String.class));
+        expectLastCall().times(0,5);
+        session.setAttribute(isA(String.class),isA(HashMap.class));
+        expectLastCall().times(0,5);
+        session.setAttribute(isA(String.class),isA(CeilingRateInfo.class));
+        expectLastCall().times(0,5);
+        response.sendRedirect(isA(String.class));
+        expectLastCall().times(0,2);
+        control.replay();
+    	
+        servlet.doGet(request, response);
+	}
+	
+	@Test
+	public void testPerformCeilingRateDelete() throws ServletException, IOException {
+		servlet = new TestForAdminCeilingRateServlet();
+		
+        expect(request.getServletPath()).andReturn("/qpsadmin/CeilingRateDelete.servlet").times(0,99);
+        expect(request.getSession()).andReturn(session).times(0,99);
+        expect(request.getHeader("referer")).andReturn("a.jsp").times(0,99);
+        expect(request.getParameter("orgKey2")).andReturn("11-May-2013").times(0,99);
+        expect(request.getParameter(contains("Date"))).andReturn("11-May-2013").times(0,99);
+        expect(request.getParameter(isA(String.class))).andReturn("1").times(0,99);
+        
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx);
+        
+        // expect(request.getRequestDispatcher("../logout.jsp")).andReturn(dispatcher);
+        
+        session.removeAttribute(isA(String.class));
+        expectLastCall().times(0,99);
+        session.setAttribute(isA(String.class),isA(String.class));
+        expectLastCall().times(0,5);
+        session.setAttribute(isA(String.class),isA(HashMap.class));
+        expectLastCall().times(0,5);
+        session.setAttribute(isA(String.class),isA(CeilingRateInfo.class));
+        expectLastCall().times(0,5);
+        response.sendRedirect(isA(String.class));
+        expectLastCall().times(0,2);
+        control.replay();
+    	
+        servlet.doGet(request, response);
+	}
+	
+	@Test(expected=ServletException.class)
+	public void testPerformCeilingRateDeleteNoParameters() throws ServletException, IOException {
+		servlet = new TestForAdminCeilingRateServlet();
+		
+        expect(request.getServletPath()).andReturn("/qpsadmin/CeilingRateDelete.servlet").times(0,99);
+        expect(request.getSession()).andReturn(session).times(0,99);
+        expect(request.getHeader("referer")).andReturn("a.jsp").times(0,99);
+        expect(request.getParameter("orgKey2")).andReturn(null).times(0,99);
+        expect(request.getParameter(contains("Date"))).andReturn("11-May-2013").times(0,99);
+        expect(request.getParameter(isA(String.class))).andReturn("1").times(0,99);
+        expect(request.getParameter(isA(String.class))).andReturn("1").times(0,99);
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx);
+        expect(request.getRequestDispatcher(isA(String.class))).andReturn(dispatcher).times(0,99);
+        dispatcher.forward(isA(HttpServletRequest.class),isA(HttpServletResponse.class));
+        expectLastCall().times(0,5);
+        
+        // expect(request.getRequestDispatcher("../logout.jsp")).andReturn(dispatcher);
+        
+        session.removeAttribute(isA(String.class));
+        expectLastCall().times(0,99);
+        session.setAttribute(isA(String.class),isA(String.class));
+        expectLastCall().times(0,5);
+        session.setAttribute(isA(String.class),isA(HashMap.class));
+        expectLastCall().times(0,5);
+        session.setAttribute(isA(String.class),isA(CeilingRateInfo.class));
+        expectLastCall().times(0,5);
+        response.sendRedirect(isA(String.class));
+        expectLastCall().times(0,2);
+        control.replay();
+    	
+        servlet.doGet(request, response);
+	}
+	
+	@Test
+	public void testCeilingRateSearch() throws ServletException, IOException {
+		servlet = new TestForAdminCeilingRateServlet();
+		
+        expect(request.getServletPath()).andReturn("/qpsadmin/CeilingRateSearch.servlet").times(0,99);
+        expect(request.getSession()).andReturn(session).times(0,99);
+        expect(request.getHeader("referer")).andReturn("a.jsp").times(0,99);
+        expect(request.getParameter(contains("Date"))).andReturn("11-May-2013").times(0,99);
+        expect(request.getParameter(isA(String.class))).andReturn("1").times(0,99);
+        
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx);
+        
+        // expect(request.getRequestDispatcher("../logout.jsp")).andReturn(dispatcher);
+        
+        session.removeAttribute(isA(String.class));
+        expectLastCall().times(0,99);
+        session.setAttribute(isA(String.class),isA(String.class));
+        expectLastCall().times(0,5);
+        session.setAttribute(isA(String.class),isA(HashMap.class));
+        expectLastCall().times(0,5);
+        session.setAttribute(isA(String.class),isA(CeilingRateInfo.class));
+        expectLastCall().times(0,5);
+        response.sendRedirect("CeilingRateSearch.jsp");
+        expectLastCall().times(0,2);
+        control.replay();
+    	
+        servlet.doGet(request, response);
+	}
+	
+	@Test
+	public void testCeilingRateSearchReset() throws ServletException, IOException {
+		servlet = new TestForAdminCeilingRateServlet();
+		
+        expect(request.getServletPath()).andReturn("/qpsadmin/CeilingRateSearchReset.servlet").times(0,99);
+        expect(request.getSession()).andReturn(session).times(0,99);
+        expect(request.getHeader("referer")).andReturn("a.jsp").times(0,99);
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx);
+        
+        // expect(request.getRequestDispatcher("../logout.jsp")).andReturn(dispatcher);
+        
+        session.removeAttribute(isA(String.class));
+        expectLastCall().times(0,99);
+        session.setAttribute(isA(String.class),isA(String.class));
+        expectLastCall().times(0,2);
+        response.sendRedirect("a.jsp");
+        expectLastCall().times(0,2);
+        
+        control.replay();
+    	
+        servlet.doGet(request, response);
+	}
+	
+	@Test
+	public void testPerformCeilingRatePrintReport() throws ServletException, IOException, SysException {
+		servlet = new TestForAdminCeilingRateServlet();
+
+		CeilingRateInfo cr = new CeilingRateInfo();
+		cr.setServiceCategory(category);
+		cr.setEffectiveDate(SysManager.getSQLDate("11-Jan-2013"));
+		
+        expect(request.getServletPath()).andReturn("/qpsadmin/CeilingRatePrintReport.servlet").times(0,99);
+        expect(request.getSession()).andReturn(session).times(0,99);
+        expect(request.getHeader("referer")).andReturn("a.jsp").times(0,99);
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx).times(0,99);
+        expect(session.getAttribute("PRINT_CEILING_RATE_DATA")).andReturn(cr).times(0,99);
+        expect(request.getParameter("selectedKey1")).andReturn(category).times(0,99);
+        expect(request.getParameter("selectedKey2")).andReturn("11-Jan-2013").times(0,99);
+        expect(response.getOutputStream()).andReturn(sos).anyTimes();
+        // expect(request.getRequestDispatcher("../logout.jsp")).andReturn(dispatcher);
+        
+        session.removeAttribute(isA(String.class));
+        expectLastCall().times(0,99);
+        session.setAttribute(isA(String.class),isA(String.class));
+        expectLastCall().times(0,2);
+        session.setAttribute(isA(String.class),isA(ByteArrayOutputStream.class));
+        expectLastCall().times(0,2);
+        response.sendRedirect("a.jsp");
+        expectLastCall().times(0,2);
+        sos.flush();
+        expectLastCall().times(0,2);
+        sos.write(isA(byte[].class),lt(100),gt(-1));
+        expectLastCall().times(0,2);
+        
+        response.setContentType(isA(String.class));
+        expectLastCall().times(0,99);
+        response.setHeader(isA(String.class), isA(String.class));
+        expectLastCall().times(0,99);
+        response.setContentLength(lt(10000000));
+        expectLastCall().times(0,99);
+       
+        
+        control.replay();
+    	
+        servlet.doGet(request, response);
+	}
+
+}

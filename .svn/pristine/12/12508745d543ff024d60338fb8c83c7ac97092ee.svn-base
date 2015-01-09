@@ -1,0 +1,159 @@
+-- MySQL script for QPS3 Database
+-- Design DB schema for generating Statistics Report
+-- HKMCI appends their change to this DB script after running all phrase1 SQL script
+-- ------------------------------------------------------
+-- Server version 5.5-community
+
+USE QPSIS;
+
+UPDATE privilege SET 
+	control_file_list = 'Statistics.jsp,StatSearch.servlet,StatSearchReset.servlet,StatDownloadReport.servlet,SystemOut.servlet'
+	WHERE privilege_id = 'M001';
+
+--
+-- Procedure `qpsis`.`sp_select_no_of_cpar`
+--
+
+DROP PROCEDURE IF EXISTS `sp_select_no_of_cpar`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_select_no_of_cpar`(
+ IN p_issue_start_date Date,
+ IN p_issue_end_date Date,
+ IN p_award_start_date Date,
+ IN p_award_end_date Date)
+BEGIN
+   SELECT COUNT(*) AS num from cpar 
+	JOIN work_assignment as wa
+		On cpar.service_category_group = wa.service_category_group 
+			AND cpar.project_file_part = wa.project_file_part
+			AND cpar.project_file_no = wa.project_file_no
+			AND cpar.department_id = wa.department_id		
+	WHERE  wa.issue_date >=  p_issue_start_date
+            AND wa.issue_date <=  p_issue_end_date
+			AND wa.awarded_date >= p_award_start_date
+            AND wa.awarded_date <= p_award_end_date ;
+
+END $$
+
+DELIMITER ;
+
+
+COMMIT;
+
+SELECT * FROM qpsis.work_assignment;
+
+/* a_x */
+SELECT COUNT(*) AS a_x FROM qpsis.work_assignment;
+/* a_y */
+SELECT COUNT(*) AS a_y FROM qpsis.work_assignment WHERE assignment_status in ('n', 'c');
+/* a_c */
+SELECT SUM(total_project_cost) AS a_c FROM qpsis.work_assignment;
+/* a_a */
+SELECT SUM(awarded_contract_value) AS a_a FROM qpsis.work_assignment;
+/* a_b */
+SELECT SUM(aggregated_effort) AS a_b FROM qpsis.work_assignment;
+/* a_m */
+SELECT COUNT(*) AS a_m FROM qpsis.work_assignment WHERE assignment_status = 'n';
+/* a_n */
+SELECT COUNT(*) AS a_n FROM qpsis.work_assignment WHERE assignment_status = 'c';
+/* a_z */
+SELECT COUNT(*) AS a_z FROM qpsis.work_assignment WHERE assignment_status in ('w', 'x');
+/* a_p 
+No. of CPAR received:*/
+
+/*=================================================================================================
+	Cat 1*/
+
+/* b_c1_y */
+SELECT COUNT(*) AS b_c1_y FROM qpsis.work_assignment WHERE assignment_status in ('n', 'c') AND service_category_group = '1';
+/* b_c1_m */
+SELECT COUNT(*) AS b_c1_m FROM qpsis.work_assignment WHERE assignment_status = 'n'AND service_category_group = '1';
+/* b_c1_n */
+SELECT COUNT(*) AS b_c1_n FROM qpsis.work_assignment WHERE assignment_status = 'c'AND service_category_group = '1';
+/* b_c1_c */
+SELECT SUM(total_project_cost) AS b_c1_c FROM qpsis.work_assignment WHERE service_category_group = '1';
+/* b_c1_a */
+SELECT SUM(awarded_contract_value) AS b_c1_a FROM qpsis.work_assignment WHERE service_category_group = '1';
+/* b_c1_b */
+SELECT SUM(aggregated_effort) AS b_c1_b FROM qpsis.work_assignment WHERE service_category_group = '1';
+
+/*=================================================================================================
+	Cat 2/J*/
+
+/* b_c2j_y */
+SELECT COUNT(*) AS b_c2j_y FROM qpsis.work_assignment WHERE assignment_status in ('n', 'c') AND service_category_group = '2/J';
+/* b_c2j_m */
+SELECT COUNT(*) AS b_c2j_m FROM qpsis.work_assignment WHERE assignment_status = 'n'AND service_category_group = '2/J';
+/* b_c2j_n */
+SELECT COUNT(*) AS b_c2j_n FROM qpsis.work_assignment WHERE assignment_status = 'c'AND service_category_group = '2/J';
+/* b_c2j_c */
+SELECT SUM(total_project_cost) AS b_c2j_c FROM qpsis.work_assignment WHERE service_category_group = '2/J';
+/* b_c2j_a */
+SELECT SUM(awarded_contract_value) AS b_c2j_a FROM qpsis.work_assignment WHERE service_category_group = '2/J';
+/* b_c2j_b */
+SELECT SUM(aggregated_effort) AS b_c2j_b FROM qpsis.work_assignment WHERE service_category_group = '2/J';
+
+/*=================================================================================================
+	Cat 2/N*/
+
+/* b_c2n_y */
+SELECT COUNT(*) AS b_c2n_y FROM qpsis.work_assignment WHERE assignment_status in ('n', 'c') AND service_category_group = '2/N';
+/* b_c2n_m */
+SELECT COUNT(*) AS b_c2n_m FROM qpsis.work_assignment WHERE assignment_status = 'n'AND service_category_group = '2/N';
+/* b_c2n_n */
+SELECT COUNT(*) AS b_c2n_n FROM qpsis.work_assignment WHERE assignment_status = 'c'AND service_category_group = '2/N';
+/* b_c2n_c */
+SELECT SUM(total_project_cost) AS b_c2n_c FROM qpsis.work_assignment WHERE service_category_group = '2/N';
+/* b_c2n_a */
+SELECT SUM(awarded_contract_value) AS b_c2n_a FROM qpsis.work_assignment WHERE service_category_group = '2/N';
+/* b_c2n_b */
+SELECT SUM(aggregated_effort) AS b_c2n_b FROM qpsis.work_assignment WHERE service_category_group = '2/N';
+
+/*=================================================================================================
+	Cat 3/J*/
+
+/* b_c3j_y */
+SELECT COUNT(*) AS b_c3j_y FROM qpsis.work_assignment WHERE assignment_status in ('n', 'c') AND service_category_group = '3/J';
+/* b_c3j_m */
+SELECT COUNT(*) AS b_c3j_m FROM qpsis.work_assignment WHERE assignment_status = 'n'AND service_category_group = '3/J';
+/* b_c3j_n */
+SELECT COUNT(*) AS b_c3j_n FROM qpsis.work_assignment WHERE assignment_status = 'c'AND service_category_group = '3/J';
+/* b_c3j_c */
+SELECT SUM(total_project_cost) AS b_c3j_c FROM qpsis.work_assignment WHERE service_category_group = '3/J';
+/* b_c3j_a */
+SELECT SUM(awarded_contract_value) AS b_c3j_a FROM qpsis.work_assignment WHERE service_category_group = '3/J';
+/* b_c3j_b */
+SELECT SUM(aggregated_effort) AS b_c3j_b FROM qpsis.work_assignment WHERE service_category_group = '3/J';
+
+/*=================================================================================================
+	Cat 3/N*/
+
+/* b_c3n_y */
+SELECT COUNT(*) AS b_c3n_y FROM qpsis.work_assignment WHERE assignment_status in ('n', 'c') AND service_category_group = '3/N';
+/* b_c3n_m */
+SELECT COUNT(*) AS b_c3n_m FROM qpsis.work_assignment WHERE assignment_status = 'n'AND service_category_group = '3/N';
+/* b_c3n_n */
+SELECT COUNT(*) AS b_c3n_n FROM qpsis.work_assignment WHERE assignment_status = 'c'AND service_category_group = '3/N';
+/* b_c3n_c */
+SELECT SUM(total_project_cost) AS b_c3n_c FROM qpsis.work_assignment WHERE service_category_group = '3/N';
+/* b_c3n_a */
+SELECT SUM(awarded_contract_value) AS b_c3n_a FROM qpsis.work_assignment WHERE service_category_group = '3/N';
+/* b_c3n_b */
+SELECT SUM(aggregated_effort) AS b_c3n_b FROM qpsis.work_assignment WHERE service_category_group = '3/N';
+
+/*=================================================================================================
+	Cat 4*/
+
+/* b_c4_y */
+SELECT COUNT(*) AS b_c4_y FROM qpsis.work_assignment WHERE assignment_status in ('n', 'c') AND service_category_group = '4';
+/* b_c4_m */
+SELECT COUNT(*) AS b_c4_m FROM qpsis.work_assignment WHERE assignment_status = 'n'AND service_category_group = '4';
+/* b_c4_n */
+SELECT COUNT(*) AS b_c4_n FROM qpsis.work_assignment WHERE assignment_status = 'c'AND service_category_group = '4';
+/* b_c4_c */
+SELECT SUM(total_project_cost) AS b_c4_c FROM qpsis.work_assignment WHERE service_category_group = '4';
+/* b_c4_a */
+SELECT SUM(awarded_contract_value) AS b_c4_a FROM qpsis.work_assignment WHERE service_category_group = '4';
+/* b_c4_b */
+SELECT SUM(aggregated_effort) AS b_c4_b FROM qpsis.work_assignment WHERE service_category_group = '4';

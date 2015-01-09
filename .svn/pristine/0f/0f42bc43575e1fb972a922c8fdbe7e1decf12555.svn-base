@@ -1,0 +1,103 @@
+<%@page contentType="text/html"%>
+<%@page pageEncoding="UTF-8"%>
+<%@ page import="qpses.business.DeptInfo"%>
+<%
+
+    // initialize variable
+    String dp_dept_id = "";
+    String soa_dept_id = "";
+    String dept_name = "";
+
+    // check  for message
+    String msg =   getValue((String)  session.getAttribute("DEPARTMENT_MSG"));
+    String msgtype =   getValue((String)  session.getAttribute("DEPARTMENT_MSG_TYPE"));
+    if (!msg.equals("")){
+        session.removeAttribute("DEPARTMENT_MSG");
+        session.removeAttribute("DEPARTMENT_MSG_TYPE");
+    }
+
+    // get last input from session variable, if any
+    DeptInfo dept = new DeptInfo();
+    dept = (DeptInfo) session.getAttribute("DEPARTMENT_DATA");
+    if (dept!=null){
+        dp_dept_id = dept.getDPDeptId();
+        soa_dept_id = dept.getSOADeptId();
+        dept_name = dept.getDeptName();
+        session.removeAttribute("DEPARTMENT_DATA");
+    }
+
+%>
+<%!private String getValue(String temp){ return (temp == null )? "" : temp;}%>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title>SOA-QPS3 Quality Professional Services Information System Administration - Add Department</title>
+        <link rel="STYLESHEET" type="text/css" href="../styles/style.css">
+        <script language="JavaScript" src="../js/deptcheck.js" type="text/javascript"></script>                   
+    </head>
+    <body>
+        <%@include file="include/header.jsp"%>        
+        <fieldset class="function"> 
+            <table class="function_title"><tr><td>Department Code Maintenance</td></tr></table>            		        
+            <form name="form1" method="POST" action="">            
+                <table border="0" cellspacing="0" cellpadding="0" width="98%" class="tableborder" align="center">
+                    <tr> 
+                        <td width="14%" class="tabUnselectLeft"  onclick="changepage('List')">B/D List</td>
+                        <td width="11%" class="tabSelectedMiddle">Add 
+                        </td>
+                        <td width="12%" class="tabUnselectRight" onclick="changepage('Search')">Search</td>
+                        <td width="63%">&nbsp;</td>
+                    </tr>
+                </table> 
+                <table border="0" cellspacing="0" cellpadding="0" width="98%" class="tableborder" align="center">
+                    <tr class="title1"> 
+                        <td>Add Department</td>
+                    </tr>
+                    <tr>
+                    <tr> 
+                        <td> <%= (! msg.equals(""))? "<div class=\"errMessage\">"+ msg + "</div>":""%></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <table  width="98%" cellspacing="1" class="tableBackground">
+                                <tr> 
+                                    <td class="tableVerticalHeaderAlignLeft1" width="26%">Department 
+                                    Code (DP)</td>
+                                    <td class="tableVerticalContentAlignLeft1" width="74%"> 
+                                        <input type="text" name="DPDeptId" value="<%=dp_dept_id%>" size="50" maxlength="10" class="inputText" />
+                                    </td>
+                                </tr>
+                                <tr width="15%"> 
+                                    <td class="tableVerticalHeaderAlignLeft1" width="26%">Department 
+                                    Code (SOA-QPS)</td>
+                                    <td class="tableVerticalContentAlignLeft1" width="74%"> 
+                                        <input type="text" name="SOADeptId" value="<%=soa_dept_id%>" size="50" maxlength="10" class="inputText" />
+                                    </td>
+                                </tr>
+                                <tr> 
+                                    <td class="tableVerticalHeaderAlignLeft1" width="26%">Department 
+                                    Name</td>
+                                    <td class="tableVerticalContentAlignLeft1" width="74%"> 
+                                        <input type="text" name="DeptName" class="inputText" size="80" maxlength="200" value="<%=dept_name%>">
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+                <div align="center"></div>
+                <table border="0" cellpadding="3" align="center">
+                    <tr> 
+                        <td width="50%">                             
+                            <div align="center"> <a href="#"><img src="../images/btn_add.jpg" width="98" height="42" name="ConfirmAdd" onClick="selectaction(form1,this)" border="0" alt="Add"></a></div>
+                        </td>
+                        <td width="50%">                             
+                            <div align="center"> <a href="#"><img src="../images/btn_cancel.jpg" width="98" height="42" name="Cancel" onClick="selectaction(form1,this)" border="0" alt="Cancel"></a></div>
+                        </td>
+                    </tr>
+                </table>    
+                <input type="hidden" name="PostScreen" value="DeptList.jsp">                      
+            </form>  
+        </fieldset>		
+    </body>
+</html>

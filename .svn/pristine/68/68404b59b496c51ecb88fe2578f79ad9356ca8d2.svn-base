@@ -1,0 +1,204 @@
+<%@page contentType="text/html"%>
+<%@page pageEncoding="UTF-8"%>
+
+<%@page import="java.util.List"%>
+<%@page import="qpses.business.*"%>
+<%@page import="qpses.util.*"%>
+
+ <%
+     String waType = (String)request.getSession().getAttribute("WA_TYPE");
+
+     if (waType == null)
+     { throw new Exception("Session [WAType] is NULL"); }
+
+     String waTypeStr = (waType.equals("proposal") ? "Proposal Evaluation" : "Change Request");
+
+     WAChallengeInfo wac =(WAChallengeInfo)(request.getSession().getAttribute("QPSES_WA_CHALLENGE"));
+
+     if (wac == null)
+     {throw new ServletException( "Unable to get work assignment challenge session.");}
+
+     // Get Service Category/Group
+     String scg = wac.getServiceCategoryGroup();
+     String sc  = scg.substring(0, 1);
+     String sg  = "";
+     String scgName = "";
+     if (sc.equals("1") || sc.equals("4"))
+     {
+        scgName = "Service Category " + sc;
+     }
+     else
+     {
+        sg  = scg.substring(2, 3);
+        scgName = "Service Category " + sc + " " + (sg.equals("J") ? "Major" : "Minor") + " Group";
+     }
+     
+     // Get Closing Date String
+     String closingDate = SysManager.getStringfromSQLDate(wac.getClosingDate());
+
+     // Get Department Name
+     String deptName = (String)request.getSession().getAttribute("SRV_DEPT_NAME");
+      if (deptName == null)
+     {throw new ServletException( "Unable to get department name.");}   
+
+     // Get Parameters on submit this form
+     String contractorIDList = request.getParameter("contractor_id_list");
+     if (contractorIDList == null) contractorIDList = "";
+
+     String mScheme = request.getParameter("m_scheme");
+     if (mScheme == null) mScheme = "";
+
+
+     // Get function title
+     String functionTitle = "";
+
+     if (waType.equals("proposal") && (sc.equals("2") || sc.equals("3")))
+         functionTitle = "Staff Rate Validation for " + waTypeStr + " - Select Contractor & Maintenance Scheme";
+     else if (waType.equals("change_request") && (sc.equals("2") || sc.equals("3")))
+         functionTitle = "Staff Rate Validation for " + waTypeStr + " - Select Maintenance Scheme";
+     else
+         functionTitle = "Staff Rate Validation for " + waTypeStr + " - Select Contractor";
+ %>
+    
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title><%=functionTitle%></title> 
+        <script language="javascript" type="text/javascript" src="../js/StaffRateValidationUser.js"></script>
+        <link rel="stylesheet" type="text/css" href="../styles/styles_user.css">
+    </head>    
+    <body onload="GetContractor_OnLoad()" id="form">
+        <%@include file="include/header.jsp"%>     
+        <form name="form" method="post" action="">
+            <input type="hidden" name="request_action"        value=""> 
+            <input type="hidden" name="contractor_id_list"    value="<%=contractorIDList%>">
+            <input type="hidden" name="contractor_list"       value="">
+            <input type="hidden" name="m_scheme"              value="<%=mScheme%>">
+            <input type="hidden" name="d_contractor_id_list"  value="<%=wac.getDebarredContractor()%>">
+            <input type="hidden" name="d_contractor_list"     value="<%=wac.getDebarredContractorName()%>">
+            <input type="hidden" name="scg"                   value="<%=scg%>">
+            <input type="hidden" name="sc"                    value="<%=sc%>">
+            <input type="hidden" name="sg"                    value="<%=sg%>">            
+            <input type="hidden" name="scg_name"              value="<%=scgName%>">                        
+            <input type="hidden" name="dept_id"               value="<%=wac.getDepartmentId()%>">
+            <input type="hidden" name="dept_name"             value="<%=deptName%>">
+            <input type="hidden" name="closing_date"          value="<%=closingDate%>">
+            <input type="hidden" name="wa_title"              value="<%=wac.getTitle().replaceAll("\"", "&quot;")%>">
+            <input type="hidden" name="wa_file_part"          value="<%=wac.getFilePartNo()%>">
+            <input type="hidden" name="wa_file_no"            value="<%=wac.getFileNo()%>">         
+            <input type="hidden" name="wa_awarded_contractor" value="<%=wac.getAwardedContractorName() %>">
+            <input type="hidden" name="wa_awarded_date"       value="<%=wac.getAwardedDate()%>">
+            <input type="hidden" name="wa_authorized_person"  value="<%=wac.getAuthorizedPerson()%>">
+            <input type="hidden" name="wa_type"               value="<%=waType%>">            
+            <input type="hidden" name="prev_page"             value="<%=(waType.equals("proposal") ? "StaffRateValidationSLUser" : "StaffRateValidationCRSLUser")%>"> 
+            
+            <fieldset class="function">   
+                <table class="function_title"><tr><td><%=functionTitle%></td></tr></table> 
+                
+                <fieldset class="sub_function">
+                    <legend class="sub_function">Work Assignment Information</legend>
+                    <table class="no_border" width="97.5%">
+                        <tr valign="top"><td width="195"><b>Service Category/Group          </b></td><td width="2">:</td><td><%=scgName%></td></tr>
+                        <tr valign="top"><td            ><b>Work Assignment Title           </b></td><td          >:</td><td><%=wac.getTitle()%></td></tr>
+                        <tr valign="top"><td            ><b>Bureau/Department               </b></td><td          >:</td><td><%=deptName%></td></tr>
+                        <% if (waType.equals("proposal")) {%>
+                        <tr valign="top"><td            ><b>Proposal Submission Closing Date</b></td><td          >:</td><td><%=closingDate%></td></tr>
+                        <% } %>
+                        <% if (waType.equals("change_request")) {%>
+                        <tr valign="top"><td            ><b>Authorized Person               </b></td><td          >:</td><td><%=wac.getAuthorizedPerson() %></td></tr>
+                        <tr valign="top"><td            ><b>Awarded Date                    </b></td><td          >:</td><td><%=wac.getAwardedDate() %></td></tr>
+                        <tr valign="top"><td            ><b>Awarded Contractor              </b></td><td          >:</td><td><%=wac.getAwardedContractorName() %></td></tr>
+                        <% } %>
+                    </table>
+                </fieldset>
+
+                <fieldset class="sub_function" <%=(waType.equals("change_request") ? "style=\"display:none\"" : "")%>>
+                    <legend class="sub_function">Contractors</legend>            
+                    <table class="default" width="70%">
+                        <%
+                            try
+                            {
+                                List allContractorInfo = (List)request.getSession().getAttribute("allContractorInfo");
+
+                                if (allContractorInfo == null)  throw new Exception("Session [allContractorInfo] is NULL");
+
+                                int count = 0;
+
+                                for (int i = 0; i < allContractorInfo.size(); i++)
+                                {
+                                    ContractorInfo aContractorInfo = (ContractorInfo)allContractorInfo.get(i);
+
+                                    if (waType.equals("change_request") && !aContractorInfo.getContractorId().equals(wac.getAwardedContractor()))
+                                        continue;
+
+                                    count++;
+
+                                    String rowClassName = (count % 2 == 1) ? "list_odd" : "list_even";
+                        %>
+                        <tr class="<%=rowClassName%>" onmouseover="this.className='list_hl'" onmouseout="this.className='<%=rowClassName%>'">
+                            <td class="default" width="60%"><%=aContractorInfo.getContractorName()%></td>
+                            <%
+                                if (wac.getDebarredContractorName().contains(aContractorInfo.getContractorName()))
+                                { %> <td class="default" align="center" align="center"><font class="warning">Not Invited</font></td> <% }
+                                else if (wac.getSysDebarredContractorName().contains(aContractorInfo.getContractorName()))
+                                { %> <td class="default" align="center" align="center"><font class="warning">Debarred by OGCIO</font></td> <% }
+                                else{
+                                %> <td class="default" align="center"><input type="checkbox" name="ChkBox_<%=aContractorInfo.getContractorId()%>" value="<%=aContractorInfo.getContractorName()%>" ></td> <% }
+                            %>
+                        </tr>
+                        <%
+                                    } // end for
+                                }
+                                catch(Exception ex)
+                                { throw new Exception(ex.getMessage()); }
+                        %>
+                    </table>
+                </fieldset>
+
+                <% if (sc.equals("2")) 
+                    {
+                %>
+                <fieldset class="sub_function">
+                    <legend class="sub_function">Maintenance Scheme</legend>            
+                    <table class="no_border" width="97.5%">
+                        <tr class="no_border" align="center">
+                            <td><input type="radio" name="list_mscheme" value="1">Scheme - M1</td>
+                            <td><input type="radio" name="list_mscheme" value="2">Scheme - M2</td>
+                            <td><input type="radio" name="list_mscheme" value="3">Scheme - M3</td>
+                        </tr>
+                    </table>
+                </fieldset>
+                <% } %>
+
+                <% if (sc.equals("3")) 
+                    {
+                %>
+                <fieldset class="sub_function">
+                    <legend class="sub_function">Maintenance Scheme</legend>            
+                    <table class="no_border" width="97.5%">
+                        <tr class="no_border" align="center">
+                            <td width="250"><input type="radio" name="list_mscheme" value="0">No Maintenance Scheme</td>
+                            <td><input type="radio" name="list_mscheme" value="1">Scheme - M1</td>
+                            <td><input type="radio" name="list_mscheme" value="2">Scheme - M2</td>
+                            <td><input type="radio" name="list_mscheme" value="3">Scheme - M3</td>
+                        </tr>
+                    </table>
+                </fieldset>
+                <% } %>
+                
+                <table class="no_border" width="97.5%">
+                    <tr> 
+                        <td align="right" width="49%">                         
+                            <img type="image" name="Cancel" class="function_button" src="../images/btn_back.jpg" alt="Go back to previous screen" onclick="GetContractor_BtnBackOnClick()">
+                        </td>                    
+                        <td>&nbsp;</td>
+                        <td align="left" width="49%">
+                            <img type="image" name="Next" class="function_button" src="../images/btn_next.jpg" alt="Go to next screen" onclick="GetContractor_BtnNextOnClick()">
+                        </td>
+                    </tr>
+                </table>
+ 
+            </fieldset>            
+        </form>
+    </body>
+</html>

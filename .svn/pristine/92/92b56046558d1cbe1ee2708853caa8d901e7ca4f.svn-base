@@ -1,0 +1,164 @@
+.defaultfont
+{
+    FONT-FAMILY: Helvetica, Arial, Sans-Serif;
+    FONT-SIZE: 12;
+}
+A.header_menu
+{
+    FONT-FAMILY: Helvetica, Arial, Sans-Serif;
+    FONT-SIZE: 12;
+    FONT-WEIGHT: bold; 
+    color: DarkSlateBlue;
+}
+
+A.table_header
+{
+    FONT-FAMILY: Helvetica, Arial, Sans-Serif;
+    FONT-SIZE: 12;
+    FONT-WEIGHT: bold; 
+    color: #333333;
+}
+A.table_header:hover
+{
+    color: brown;
+    text-decoration: underline;
+}
+
+A.header_menu:hover
+{
+    color: brown;
+    text-decoration: underline;
+}
+.header_menu_nohover
+{
+    FONT-FAMILY: Helvetica, Arial, Sans-Serif;
+    FONT-SIZE: 12;
+    FONT-WEIGHT: bold; 
+    color: DarkSlateBlue;
+}
+
+.header_sub_menu
+{
+    FONT-FAMILY: Helvetica, Arial, Sans-Serif;
+    FONT-SIZE: 12;
+    FONT-WEIGHT: bold; 
+    color: DarkSlateBlue;
+}
+BODY{ 
+    margin: 0;
+    FONT-FAMILY: Helvetica, Arial, Sans-Serif;
+    FONT-SIZE: 12;
+    background: url(../images/banner_background.jpg) repeat-x top;
+    }
+a:link { Text-Decoration : none}
+a:visited { Text-Decoration : none}
+a:hover { text-decoration:underline}
+.title2 { font-family: "Arial", "Helvetica", "sans-serif"; font-size: 
+medium; font-weight: normal}
+.title1 { font-family: "Arial", "Helvetica", "sans-serif"; 
+font-size: 16px; font-weight: 600; color: #2C337A; text-align: left}
+.tableTitle1 { font-family: "Arial", "Helvetica", 
+"sans-serif"; font-size: smaller; font-weight: 600; background-color: #FFFFFF; padding-top: 4px; padding-bottom: 4px; padding-left: 5px; border: #CCCCFF ridge; border-width: 1px 1px 0px; text-align: center; padding-right: 5px; color: #333333; cursor: hand} 
+.tableHeaderAlignCenter1 { 
+font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12px; font-weight: 
+700 ; text-align: center; vertical-align: bottom; border: 0px ridge; padding-top: 10px; padding-bottom: 5px; border-color: black black #B5DAFF; background-image: url(../images/header_background.jpg); color: #333333} 
+.tableHeaderAlignLeft1 { 
+font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12px; font-weight: 
+700 ; text-align: left; vertical-align: bottom; border: 0px ridge; padding-top: 10px; padding-bottom: 5px; border-color: black black #B5DAFF; background-image: url(../images/header_background.jpg); color: #333333} 
+.tableHeaderAlignRight1 {
+font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12px; font-weight: 
+700 ; text-align: right; vertical-align: bottom; border: 0px ridge; padding-top: 10px; padding-bottom: 5px; border-color: black black #B5DAFF; background-image: url(../images/header_background.jpg); color: #333333} 
+.tableBackground { background-color: #9999CC; border: #CCCCFF solid; border-width: 0px 3px 3px 0px; background-position: center} 
+.tableContentAlignRight1 { font-family: "Arial", "Helvetica", "sans-serif"; font-size: smaller; text-align: left; background-color: #F9F9F9; vertical-align: text-top; padding-top: 5px}
+.tableContentAlignCenter1 { font-family: "Arial", "Helvetica", "sans-serif"; font-size: smaller; text-align: center; background-color: #F9F9F9; vertical-align: text-top; border: black; padding-top: 5px}
+.tableContentAlignCenter2 { font-family: "Arial", "Helvetica", "sans-serif"; font-size: smaller; text-align: center; background-color: #F9F9F9; vertical-align: text-top; padding-top: 5px}
+.tableContentAlignLeft1 { font-family: "Arial", "Helvetica", "sans-serif"; font-size: smaller; text-align: left; background-color: #F9F9F9; vertical-align:  text-top; padding-left: 10px; padding-top: 5px}
+.tableBackgroundCopy { background-color: #006699; border-color: #CCCCFF #999999 #999999 #CCCCFF; border-style: solid; border-top-width: 5px; border-right-width: 3px; border-bottom-width: 3px; border-left-width: 3px }
+.tableTitleBackground1 { background-color: #E7E7E7; padding-top: 10px; padding-bottom: 10px; padding-left: 5px; border: solid; border-width: 0px 2px 2px 1px; border-color: #CCCCFF #999999 #999999 #CCCCFF}
+.errMessageBox {  background-color: #FDC4C9; text-align: center; font-family: "Arial", "Helvetica", "sans-serif"; font-size: small; font-style: normal; font-weight: 600; color: #333333; overflow: visible; visibility: visible; clip:        rect(   ); background-position: center center; position: relative; left: 200px; height: 10px; width: 400px; padding-top: 10px; padding-right: 10px; padding-bottom: 10px; padding-left: 10px; border-style: double; border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px}
+.tableVerticalHeaderAlignCenter1 { 
+font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12; font-weight: 
+700 ; text-align: center; vertical-align: text-top; border: 0px black ridge; padding-right: 10px; padding-top: 5px;background-image: url(../images/vertical_header_background.jpg);; color: #333333} 
+.tableVerticalHeaderAlignLeft1 { 
+font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12; font-weight: 
+700 ; text-align: left; vertical-align: text-top; border: 0px black ridge; padding-right: 10px; padding-top: 5px;background-image: url(../images/vertical_header_background.jpg); padding-left: 5px; color: #333333} 
+.tableVerticalHeaderAlignRight1 {
+font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12; font-weight: 
+700 ; text-align: right; vertical-align: text-top; border: 0px black ridge; padding-right: 10px; padding-top: 5px;background-image: url(../images/vertical_header_background.jpg);; color: #333333} 
+.tableVerticalContentAlignRight1 { font-family: "Arial", "Helvetica", "sans-serif"; font-size: smaller; text-align: left; background-color: #F9F9F9; padding-right: 10px; padding-top: 5px; padding-bottom: 5px}
+.tableVerticalContentAlignCenter1 { font-family: "Arial", "Helvetica", "sans-serif"; font-size: smaller; text-align: center; background-color: #F9F9F9; border: black; padding-right: 10px; padding-top: 5px; padding-bottom: 5px}
+.tableVerticalContentAlignLeft1 { font-family: "Arial", "Helvetica", "sans-serif"; font-size: smaller; text-align: left; background-color: #F9F9F9; padding-left: 10px; padding-right: 10px; padding-top: 5px; padding-bottom: 5px}
+.message1 {  font-family: "Arial", "Helvetica", "sans-serif"; font-size: medium; font-weight: 500}
+.inputText {  font-family: "Arial", "Helvetica", "sans-serif"; font-weight: normal}
+.menubarBackground1 {  background-color: #C0DFFE}
+.menubarText1 {  font-family: "Arial", "Helvetica", "sans-serif"; font-size: small; color: #000000; padding-top: 5px; padding-right: 5px; padding-bottom: 5px; padding-left: 5px}
+.DefaultText { font-family: "Arial", "Helvetica", "sans-serif"; font-weight: normal }
+.tableTitleUnselect1 { font-family: "Arial", "Helvetica", "sans-serif"; font-size: smaller; font-weight: 600; background-color: #FFFFFF; padding-top: 4px; padding-bottom: 4px; padding-left: 5px; border: #CCCCFF solid; text-align: center; padding-right: 5px; color: #333333 ; border-width: 1px 1px 0px; cursor: hand}
+.tabSelectedLeft { font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12; font-weight: 600; padding-top: 4px; padding-bottom: 4px; padding-left: 5px; border: solid; border-width: 1px 1px 0px; text-align: center; padding-right: 5px; color: #333333; border-color: #CCCCFF #999999 #CCCCFF #CCCCFF; background-image: url(../images/banner_background.jpg); #CCCCFF #999999 #CCCCFF #CCCCFF;}
+.tabSelectedMiddle { font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12; font-weight: 600;  background-image: url(../images/banner_background.jpg); padding-top: 4px; padding-bottom: 4px; padding-left: 5px; border: solid; border-width: 1px 2px 0px 1px; text-align: center; padding-right: 5px; color: #333333 border-color; border-color: #CCCCFF #999999 #CCCCFF #CCCCFF: #CCCCFF #999999 #CCCCFF #CCCCFF}
+.tabSelectedRight { font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12; font-weight: 600;  background-image: url(../images/banner_background.jpg); padding-top: 4px; padding-bottom: 4px; padding-left: 5px; border: solid; border-width: 1px 2px 0px 1px; text-align: center; padding-right: 5px; color: #333333; border-color: #CCCCFF #999999 #CCCCFF #CCCCFF}
+.tabUnselectLeft { font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12; font-weight: 600; padding-top: 4px; padding-bottom: 4px; padding-left: 5px; border: #CCCCFF solid; text-align: center; padding-right: 5px; color: #333333 ; cursor: hand ; border-width: 1px 0px 0px 1px}
+.tabSelected { font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12; font-weight: 600; background-color: #C7D8FA; padding-top: 4px; padding-bottom: 4px; padding-left: 5px; border: solid; border-width: 1px 2px 0px 1px; text-align: center; padding-right: 5px; color: #333333; border-color: #CCCCFF #999999 #CCCCFF #CCCCFF}
+.tabUnselectRight { font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12; font-weight: 600; background-color: #FFFFFF; padding-top: 4px; padding-bottom: 4px; padding-left: 5px; border: #CCCCFF solid; text-align: center; padding-right: 5px; color: #333333 ; border-width: 1px 2px 0px 0px; cursor: hand }
+.tabUnselect { font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12; font-weight: 600; background-color: #FFFFFF; padding-top: 4px; padding-bottom: 4px; padding-left: 5px; border: #CCCCFF solid; text-align: center; padding-right: 5px; color: #333333 ; cursor: hand ; border-width: 1px 2px 0px 1px}
+.tabUnselectMiddle { font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12; font-weight: 600; background-color: #FFFFFF; padding-top: 4px; padding-bottom: 4px; padding-left: 5px; border: #CCCCFF solid; text-align: center; padding-right: 5px; color: #333333 ; border-width: 1px 2px 0px 1px; cursor: hand }
+.tabBackground { background-color: #FFFFFF; border: #CCCCFF ridge; border-width: 0px 0px 1px}
+.tabBar { background-color: #FFFFFF; border: #CCCCFF ridge; border-width: 0px 1px; font-family: "Arial", "Helvetica", "sans-serif"; font-size: 3px}
+.tabBarBackground { background-color: #D1D1E9; border: solid; font-family: "Arial", "Helvetica", "sans-serif"; font-size: small; padding-left: 10px; padding-top: 10px; padding-bottom: 10px; border-color: #FFFFFF #999999 #FFFFFF #CCCCFF; border-width: 1px 2px 0px 1px; font-weight: 600}
+.errMessage { text-align: center; font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12; font-style: normal; font-weight: 600; color: brown; clip:   rect(   ); border-style: none}
+.messageText { text-align: left; font-family: "Arial", "Helvetica", "sans-serif"; font-size: small; font-style: normal; font-weight: 500; color: #000000; clip: rect( ); border-style: none}
+.tableTitleAlignLeft1 { font-family: "Arial", "Helvetica", "sans-serif"; font-size: smaller; font-weight: 600; background-color: #D1D1E9; padding-top: 4px; padding-bottom: 4px; padding-left: 5px; border: #CCCCFF ridge; border-width: 1px 1px 0px; text-align: left; padding-right: 5px; color: #333333; cursor: hand }
+.menubarBackgroundSelect1 { background-color: #C0DFFE ; cursor: hand}
+.menubarTextSelect1 { font-family: "Arial", "Helvetica", "sans-serif"; font-size: small; color: #000000; padding-top: 5px; padding-right: 5px; padding-bottom: 5px; padding-left: 5px ; cursor: hand}
+.messageHeader { FONT-FAMILY: "Helvetica", "Arial", "Sans-Serif"; FONT-SIZE: 16; FONT-WEIGHT: bold; margin: 3px 3px; color: white; background: url(../images/function_title_gradient.jpg) no-repeat; ; border: 0px}
+TD.header_function_menu
+{
+    FONT-FAMILY: Helvetica, Arial, Sans-Serif;
+    FONT-SIZE: 12;
+    background: url('../images/header_function_menu_gradient.jpg') repeat-x;
+    text-align: center;
+}
+A.header_function_menu
+{
+    color: white;
+    text-decoration: underline;
+}
+
+FIELDSET.function 
+{ 
+    font-family: "Arial", "Helvetica", "sans-serif"; 
+    font-size: 16px; font-weight: 600; color:#483D8B;
+    margin: 10px; border:1px solid #9999CC;
+}
+
+FIELDSET.sub_function {margin: 10px; border:1px solid #B1A8B7;}
+
+LEGEND.function 
+{
+	FONT-FAMILY: Helvetica, Arial, Sans-Serif;
+	FONT-WEIGHT: bold; 
+	FONT-SIZE: 16;
+        color:  #483D8B; 
+}
+.tableborder { font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12; background-color: #FFFFFF; padding-top: 4px; padding-bottom: 4px; padding-left: 5px; border: #CCCCFF solid; text-align: center; padding-right: 5px; color: #333333 ;border-width: 1px 1px 1px 1px}
+
+
+TABLE.function_title
+{
+	FONT-FAMILY: Helvetica, Arial, Sans-Serif;
+	FONT-SIZE: 16; 
+	FONT-WEIGHT: bold; 
+	width: 100%; 
+	margin: 0px; 
+	border-width: 0px;        
+	background-color: blue;
+	color: #333366;
+	background: url('../images/function_title_gradient.jpg') no-repeat;
+}.tableNoBorder { font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12; background-color: #FFFFFF; padding-top: 4px; padding-bottom: 4px; padding-left: 5px; border: 0px solid; padding-right: 5px; color: #333333 }
+
+.tableCpar { font-family: "Arial", "Helvetica", "sans-serif"; font-size: 12; background-color: #FFFFFF; padding: 1px; border: #CCCCFF solid; color: #333333 ;border-width: 1px 1px 1px 1px}
+
+.value_border {
+	border:1px solid;
+	text-align:right;
+}

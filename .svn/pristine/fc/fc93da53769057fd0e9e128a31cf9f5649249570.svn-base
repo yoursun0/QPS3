@@ -1,0 +1,77 @@
+package qpses.servlet;
+
+import static org.easymock.EasyMock.createControl;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.isA;
+
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.List;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.easymock.EasyMock;
+import org.easymock.IMocksControl;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
+import qpses.business.CPARInfo;
+import qpses.business.WAChallengeInfo;
+import qpses.security.SecurityContext;
+import qpses.security.TestLogoutForSecurityServlet;
+import qpses.util.Constant;
+import qpses.util.SysException;
+import qpses.util.SysManager;
+
+public class StaffRateValidationSLUserTest {
+
+    private IMocksControl control;
+    private HttpServletRequest request;
+    private HttpServletResponse response;
+    private SecurityContext secCtx;
+    private HttpSession session;
+    private StaffRateValidationSLUser slUser;
+    
+	@Before
+	public void setUp(){
+    	control = createControl();
+        request = control.createMock(HttpServletRequest.class);
+        response = control.createMock(HttpServletResponse.class);
+        session = control.createMock(HttpSession.class);
+        secCtx = new SecurityContext();
+	}
+
+	@After
+	public void tearDown(){
+    	control = null;
+    	request = null;
+    	response = null;
+    	secCtx = null;
+    	session = null;
+	}
+
+	@Test
+	public void testGetInfoPdf() throws ServletException, IOException {
+		slUser = new TestForStaffRateValidation();
+		
+		expect(request.getServletPath()).andReturn("getInfoPdf").anyTimes();
+		expect(request.getParameter("request_action")).andReturn("getInfoPdf").anyTimes();
+        expect(request.getSession()).andReturn(session).anyTimes();
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx).anyTimes();
+        
+        response.setContentType(isA(String.class));
+        expectLastCall().anyTimes();
+        response.setHeader(isA(String.class),isA(String.class));
+        expectLastCall().anyTimes();
+        control.replay();
+    	
+        slUser.doGet(request, response);
+	}
+	
+}

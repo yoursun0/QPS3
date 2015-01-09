@@ -1,0 +1,246 @@
+/*
+ * AdminACLServlet.java
+ * 
+ * Created on 10th July, 2013
+ */
+
+package qpses.servlet;
+
+import java.io.*;
+import java.util.HashMap;
+import java.sql.Date;
+
+import javax.servlet.*;
+import javax.servlet.http.*;
+import org.apache.log4j.Logger;
+import qpses.business.DebarInfo;
+import qpses.business.DebarDataBean;
+import qpses.security.SecurityContext;
+import qpses.security.SecurityServlet;
+import qpses.util.Constant;
+import qpses.util.SysException;
+import qpses.util.SysManager;
+
+
+public class AdminDebarServlet extends HttpServlet {
+    
+	// Get class name
+    static String MyClassName = AdminDebarServlet.class.getName();
+    
+    // log4j
+    static Logger logger = Logger.getLogger(AdminDebarServlet.class.getName());
+    
+    
+    private static String postScreen = null;
+    private static String requestAction = null;
+    
+    public void doPost(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+    	
+    	String myName = "[" + MyClassName + "." + "doPost" + "]";
+        logger.debug(myName + " " + "started");
+        
+        String requestAction = "";
+        
+        try
+        {
+        	requestAction = request.getServletPath();
+        	if (requestAction.equals("/qpsadmin/DebarCreate.servlet")) {
+            	performDebarAdd(request, response);
+            	return;
+        	}else if (requestAction.equals("/qpsadmin/DebarRelease.servlet")) {
+            	performDebarRelease(request, response);
+            	return;
+        	}else if (requestAction.equals("/qpsadmin/DebarDelete.servlet")) {
+            	performDebarDelete(request, response);
+            	return;
+        	}else{
+        		throw new SysException(myName, "[" + requestAction + "]" + " " + "is not allowed."); 
+        	}
+        }
+        catch (Exception ex)
+        {
+        	throw new ServletException(ex.getMessage());
+        }
+    }
+    
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        doPost(request, response);
+    }
+    
+    private void performDebarAdd(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        
+        // initialization
+        int updateStatus =0;
+        
+        SecurityContext secCtx = (SecurityContext) request.getSession().getAttribute("QPSES_SECURITY_CONTEXT");
+        DebarInfo debarment = new DebarInfo();
+        try {
+            // get data from input form
+            debarment.setServiceCategoryGroup(request.getParameter("Category"));
+            debarment.setContractorId(request.getParameter("ContractorId"));
+            debarment.setContractorName(request.getParameter("ContractorName"));
+            debarment.setStartDate(SysManager.getSQLDate(request.getParameter("StartDate")));
+            debarment.setEndDate(SysManager.getSQLDate(request.getParameter("EndDate")));
+            debarment.setActiveInd(("Y".equals(request.getParameter("Release")))?-1:0);
+            
+            request.getSession().setAttribute("DEBAR_DATA",debarment);
+            DebarDataBean debarDB = new DebarDataBean();
+            updateStatus = debarDB.insertDebarment(debarment,secCtx);
+            
+            // return page
+            if (updateStatus == 1){
+                postScreen = "DebarList.jsp";
+                request.getSession().removeAttribute("DEBAR_DATA");
+                String Msg = "Debarment added successfully!";
+                request.getSession().setAttribute("DEBAR_MSG",Msg);
+                request.getSession().setAttribute("DEBAR_MSGTYPE","MSG");
+                response.sendRedirect(postScreen);
+            }  else {
+                postScreen = "DebarAdd.jsp";
+                String errMsg = "System Error! Status Code = " + updateStatus;
+                request.getSession().setAttribute("DEBAR_MSG",errMsg);
+                request.getSession().setAttribute("DEBAR_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }
+        }catch(Exception ex){
+        	logger.error(ex);
+            if (ex.getMessage().indexOf("Duplicate key")>=0){
+                postScreen = "DebarAdd.jsp";
+                request.getSession().setAttribute("DEBAR_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("DEBAR_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }else if (ex.getMessage().indexOf("SQL Error")>=0){
+                postScreen = "DebarAdd.jsp";
+                request.getSession().setAttribute("DEBAR_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("DEBAR_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }else if (ex.getMessage().indexOf("No record")>=0){
+                postScreen = "DebarAdd.jsp";
+                request.getSession().setAttribute("DEBAR_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("DEBAR_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }else{
+                throw new ServletException("Servlet Error: DebarAdd ERROR: AdminDebarServlet:performDebarAdd: \r\n"+
+                        "Get Request Error\n" + ex.toString());
+            }
+        }
+    }
+    
+    private void performDebarRelease(HttpServletRequest request, HttpServletResponse response)
+    	    throws ServletException, IOException {
+    	        
+    	        SecurityContext secCtx = (SecurityContext) request.getSession().getAttribute("QPSES_SECURITY_CONTEXT");
+    	        int updateStatus =0;
+    	        postScreen = "DebarList.jsp";
+    	        
+    	        try {
+    	            if (request.getParameter("selectedKey1") == null){
+    	                String errMsg = "Failed to release debarment from Debarment List! ";
+    	                request.getSession().setAttribute("DEBAR_MSG",errMsg);
+    	                request.getSession().setAttribute("DEBAR_MSGTYPE","ERR");
+    	                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+    	                dispatcher.forward(request, response);
+    	            }
+    	            
+    	            DebarDataBean debarDB = new DebarDataBean();
+    	            updateStatus = debarDB.releaseDebarment(Integer.parseInt(request.getParameter("selectedKey1")),secCtx);
+    	            
+    	            // return page
+    	            if (updateStatus == 1){
+    	                String Msg = "Released Debarment successfully!";
+    	                request.getSession().setAttribute("DEBAR_MSG",Msg);
+    	                request.getSession().setAttribute("DEBAR_MSGTYPE","MSG");
+    	                response.sendRedirect(postScreen);
+    	            }  else {
+    	                String errMsg = "System Error! Status Code = " + updateStatus;
+    	                request.getSession().setAttribute("DEBAR_MSG",errMsg);
+    	                request.getSession().setAttribute("DEBAR_MSGTYPE","ERR");
+    	                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+    	                dispatcher.forward(request, response);
+    	            }
+    	        }catch(Exception ex){
+    	        	logger.error(ex);
+    	            if (ex.getMessage().indexOf("SQL Error")>=0){
+    	                request.getSession().setAttribute("DEBAR_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+    	                request.getSession().setAttribute("DEBAR_MSGTYPE","ERR");
+    	                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+    	                dispatcher.forward(request, response);
+    	            }else if (ex.getMessage().indexOf("No record")>=0){
+    	                request.getSession().setAttribute("DEBAR_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+    	                request.getSession().setAttribute("DEBAR_MSGTYPE","ERR");
+    	                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+    	                dispatcher.forward(request, response);
+    	            }else{
+    	                throw new ServletException("Servlet Error: DebarDelete ERROR: AdminDebarServlet:performDebarRelease: \r\n"+
+    	                        "Get Request Error\n" + ex.toString());
+    	            }
+    	        }
+    	    }
+    
+    private void performDebarDelete(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        
+        SecurityContext secCtx = (SecurityContext) request.getSession().getAttribute("QPSES_SECURITY_CONTEXT");
+        int updateStatus =0;
+        String debarmentId = request.getParameter("DebarmentId");
+        String endDate = request.getParameter("EndDate");
+        try {
+        	
+        	 if (debarmentId == null){
+	                postScreen = "DebarList.jsp";
+	                String errMsg = "Failed to delete debarment from Debarment List! ";
+	                request.getSession().setAttribute("DEBAR_MSG",errMsg);
+	                request.getSession().setAttribute("DEBAR_MSGTYPE","ERR");
+	                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+	                dispatcher.forward(request, response);
+	            }
+            
+        	 if (SysManager.getSQLDate(endDate).getTime() < SysManager.getCurDateTime().getTime()){
+	                postScreen = "DebarList.jsp";
+	                String errMsg = "Cannot delete debarment since the effective period is already ended.";
+	                request.getSession().setAttribute("DEBAR_MSG",errMsg);
+	                request.getSession().setAttribute("DEBAR_MSGTYPE","ERR");
+	                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+	                dispatcher.forward(request, response);
+	            }
+         
+            DebarDataBean debarDB = new DebarDataBean();
+            updateStatus = debarDB.deleteDebarment(Integer.parseInt(debarmentId),secCtx);
+            
+            // return page
+            if (updateStatus == 1){
+                String Msg = "Debarred Contractor deleted from Debarment List successfully!";
+                request.getSession().setAttribute("DEBAR_MSG",Msg);
+                request.getSession().setAttribute("DEBAR_MSGTYPE","MSG");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }  else {
+                postScreen = "DebarDelete.jsp";
+                String errMsg = "System Error! Status Code = " + updateStatus;
+                request.getSession().setAttribute("DEBAR_MSG",errMsg);
+                request.getSession().setAttribute("DEBAR_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }
+        }catch(Exception ex){
+            if ((ex.getMessage().indexOf("SQL Error")>=0)||(ex.getMessage().indexOf("No record")>=0)){
+                postScreen = "DebarDelete.jsp";
+                request.getSession().setAttribute("DEBAR_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("DEBAR_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }else{
+                throw new ServletException("Servlet Error: DebarDelete ERROR: AdminDebarServlet:performDebarDelete: \r\n"+
+                        "Get Request Error\n" + ex.toString());
+            }
+        }
+    }
+    
+}

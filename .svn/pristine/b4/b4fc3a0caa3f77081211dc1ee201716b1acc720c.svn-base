@@ -1,0 +1,242 @@
+package qpses.servlet;
+
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
+import javax.sql.rowset.serial.SerialException;
+
+import java.io.IOException;
+import java.io.BufferedInputStream;
+import java.sql.SQLException;
+
+import org.apache.log4j.Logger;
+import org.jpedal.PdfDecoder;
+
+import qpses.business.*;
+import qpses.util.*;
+import qpses.security.*;
+
+public class DiscountRateSLUser extends HttpServlet
+{
+    // Get class name
+    static String MyClassName = DiscountRateSLUser.class.getName();
+    
+    // Set up Log4J
+    static Logger logger = Logger.getLogger(MyClassName);
+    
+    // User web page base URL
+    String UserBaseUrl = "/qpsuser/";
+    
+    public DiscountRateDBUser getDiscountRateDBUser() throws SysException, SerialException, SQLException{
+    	return new DiscountRateDBUser();
+    }
+    
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException
+    {
+        doPost(request, response);
+    }
+    
+    public void doPost(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException
+    {
+        String myName = "[" + MyClassName + "." + "doPost" + "]";
+        logger.debug(myName + " " + "started");
+        
+        String requestAction = "";
+        
+        try
+        {
+            requestAction = request.getParameter("request_action");
+            
+            if (requestAction == null) requestAction = "";
+            
+            logger.debug(myName + " " + "Request Action = " + requestAction);
+            
+            if (requestAction.equals(""))
+            { this.getDiscountRateEff(request, response); }
+            else if (requestAction.equals("showImagePage"))
+            { this.showImagePage(request, response); }
+            else if (requestAction.equals("getImage"))
+            { this.getFile(request, response, "IMAGE"); }
+            else if (requestAction.equals("getPDF"))
+            { this.getFile(request, response, "PDF"); }
+            else
+            { throw new SysException(myName, "[" + requestAction + "]" + " " + "is not allowed."); }
+        }
+        catch (Exception ex)
+        { throw new ServletException(ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+    }
+    
+    private void getDiscountRateEff(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException
+    {
+        String myName = "[" + MyClassName + "." + "getDiscountRateEff" + "]";
+        logger.debug(myName + " " + "started");
+        
+        String url = this.UserBaseUrl + "DiscountRateGetInfo.jsp";
+        
+        try
+        {
+            DiscountRateDBUser aDRUser = getDiscountRateDBUser();
+            request.getSession().setAttribute("allDREff", aDRUser.getDiscountRateEff());
+        }
+        catch (Exception ex)
+        { throw new ServletException(ex.getMessage()); }
+        
+        logger.debug(myName + " " + "Forward to URL: " + url);
+        
+        RequestDispatcher requestDispatcher = getServletContext().getRequestDispatcher(url);
+        requestDispatcher.forward(request, response);
+        
+        logger.debug(myName + " " + "ended");
+    }
+    
+    private void createPdfBytesInSession(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException
+    {
+        String myName = "[" + MyClassName + "." + "createPdfBytesInSession" + "]";
+        logger.debug(myName + " " + "started");
+        
+        try
+        {
+            // Get user information
+            SecurityContext secCtx = (SecurityContext)(request.getSession().getAttribute("QPSES_SECURITY_CONTEXT"));
+            if (secCtx == null)
+            {throw new SysException(myName, "Cannot get user information.");}
+            
+            String userId    = secCtx.getUserId();
+            String dpDeptId  = secCtx.getDPDeptId();
+            String soaDeptId = secCtx.getSOADeptId();
+            
+            // Load record from database
+            String scg           = request.getParameter("scg");
+            String effectiveDate = request.getParameter("effective_date");
+            if (scg           == null) throw new SysException(myName, "Parameter [scg] is NULL");
+            if (effectiveDate == null) throw new SysException(myName, "Parameter [effectiveDate] is NULL");
+            
+            DiscountRateDBUser drDB  = getDiscountRateDBUser();
+            DiscountRateInfo aDRInfo = drDB.getDiscountRate(scg, effectiveDate, userId, dpDeptId, soaDeptId);
+            
+            if (aDRInfo == null)
+            { throw new SysException(myName, "Cannot find discount rate: service category/group: " + "[" + scg + "]" + " " + "effective date = [" + effectiveDate + "]"); }
+            
+            // Get file content
+            String fileName        = aDRInfo.getPDFFileName();
+            java.sql.Blob blob     = aDRInfo.getPDFFile();
+            BufferedInputStream in = new BufferedInputStream(blob.getBinaryStream());
+            byte[] fileBytes       = blob.getBytes(1, (int)blob.length());
+            
+            PdfDecoder decoder = new PdfDecoder();
+            decoder.openPdfArray(fileBytes);
+            int noOfPage = decoder.getPageCount();
+            
+            // Renew number of page in session
+            request.getSession().removeAttribute("QPSES_DR_RPT_NO_OF_PAGE");
+            request.getSession().setAttribute("QPSES_DR_RPT_NO_OF_PAGE", noOfPage + "");
+            
+            // Renew file bytes in session
+            request.getSession().removeAttribute("QPSES_DR_RPT_FILE_BYTES");
+            request.getSession().setAttribute("QPSES_DR_RPT_FILE_BYTES", fileBytes);
+            
+            // Renew file bytes in session
+            request.getSession().removeAttribute("QPSES_DR_RPT_FILE_NAME");
+            request.getSession().setAttribute("QPSES_DR_RPT_FILE_NAME", fileName);
+        }
+        catch(Exception ex)
+        { 
+        	String err = this.getClass().getName() 
+					+ ".createPdfBytesInSession() : " + ex.getMessage();
+        	logger.error(err,ex);
+        	throw new ServletException(ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+    }
+    
+    
+    private void showImagePage(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException
+    {
+        String myName = "[" + MyClassName + "." + "showImagePage" + "]";
+        logger.debug(myName + " " + "started");
+        
+        try
+        {
+            this.createPdfBytesInSession(request, response);
+            
+            String url = this.UserBaseUrl + "DiscountRateShowImage.jsp";
+            
+            logger.debug(myName + " " + "Forward to URL: " + url);
+            
+            RequestDispatcher requestDispatcher = getServletContext().getRequestDispatcher(url);
+            requestDispatcher.forward(request, response);
+        }
+        catch(Exception ex)
+        { 
+        	String err = this.getClass().getName() 
+					+ ".showImagePage() : " + ex.getMessage();
+        	logger.error(err,ex);
+        	throw new ServletException(ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+    }
+    
+    private void getFile(HttpServletRequest request, HttpServletResponse response, String outFormat)
+    throws ServletException, IOException
+    {
+        String myName = "[" + MyClassName + "." + "getFile" + "]";
+        logger.debug(myName + " " + "started");
+        
+        assert outFormat.equals("IMAGE") || outFormat.equals("PDF");
+        
+        try
+        {
+            if (request.getSession().getAttribute("QPSES_DR_RPT_FILE_BYTES") == null)
+                throw new SysException(myName, "Cannot find file bytes.");
+            
+            if (request.getSession().getAttribute("QPSES_DR_RPT_FILE_NAME") == null)
+                throw new SysException(myName, "Cannot find file name.");
+            
+            byte[] fileBytes = ( byte[])(request.getSession().getAttribute("QPSES_DR_RPT_FILE_BYTES"));
+            String fileName  = (String)(request.getSession().getAttribute("QPSES_DR_RPT_FILE_NAME"));
+            
+            // Output PDF file
+            if (outFormat.equals("PDF"))
+            {
+                // Response Setting
+                response.setContentType("application/pdf");
+                response.setHeader("Content-Disposition", "attachment;filename=\"" + fileName + "\"");
+                response.setHeader("Expires", "0");
+                response.setHeader("Cache-Control", "must-revalidate, post-check=0, pre-check=0");
+                response.setHeader("Pragma", "public");
+                response.setContentLength(fileBytes.length);
+                
+                ServletOutputStream sos = response.getOutputStream();
+                sos.write(fileBytes);
+                sos.flush();
+            }
+            else if (outFormat.equals("IMAGE"))
+            {
+                String pageNo = request.getParameter("page_no");
+                
+                if (pageNo == null) throw new SysException(myName, "Page number is NULL");
+                
+                SysManager.pdfToImage(fileBytes, response, fileName.replaceAll(".pdf", ".jpg"), Integer.parseInt(pageNo));
+            }
+        }
+        catch(Exception ex)
+        { 
+        	String err = this.getClass().getName() 
+					+ ".getFile() : " + ex.getMessage();
+        	logger.error(err,ex);
+        	throw new ServletException(ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+    }
+}

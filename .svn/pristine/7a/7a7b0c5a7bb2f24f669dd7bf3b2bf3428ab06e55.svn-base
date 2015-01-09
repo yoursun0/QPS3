@@ -1,0 +1,96 @@
+package qpses.servlet;
+
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.isA;
+import static org.easymock.EasyMock.lt;
+import static org.easymock.EasyMock.replay;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.easymock.EasyMock.*;
+import org.junit.Test;
+
+import qpses.business.CPARDataBean;
+import qpses.business.CPARInfo;
+import qpses.business.CeilingRate1Info;
+import qpses.business.CeilingRate2Info;
+import qpses.business.CeilingRate3Info;
+import qpses.business.CeilingRate4Info;
+import qpses.business.CeilingRateCat1Info;
+import qpses.business.CeilingRateCat2Info;
+import qpses.business.CeilingRateCat3Info;
+import qpses.business.CeilingRateCat4Info;
+import qpses.business.CeilingRateDataBean;
+import qpses.business.CeilingRateInfo;
+import qpses.business.LogDataBean;
+import qpses.business.StatDataBean;
+import qpses.business.WAChallengeInfo;
+import qpses.security.SecurityContext;
+import qpses.security.SecurityDataBean;
+import qpses.security.SecurityServlet;
+import qpses.security.UserStatus;
+import qpses.servlet.CPARSLUser;
+import qpses.util.Constant;
+import qpses.util.SysException;
+import qpses.util.SysManager;
+
+public final class TestForAdminCeilingRateServlet extends AdminCeilingRateServlet {
+
+	private ServletContext servCtx; 
+	private SecurityDataBean secDB; 
+	private LogDataBean logDB; 
+	private CeilingRateDataBean crDB;
+	private RequestDispatcher dispatcher;
+	protected UserStatus uCeilingRateus;
+	
+    @Override
+    public CeilingRateDataBean getCeilingRateDataBean() throws SysException{
+    	try {
+    		List<CPARInfo> allCPARList = new ArrayList<CPARInfo>();
+    		List<CeilingRateCat1Info> CeilingRate1List = new ArrayList<CeilingRateCat1Info>();
+    		List<CeilingRateCat2Info> CeilingRate2List = new ArrayList<CeilingRateCat2Info>();
+    		List<CeilingRateCat3Info> CeilingRate3List = new ArrayList<CeilingRateCat3Info>();
+    		List<CeilingRateCat4Info> CeilingRate4List = new ArrayList<CeilingRateCat4Info>();
+    		
+    		// Pass a Mock DataBean
+    		crDB = createMock(CeilingRateDataBean.class);
+    		expect(crDB.insertCeilingRate1(isA(CeilingRate1Info.class))).andReturn(1).times(0,100);
+    		expect(crDB.insertCeilingRate2(isA(CeilingRate2Info.class))).andReturn(1).times(0,100);
+    		expect(crDB.insertCeilingRate3(isA(CeilingRate3Info.class))).andReturn(1).times(0,100);
+    		expect(crDB.insertCeilingRate4(isA(CeilingRate4Info.class))).andReturn(1).times(0,100);
+    		expect(crDB.deleteCeilingRate(isA(CeilingRateInfo.class),isA(SecurityContext.class))).andReturn(1).times(0,100);
+    		expect(crDB.releaseCeilingRate(isA(CeilingRateInfo.class),isA(SecurityContext.class))).andReturn(1).times(0,100);
+    		expect(crDB.getCeilingRate1(isA(String.class))).andReturn(CeilingRate1List).times(0,100);
+    		expect(crDB.getCeilingRate2(isA(String.class))).andReturn(CeilingRate2List).times(0,100);
+    		expect(crDB.getCeilingRate3(isA(String.class))).andReturn(CeilingRate3List).times(0,100);
+    		expect(crDB.getCeilingRate4(isA(String.class))).andReturn(CeilingRate4List).times(0,100);
+    		expect(crDB.createTempCeilingRate(isA(String.class))).andReturn(1).times(0,100);
+    		expect(crDB.replaceTempCeilingRate(isA(String.class))).andReturn(1).times(0,100);
+    		expect(crDB.deleteTempCeilingRate(isA(String.class))).andReturn(1).times(0,100);
+    		expect(crDB.writeAuditTrail(isA(CeilingRateInfo.class),isA(SecurityContext.class),lt(10000))).andReturn(1).times(0,100);
+            
+			replay(crDB);
+		} catch (SecurityException e) {
+			throw new SysException(e.getMessage());
+		}
+        return crDB;
+    }
+    
+    @Test
+    public void test() throws SysException{
+    	CeilingRateDataBean CeilingRateDB = getCeilingRateDataBean();
+    	CeilingRateDB = null;
+    }
+}

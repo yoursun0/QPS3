@@ -1,0 +1,279 @@
+package qpses.servlet;
+
+import static org.easymock.EasyMock.*;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+
+import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.easymock.IMocksControl;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
+
+import qpses.business.WAChallengeInfo;
+import qpses.security.SecurityContext;
+
+@RunWith(value = Parameterized.class)
+public class StaffRateValidationSLUserTest {
+
+	private String category;
+    private IMocksControl control;
+    private HttpServletRequest request;
+    private HttpServletResponse response;
+    private SecurityContext secCtx;
+    private HttpSession session;
+    private StaffRateValidationSLUser slUser;
+    private ServletOutputStream sos;
+    
+    public StaffRateValidationSLUserTest(String category) {
+	    this.category = category;
+	 }
+    
+    @Parameters
+	 public static List<Object[]> data() {
+	   Object[][] data = new Object[][] { { "1" }, { "2/N" }, { "2/J" }, { "3/N" }, { "3/J" }, { "4" } };
+	   return Arrays.asList(data);
+	 }
+    
+	@Before
+	public void setUp(){
+    	control = createControl();
+        request = control.createMock(HttpServletRequest.class);
+        response = control.createMock(HttpServletResponse.class);
+        session = control.createMock(HttpSession.class);
+        sos = control.createMock(ServletOutputStream.class);
+        secCtx = new SecurityContext();
+        secCtx.setUserId("junit.test");
+        secCtx.setDPDeptId("ogcio");
+        secCtx.setSOADeptId("OGCIO");
+        secCtx.setUserDPDeptId("ogcio");
+        secCtx.setUserSOADeptId("OGCIO");
+        secCtx.setEmail("helic.leung@hkmci.com");
+	}
+
+	@After
+	public void tearDown(){
+    	control = null;
+    	request = null;
+    	response = null;
+    	secCtx = null;
+    	session = null;
+	}
+
+	@Test
+	public void testGetWa() throws ServletException, IOException {
+		slUser = new TestForStaffRateValidation();
+		
+		expect(request.getServletPath()).andReturn("").anyTimes();
+		expect(request.getParameter("request_action")).andReturn("").anyTimes();
+        expect(request.getSession()).andReturn(session).anyTimes();
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx).anyTimes();
+        
+        session.removeAttribute(isA(String.class));
+        expectLastCall().anyTimes();
+        session.setAttribute(isA(String.class),isA(String.class));
+        expectLastCall().anyTimes();
+        session.setAttribute(isA(String.class),isA(List.class));
+        expectLastCall().anyTimes();
+        response.setContentType(isA(String.class));
+        expectLastCall().anyTimes();
+        response.setHeader(isA(String.class),isA(String.class));
+        expectLastCall().anyTimes();
+        control.replay();
+    	
+        slUser.doGet(request, response);
+	}
+	
+	@Test
+	public void testWaChallenge() throws ServletException, IOException {
+		slUser = new TestForStaffRateValidation();
+		
+		expect(request.getServletPath()).andReturn("waChallenge").anyTimes();
+		expect(request.getParameter("request_action")).andReturn("waChallenge").anyTimes();
+        expect(request.getSession()).andReturn(session).anyTimes();
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx).anyTimes();
+        control.replay();
+    	
+        slUser.doGet(request, response);
+	}
+	
+	@Test
+	public void testGetContractor() throws ServletException, IOException {
+		WAChallengeInfo wac = new WAChallengeInfo();
+		wac.setServiceCategoryGroup(category);
+		 
+		slUser = new TestForStaffRateValidation();
+		
+		expect(request.getServletPath()).andReturn("waChallenge").anyTimes();
+		expect(request.getParameter("request_action")).andReturn("waChallenge").anyTimes();
+        expect(request.getSession()).andReturn(session).anyTimes();
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx).anyTimes();
+        expect(session.getAttribute("QPSES_WA_CHALLENGE")).andReturn(wac).anyTimes();
+
+        control.replay();
+    	
+        slUser.doGet(request, response);
+	}
+	
+	@Test
+	public void testGetStaffRates() throws ServletException, IOException {
+		WAChallengeInfo wac = new WAChallengeInfo();
+		wac.setServiceCategoryGroup(category);
+		 
+		slUser = new TestForStaffRateValidation();
+		
+		expect(request.getServletPath()).andReturn("waChallenge").anyTimes();
+		expect(request.getParameter("request_action")).andReturn("waChallenge").anyTimes();
+		expect(request.getParameter("scg")).andReturn("1").anyTimes();
+		expect(request.getParameter("closing_date")).andReturn("11-May-2013").anyTimes();
+		expect(request.getParameter("contractor_id_list")).andReturn("1").anyTimes();
+		expect(request.getSession()).andReturn(session).anyTimes();
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx).anyTimes();
+        expect(session.getAttribute("QPSES_WA_CHALLENGE")).andReturn(wac).anyTimes();
+
+        session.removeAttribute(isA(String.class));
+        expectLastCall().anyTimes();
+        session.setAttribute(isA(String.class),isA(String.class));
+        expectLastCall().anyTimes();
+        session.setAttribute(isA(String.class),isA(List.class));
+        expectLastCall().anyTimes();
+        response.setContentType(isA(String.class));
+        expectLastCall().anyTimes();
+        response.setHeader(isA(String.class),isA(String.class));
+        expectLastCall().anyTimes();
+        control.replay();
+    	
+        slUser.doGet(request, response);
+	}
+
+	@Test
+	public void testGetInfoPdf() throws ServletException, IOException {
+		slUser = new TestForStaffRateValidation();
+		
+		expect(request.getServletPath()).andReturn("getInfoPdf").anyTimes();
+		expect(request.getParameter("request_action")).andReturn("getInfoPdf").anyTimes();
+        expect(request.getSession()).andReturn(session).anyTimes();
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx).anyTimes();
+        
+        response.setContentType(isA(String.class));
+        expectLastCall().anyTimes();
+        response.setHeader(isA(String.class),isA(String.class));
+        expectLastCall().anyTimes();
+        control.replay();
+    	
+        slUser.doGet(request, response);
+	}
+	
+	@Test
+	public void testGetPDFFile() throws ServletException, IOException {
+		slUser = new TestForStaffRateValidation();
+		byte[] fileBytes = new byte[] { (byte)0xe0, 0x4f, (byte)0xd0,
+			    0x20, (byte)0xea, 0x3a, 0x69, 0x10, (byte)0xa2, (byte)0xd8, 0x08, 0x00, 0x2b,
+			    0x30, 0x30, (byte)0x9d };
+		String fileName  = "a.docx";
+		
+		expect(request.getServletPath()).andReturn("StaffRateValidationCRSLUserWAC").anyTimes();
+		expect(request.getParameter("request_action")).andReturn("getPDF").anyTimes();
+        expect(request.getSession()).andReturn(session).anyTimes();
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx).anyTimes();
+        expect(session.getAttribute("QPSES_SRV_RPT_FILE_BYTES")).andReturn(fileBytes).anyTimes();
+        expect(session.getAttribute("QPSES_SRV_RPT_FILE_NAME")).andReturn(fileName).anyTimes();
+        expect(response.getOutputStream()).andReturn(sos).anyTimes();
+        
+        sos.write(fileBytes);
+        expectLastCall().anyTimes();
+        sos.flush();
+        expectLastCall().anyTimes();
+        response.setContentType(isA(String.class));
+        expectLastCall().anyTimes();
+        response.setContentLength(lt(100));
+        expectLastCall().anyTimes();
+        response.setHeader(isA(String.class),isA(String.class));
+        expectLastCall().anyTimes();
+        control.replay();
+    	
+        slUser.doGet(request, response);
+	}
+	
+	@Test(expected=javax.servlet.ServletException.class)
+	public void testGetImageFile() throws ServletException, IOException {
+		slUser = new TestForStaffRateValidation();
+		byte[] fileBytes = new byte[] { (byte)0xe0, 0x4f, (byte)0xd0,
+			    0x20, (byte)0xea, 0x3a, 0x69, 0x10, (byte)0xa2, (byte)0xd8, 0x08, 0x00, 0x2b,
+			    0x30, 0x30, (byte)0x9d };
+		String fileName  = "a.docx";
+		
+		expect(request.getServletPath()).andReturn("StaffRateValidationSLUserWAC").anyTimes();
+		expect(request.getParameter("request_action")).andReturn("getImage").anyTimes();
+		expect(request.getParameter("page_no")).andReturn("1").anyTimes();
+        expect(request.getSession()).andReturn(session).anyTimes();
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx).anyTimes();
+        expect(session.getAttribute("QPSES_SRV_RPT_FILE_BYTES")).andReturn(fileBytes).anyTimes();
+        expect(session.getAttribute("QPSES_SRV_RPT_FILE_NAME")).andReturn(fileName).anyTimes();
+
+        response.setContentType(isA(String.class));
+        expectLastCall().anyTimes();
+        response.setContentLength(lt(100));
+        expectLastCall().anyTimes();
+        response.setHeader(isA(String.class),isA(String.class));
+        expectLastCall().anyTimes();
+        control.replay();
+    	
+        slUser.doGet(request, response);
+	}
+	
+	@Test
+	public void testGenCat1ValidationReport() throws ServletException, IOException {
+		slUser = new TestForStaffRateValidation();
+		byte[] fileBytes = new byte[] { (byte)0xe0, 0x4f, (byte)0xd0,
+			    0x20, (byte)0xea, 0x3a, 0x69, 0x10, (byte)0xa2, (byte)0xd8, 0x08, 0x00, 0x2b,
+			    0x30, 0x30, (byte)0x9d };
+		String fileName  = "a.docx";
+		
+		expect(request.getServletPath()).andReturn("StaffRateValidationSLUserWAC").anyTimes();
+		expect(request.getParameter("request_action")).andReturn("genCat"+category.replace("/N", "").replace("/J", "")+"ValidationReport").anyTimes();
+		expect(request.getParameter("closing_date")).andReturn("11-May-2013").anyTimes();
+		expect(request.getParameter("contractor_id_list")).andReturn("HP,HKMCI").anyTimes();
+		expect(request.getParameter(isA(String.class))).andReturn("1").anyTimes();
+        expect(request.getSession()).andReturn(session).anyTimes();
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx).anyTimes();
+        expect(session.getAttribute("WA_TYPE")).andReturn("proposal").anyTimes();
+        expect(session.getAttribute("QPSES_SRV_RPT_FILE_BYTES")).andReturn(fileBytes).anyTimes();
+        expect(session.getAttribute("QPSES_SRV_RPT_FILE_NAME")).andReturn(fileName).anyTimes();
+        expect(response.getOutputStream()).andReturn(sos).anyTimes();
+        
+        sos.write(fileBytes);
+        expectLastCall().anyTimes();
+        sos.flush();
+        expectLastCall().anyTimes();
+        session.removeAttribute(isA(String.class));
+        expectLastCall().anyTimes();
+        session.setAttribute(isA(String.class),isA(String.class));
+        expectLastCall().anyTimes();
+        session.setAttribute(isA(String.class),isA(byte[].class));
+        expectLastCall().anyTimes();
+        session.setAttribute(isA(String.class),isA(List.class));
+        expectLastCall().anyTimes();
+     
+        response.setContentType(isA(String.class));
+        expectLastCall().anyTimes();
+        response.setContentLength(lt(100));
+        expectLastCall().anyTimes();
+        response.setHeader(isA(String.class),isA(String.class));
+        expectLastCall().anyTimes();
+        control.replay();
+    	
+        slUser.doGet(request, response);
+	}
+	
+}

@@ -1,0 +1,334 @@
+/**********************************************************************************
+
+ * ContractorDataBean.java
+ * Author            : Helic Leung, Master Concept HK Ltd.
+ * Version           : 1.0
+ * Create Date       : Aug 22, 2013
+ * Last Updated Date : Aug 22, 2013
+ *********************************************************************************/
+package qpses.business;
+
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.ArrayList;
+import org.apache.log4j.Logger;
+import qpses.security.SecurityContext;
+import qpses.util.SysException;
+import qpses.util.DataBean;
+import qpses.util.SysManager;
+
+public class DebarDataBean extends DataBean {
+    
+    
+    // log4j
+    static Logger logger = Logger.getLogger(DebarDataBean.class.getName());
+    
+    
+    private static final String SELECT_DEBARMENT =
+            "{Call sp_select_debarment(?,?)}";
+    private static final String SELECT_DEBARMENT_BY_ID =
+            "{Call sp_select_debarment_by_id(?)}";
+    private static final String SELECT_DEBARMENT_BY_CATEGORY =
+            "{Call sp_select_debarment_by_cat(?,?)}";    
+    private static final String SELECT_DEBARMENT_DATE =
+            "{Call sp_select_debarment_date(?,?,?)}";    
+    private static final String INSERT_DEBARMENT =
+            "{Call sp_insert_debarment(?,?,?,?,?,?,?,?,?)}"; // 9 parameters
+    private static final String RELEASE_DEBARMENT =
+            "{Call sp_release_debarment(?,?,?,?,?)}"; // 5 parameters
+    private static final String DELETE_DEBARMENT =
+            "{Call sp_delete_debarment(?,?,?,?,?)}"; // 5 parameters
+    
+    ResultSet rs = null;
+    
+    /**
+     * Constructor for DebarDataBean
+     */
+    public DebarDataBean() throws SysException{
+        super("ADMIN");
+    }
+    
+    public List<DebarInfo> selectDebarment(String order_by, String order_dir) throws SysException {
+        
+        List<DebarInfo> allDebarList = new ArrayList<DebarInfo>();
+        try {
+            CallableStatement cs = null;            
+            cs = getCStmt(SELECT_DEBARMENT);
+            cs.setString("p_order_by",order_by);
+            cs.setString("p_order_dir",order_dir);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+            	DebarInfo c = new DebarInfo();
+                c.setDebarmentId(rs.getInt("debarment_id"));
+                c.setServiceCategoryGroup(rs.getString("service_category_group"));
+                c.setContractorId(rs.getString("contractor_id"));
+                c.setContractorName(rs.getString("contractor_name"));
+                c.setStartDate(rs.getDate("start_date"));
+                c.setEndDate(rs.getDate("end_date"));
+                c.setActiveInd(rs.getInt("active_indicator"));
+                c.setCreatedDate(rs.getString("created_datetime"));
+                c.setLastUpdatedDate(rs.getString("last_updated_datetime"));
+                c.setLastUpdatedBy(rs.getString("last_updated_by_user"));
+                
+                allDebarList.add(c);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: selectDebarment\n"
+                    + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allDebarList;
+        
+    }
+    
+    public DebarInfo selectDebarmentById(int debarmentId) throws SysException {
+        
+        DebarInfo debarment = new DebarInfo();
+        try {
+            CallableStatement cs = null;            
+            cs = getCStmt(SELECT_DEBARMENT_BY_ID);
+            cs.setInt("p_id", debarmentId);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+            	DebarInfo c = new DebarInfo();
+                c.setDebarmentId(rs.getInt("debarment_id"));
+                c.setServiceCategoryGroup(rs.getString("service_category_group"));
+                c.setContractorId(rs.getString("contractor_id"));
+                c.setContractorName(rs.getString("contractor_name"));
+                c.setStartDate(rs.getDate("start_date"));
+                c.setEndDate(rs.getDate("end_date"));
+                c.setActiveInd(rs.getInt("active_indicator"));
+                c.setCreatedDate(rs.getString("created_datetime"));
+                c.setLastUpdatedDate(rs.getString("last_updated_datetime"));
+                c.setLastUpdatedBy(rs.getString("last_updated_by_user"));
+                
+                debarment = c;
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: selectDebarmentById\n"
+                    + ex.getMessage();
+        	logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return debarment;
+        
+    }
+
+    public List<DebarInfo> selectDebarmentByCat(String scg, Date curDate) throws SysException {
+        
+    	List<DebarInfo> allDebarList = new ArrayList<DebarInfo>();
+        try {
+            CallableStatement cs = null;            
+            cs = getCStmt(SELECT_DEBARMENT_BY_CATEGORY);
+            cs.setString("p_service_category_group", scg);
+            cs.setDate("p_date", curDate);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+            	DebarInfo c = new DebarInfo();
+                c.setDebarmentId(rs.getInt("debarment_id"));
+                c.setServiceCategoryGroup(rs.getString("service_category_group"));
+                c.setContractorId(rs.getString("contractor_id"));
+                c.setContractorName(rs.getString("contractor_name"));
+                c.setStartDate(rs.getDate("start_date"));
+                c.setEndDate(rs.getDate("end_date"));
+                c.setActiveInd(rs.getInt("active_indicator"));
+                c.setCreatedDate(rs.getString("created_datetime"));
+                c.setLastUpdatedDate(rs.getString("last_updated_datetime"));
+                c.setLastUpdatedBy(rs.getString("last_updated_by_user"));
+                
+                allDebarList.add(c);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: selectDebarmentByCat\n"
+                    + ex.getMessage();
+        	logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allDebarList;
+        
+    }
+    
+    public int insertDebarment(DebarInfo c, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(INSERT_DEBARMENT);
+            // get information from info object
+            cs.setString("p_service_category_group",c.getServiceCategoryGroup());
+            cs.setString("p_contractor_id",c.getContractorId());
+            cs.setDate("p_start_date",c.getStartDate());
+            cs.setDate("p_end_date",c.getEndDate());
+            cs.setInt("p_release",c.getActiveInd());
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            
+            //execute
+            result =cs.executeUpdate();
+            returnCode =cs.getInt("return_code");
+            
+            // check and commit execution result
+            String errMsg1 = "Duplicate key found! Debarment ID already exist.";
+            String errMsg2 = "Contractor ID: "+c.getContractorId() + "; Contractor Name: " + c.getContractorName()+";";
+            
+            commitResult(returnCode, result, errMsg1, errMsg2);
+            return returnCode;
+        } catch (SQLException ex0) {
+            String err = "SQL Error: DebarDataBean:insertDebarment \n" +"SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            logger.error(err,ex0);
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+            	logger.error(err,ex1);
+                err = "SQL Error: DebarDataBean:insertDebarment.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    public int deleteDebarment(int debarId, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(DELETE_DEBARMENT);
+            // get information from info object
+            cs.setInt("p_debarment_id",debarId);
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            
+            // execute
+            result = cs.executeUpdate();
+            returnCode = cs.getInt("return_code");
+            
+            // check and commit execution result
+            String errMsg1 = "Debarment cannot be deleted. Please ensure it is not used in other tables before deletion!";
+            String errMsg2 = "No record was deleted! <BR>"+"Debarment ID: "+debarId+";";
+            
+            commitResult(returnCode, result, errMsg1, errMsg2);
+            
+            return returnCode;
+            
+        } catch (SQLException ex0) {
+            String err = "SQL Error: DebarDataBean:deleteDebarment\n"  +"SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            logger.error(err,ex0);
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: DebarDataBean:deleteDebarment.rollback\n" + ex1.getMessage();
+                logger.error(err,ex1);
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    public int releaseDebarment(int debarId, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(RELEASE_DEBARMENT);
+            // get information from info object
+            cs.setInt("p_debarment_id",debarId);
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            
+            // execute
+            result = cs.executeUpdate();
+            returnCode = cs.getInt("return_code");
+            
+            // check and commit execution result
+            String errMsg1 = "Debarment cannot be released. Please ensure it is not used in other tables before release it!";
+            String errMsg2 = "No record was released! <BR>"+ "Debarment ID: "+debarId+";";
+            
+            commitResult(returnCode, result, errMsg1, errMsg2);
+            
+            return returnCode;
+            
+        } catch (SQLException ex0) {
+            String err = "SQL Error: DebarDataBean:releaseDebarment\n"  +"SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            logger.error(err,ex0);
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: DebarDataBean:releaseDebarment.rollback\n" + ex1.getMessage();
+                logger.error(err,ex1);
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+
+    public String getDebarDate(WAChallengeInfo wac, String contractorId) throws SysException {
+        
+        String startDate = "";
+        String endDate = "";
+        try {
+            CallableStatement cs = null;            
+            cs = getCStmt(SELECT_DEBARMENT_DATE);
+            cs.setString("p_service_category_group",wac.getServiceCategoryGroup());
+            cs.setString("p_contractor_id",contractorId);
+            cs.setDate("p_date",wac.getClosingDate());
+            rs = cs.executeQuery();
+            while (rs.next()) {
+            	startDate = SysManager.getStringfromSQLDate(rs.getDate("start_date"));
+            	endDate = SysManager.getStringfromSQLDate(rs.getDate("end_date"));
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: selectDebarmentDate\n"
+                    + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return startDate+" to "+endDate;
+        
+    }
+    
+}

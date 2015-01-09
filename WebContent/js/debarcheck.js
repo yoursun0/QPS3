@@ -1,0 +1,133 @@
+function validateDebar(f,flag) {
+
+       // regular expresssion for checking of empty string
+      reEmpty = new RegExp("[a-zA-Z.0-9]+");
+      reAlphaNum = new RegExp("^([0-9]+[a-zA-Z]+|[a-zA-Z]+[0-9]+)[0-9a-zA-Z]*$");
+      reEmail = "^[\\w-]+(\\.[\\w-]+)*@[\\w-]+(\\.[\\w-]+)+$";
+      if (flag == "add"){
+        // check service category group
+	    if (f.Category.value == ""){
+            alert("Please select the Service Category Group!");
+            return false;
+        }
+	    
+	    // check contractor ID
+	    if (f.ContractorName.value == ""){
+	         alert("Please input the Contractor Name!");
+	         return false;
+	    }
+
+	    // check start date
+        if (f.StartDate.value.search(reEmpty) < 0){
+            alert("Please input the Start Date!");
+             return false;
+        }
+
+        // check end date
+        if (f.EndDate.value.search(reEmpty) < 0){
+            alert("Please input the End Date!");
+             return false;
+        }
+
+        // check if end date is earlier than start date 
+        startDate = formatDate(f.StartDate.value);
+	    endDate = formatDate(f.EndDate.value);
+        if (endDate < startDate){
+                alert("End Date cannot be earlier than Start Date!");
+                return false;
+        }
+        
+        var today = new Date();
+        var yesterday = new Date();
+        yesterday.setDate(today.getDate() - 1);
+        if (startDate < yesterday){
+        	alert("Both Start Date and End Date cannot be earlier than today!");
+            return false;
+        }
+      }  
+
+      return true;
+}
+
+function formatDate(inputDate){
+    var mArray = new Array("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec");
+    splitDate = inputDate.split("-");
+    fDay = splitDate[0];
+    for (i=0;i<12;i++){
+        if (splitDate[1] == mArray[i]){
+            fMonth = i;
+            break;
+        }        
+    }
+    fYear = splitDate[2];    
+    returnDate = new Date(fYear+"/"+(fMonth+1)+"/"+fDay);  
+    return returnDate;
+}
+
+function changepage(location){
+    if (location=="List"){
+        window.location = "DebarList.jsp";
+        return;
+    }
+    if (location=="Add"){
+        window.location = "DebarAdd.jsp";
+        return;
+    }
+    /*if (location=="Import"){
+        window.location = "ACLImport.jsp";
+        return;
+    }*/
+}
+
+function selectaction(f,obj,key1,key2,key3){    
+    fsubmit=false;   
+    if (obj.name =="Delete"){        
+        f.action="DebarDelete.jsp";
+        f.selectedKey1.value=key1;
+        fsubmit=true;        
+    }
+    
+    if (obj.name =="Release"){        
+    	if (confirm("Are you sure you want to release?")) {
+    		 f.action="DebarRelease.servlet";
+    	        f.selectedKey1.value=key1;
+    	        fsubmit=true;     
+        }else{
+             fsubmit=false;
+        }             
+    }
+    
+    if (obj.name =="Cancel" || obj.name=="Return"){        
+    	f.action = "DebarList.jsp";       
+        fsubmit=true;
+    }
+
+    if (obj.name =="Add"){        
+        f.action="DebarAdd.jsp";
+        fsubmit=true;
+    }
+    
+    if (obj.name =="ConfirmAdd"){
+        f.action="DebarCreate.servlet";
+        fsubmit = validateDebar(f,"add");
+    }
+    
+    if (obj.name =="ConfirmDelete"){
+         if (confirm("Are you sure you want to delete?")) {
+             fsubmit=true;
+             f.action="DebarDelete.servlet";
+        }else{
+             fsubmit=false;
+        }        
+    }
+    if (fsubmit) f.submit();
+    return;
+}
+
+function changeorder(f,order,odir){    
+
+    f.OrderBy.value =order;
+    f.OrderDir.value =odir;
+    f.submit();
+    return;
+}

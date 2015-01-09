@@ -1,0 +1,510 @@
+-- MySQL script for QPS3 Database
+-- Design DB schema for CPAR logic and Key Statistics Report
+-- HKMCI appends their change to this DB script after running all phrase1 SQL script
+-- ------------------------------------------------------
+-- Server version 5.5-community
+
+use qpsis;
+
+--
+-- Privilege of CPS jsp and servlet
+--
+
+DELETE FROM `privilege` where `privilege_id` in ('A010','A011','M001','U006');
+
+INSERT INTO `privilege` (`privilege_id`,`privilege_group`,`privilege_name`,`control_file_list`,`authorized_user_group`,`created_datetime`,`last_updated_datetime`,`last_updated_by_user`,`path_info`,`control_function_list`) VALUES 
+ ('A010','A','Debarrment Management','Debarrment.jsp','#SP#,#S#','2006-08-11 10:53:58','2006-08-11 10:53:58','','/qpsadmin/','QSMAINT'),
+ ('A011','A','CPAR Management','CPARAdmin,CPARSearch.jsp,CPARList.jsp,CPARDelete.jsp,CPARUpdate.jsp,CPARList.servlet,CPARCreate.servlet,CPARUpdate.servlet,CPARDelete.servlet,CPARConfirmDelete.servlet,CPARSave.servlet,CPARPrint.servlet,WAChallengeValidation.servlet,CPARReleaseInList.servlet','#SP#,#S#','2013-08-11 10:53:58','2006-08-11 10:53:58','','/qpsadmin/','ACPAR'),
+ ('M001','M','Key Statistics Report','Statistics.jsp,StatSearch.servlet,StatSearchReset.servlet,StatDownloadReport.servlet,SystemOut.servlet','#SP#,#S#,#M#','2006-01-01 00:00:00','2006-01-01 00:00:00','','/qpsadmin/','STAT'),
+ ('U006','U','CPAR Creation','CPARSLUser,CPARSearch.jsp,CPARList.jsp,CPARDelete.jsp,CPARUpdate.jsp,CPARList.servlet,CPARCreate.servlet,CPARUpdate.servlet,CPARDelete.servlet,CPARConfirmDelete.servlet,CPARSave.servlet,CPARPrint.servlet','#U#','2013-01-01 00:00:00','2006-01-01 00:00:00','','/qpsuser/','CPAR');
+
+ALTER TABLE `work_assignment` MODIFY COLUMN `project_file_part` varchar(15) NOT NULL;
+
+ALTER TABLE `staff_rate_validation_log` MODIFY COLUMN `project_file_part` varchar(15) NOT NULL;
+
+ALTER TABLE `acl` DROP COLUMN `cpar_failure_count`;
+ALTER TABLE `acl` ADD COLUMN `cpar_failure_count` int(10);
+
+UPDATE `acl` SET `cpar_failure_count` = 0;
+
+--
+-- Table structure for table `qpsis`.`cpar`
+--
+
+DROP TABLE IF EXISTS `cpar`;
+CREATE TABLE `cpar` (
+  `service_category_group` varchar(3) NOT NULL,
+  `project_file_part` varchar(15) NOT NULL,
+  `project_file_no` int(10) unsigned NOT NULL,
+  `department_id` varchar(10) NOT NULL,
+  `service_contract_no` varchar(150) NULL,
+  `cpar_no` INT NOT NULL,
+  `start_date` date,
+  `end_date` date,
+  `finalized` varchar(1) NOT NULL,
+  `cpar_status` varchar(1),
+  `authorized_person` varchar(100),
+  `post_rank` varchar(150),
+  `created_datetime` datetime NOT NULL,
+  `last_updated_datetime` datetime NOT NULL,
+  `last_updated_by_user` varchar(30) NOT NULL,
+  `score` decimal(10,2),
+  `a1` int,
+  `a2` int,
+  `a3` int,
+  `a4` int,
+  `a5` int,
+  `a6` int,
+  `a7` int,
+  `a8` int,
+  `a9` int,
+  `b1` int,
+  `b2` int,
+  `b3` int,
+  `b4` int,
+  `b5` int,
+  `c1` int,
+  `c2` int,
+  `c3` int,
+  `c4` int,
+  `c5` int,
+  `d1` int,
+  `d2` int,
+  `d3` int,
+  `e1` int,
+  `e2` int,
+  `e3` int,
+  `e4` int,
+  PRIMARY KEY  (`service_category_group`,`project_file_part`,`project_file_no`,`department_id`,`cpar_no`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+
+--
+-- Procedure `qpsis`.`sp_select_cpar_failure_count`
+--
+
+DROP PROCEDURE IF EXISTS `sp_select_cpar_failure_count`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_select_cpar_failure_count`(
+ IN p_user_id varchar(30),
+ OUT return_code INT)
+BEGIN
+DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+SET return_code = 0;
+   SELECT cpar_failure_count
+          FROM acl
+          WHERE user_id = p_user_id ;
+SET return_code =1;
+END $$
+
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_reset_cpar_failure_count`
+--
+
+DROP PROCEDURE IF EXISTS `sp_reset_cpar_failure_count`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_reset_cpar_failure_count`(
+ IN  p_user_id varchar(30),
+ OUT return_code INT)
+BEGIN
+DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+
+SET @progID ="UPDATEACCESS";
+SET return_code = 0;
+   UPDATE acl
+      SET cpar_failure_count = 0
+          WHERE user_id = p_user_id ;
+SET return_code =1;
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_select_work_assignment_for_cpar`
+--
+
+DROP PROCEDURE IF EXISTS `sp_select_work_assignment_for_cpar`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_select_work_assignment_for_cpar`(
+ IN p_service_contract_no VARCHAR(50),
+
+ IN p_dept_id VARCHAR(10))
+BEGIN
+
+    SELECT *,b.bd_name FROM work_assignment as w
+
+      JOIN bd_name as b
+
+        ON w.department_id = b.soa_department_id
+
+      WHERE p_service_contract_no = service_contract_no AND
+
+            department_id = p_dept_id;
+
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_set_cpar_failure_count`
+--
+
+DROP PROCEDURE IF EXISTS `sp_set_cpar_failure_count`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_set_cpar_failure_count`(
+ In p_user_id varchar(30),
+ IN p_failure_count int,
+ OUT return_code INT)
+BEGIN
+DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+SET @progID ="UPDATECPAR";
+SET return_code = 0;
+   UPDATE acl
+      SET cpar_failure_count = p_failure_count
+          WHERE user_id = p_user_id;
+SET return_code =1;
+END $$
+
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_select_cpar_by_wa`
+--
+
+DROP PROCEDURE IF EXISTS `sp_select_cpar_by_wa`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_select_cpar_by_wa`(
+ IN p_service_category_group varchar(3),
+ IN p_project_file_part varchar(5),
+ IN p_project_file_no int(10),
+ IN p_department_id varchar(10))
+BEGIN
+    SELECT * FROM cpar WHERE service_category_group = p_service_category_group 
+                         AND project_file_part = p_project_file_part 
+                         AND project_file_no = p_project_file_no 
+                         AND department_id = p_department_id 
+                         ORDER BY cpar_no , last_updated_datetime DESC;
+END $$
+
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_select_cpar_by_cpar_no`
+--
+
+DROP PROCEDURE IF EXISTS `sp_select_cpar_by_cpar_no`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_select_cpar_by_cpar_no`(
+ IN p_service_category_group varchar(3),
+ IN p_project_file_part varchar(5),
+ IN p_project_file_no int(10),
+ IN p_department_id varchar(10),
+ IN p_cpar_no int(11))
+BEGIN
+    SELECT * FROM cpar WHERE service_category_group = p_service_category_group 
+                         AND project_file_part = p_project_file_part 
+                         AND project_file_no = p_project_file_no 
+                         AND department_id = p_department_id 
+						 AND cpar_no = p_cpar_no ;
+END $$
+
+DELIMITER ;
+
+--
+-- Procedure `qpsis`.`sp_select_next_cpar_date`
+--
+
+DROP PROCEDURE IF EXISTS `sp_select_next_cpar_date`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_select_next_cpar_date`(
+ IN p_service_category_group varchar(3),
+ IN p_project_file_part varchar(5),
+ IN p_project_file_no int(10),
+ IN p_department_id varchar(10))
+BEGIN
+   SELECT cpar_no,end_date,DATE_ADD(end_date, INTERVAL 1 DAY) AS next_date FROM cpar 
+					WHERE service_category_group = p_service_category_group 
+					AND project_file_part = p_project_file_part 
+                    AND project_file_no = p_project_file_no 
+					AND department_id = p_department_id 
+					AND cpar_no = (
+							SELECT max(cpar_no) FROM cpar
+							WHERE service_category_group = p_service_category_group 
+							AND project_file_part = p_project_file_part 
+							AND project_file_no = p_project_file_no 
+							AND department_id = p_department_id)
+						 ;
+END $$
+
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_insert_cpar`
+--
+
+DROP PROCEDURE IF EXISTS `sp_insert_cpar`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_insert_cpar`(
+ IN p_user_id varchar(30),
+ IN p_dp_dept_id varchar(10),
+ IN p_soa_dept_id varchar(10),
+ IN p_service_category_group varchar(3),
+ IN p_project_file_part varchar(15),
+ IN p_project_file_no int(10) unsigned,
+ IN p_department_id varchar(10),
+ IN p_cpar_no INT,
+ IN p_start_date date,
+ IN p_end_date date,
+ IN p_finalized varchar(1),
+ IN p_cpar_status varchar(1),
+ IN p_authorized_person varchar(100),
+ IN p_post_rank varchar(150),
+ IN p_score decimal(10,2),
+ IN p_a1 int,
+ IN p_a2 int,
+ IN p_a3 int,
+ IN p_a4 int,
+ IN p_a5 int,
+ IN p_a6 int,
+ IN p_a7 int,
+ IN p_a8 int,
+ IN p_a9 int,
+ IN p_b1 int,
+ IN p_b2 int,
+ IN p_b3 int,
+ IN p_b4 int,
+ IN p_b5 int,
+ IN p_c1 int,
+ IN p_c2 int,
+ IN p_c3 int,
+ IN p_c4 int,
+ IN p_c5 int,
+ IN p_d1 int,
+ IN p_d2 int,
+ IN p_d3 int,
+ IN p_e1 int,
+ IN p_e2 int,
+ IN p_e3 int,
+ IN p_e4 int,
+ OUT return_code INT)
+BEGIN
+  DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+  SET @progID ="CPARADD";
+  SET @dpDeptId = p_dp_dept_id;
+  SET @soaDeptId = p_soa_dept_id;
+  
+    
+      INSERT INTO `cpar` (`service_category_group`,`project_file_part`,`project_file_no`,`department_id`,
+  `authorized_person`,`post_rank`,
+  `cpar_no`,`start_date`,`end_date`,`finalized`,`cpar_status`,`created_datetime`,`last_updated_datetime`,`last_updated_by_user`,
+  `score`,`a1`,`a2`,`a3`,`a4`,`a5`,`a6`,`a7`,`a8`,`a9`,
+  `b1`,`b2`,`b3`,`b4`,`b5`,
+  `c1`,`c2`,`c3`,`c4`,`c5`,
+  `d1`,`d2`,`d3`,
+  `e1`,`e2`,`e3`,`e4`
+    ) VALUES (p_service_category_group,p_project_file_part,p_project_file_no,p_department_id,
+	p_authorized_person,p_post_rank,
+	p_cpar_no,p_start_date,p_end_date,p_finalized,p_cpar_status,
+    SYSDATE(),SYSDATE(),p_user_id,
+	p_score,p_a1,p_a2,p_a3,p_a4,p_a5,p_a6,p_a7,p_a8,p_a9,
+	p_b1,p_b2,p_b3,p_b4,p_b5,
+	p_c1,p_c2,p_c3,p_c4,p_c5,
+	p_d1,p_d2,p_d3,
+	p_e1,p_e2,p_e3,p_e4
+    );
+    SET return_code = 1;
+
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_update_cpar`
+--
+
+DROP PROCEDURE IF EXISTS `sp_update_cpar`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_update_cpar`(
+ IN p_user_id varchar(30),
+ IN p_dp_dept_id varchar(10),
+ IN p_soa_dept_id varchar(10),
+ IN p_service_category_group varchar(3),
+ IN p_project_file_part varchar(15),
+ IN p_project_file_no int(10) unsigned,
+ IN p_department_id varchar(10),
+ IN p_cpar_no INT,
+ IN p_start_date date,
+ IN p_end_date date,
+ IN p_finalized varchar(1),
+ IN p_cpar_status varchar(1),
+ IN p_authorized_person varchar(100),
+ IN p_post_rank varchar(150),
+ IN p_score decimal(10,2),
+ IN p_a1 int,
+ IN p_a2 int,
+ IN p_a3 int,
+ IN p_a4 int,
+ IN p_a5 int,
+ IN p_a6 int,
+ IN p_a7 int,
+ IN p_a8 int,
+ IN p_a9 int,
+ IN p_b1 int,
+ IN p_b2 int,
+ IN p_b3 int,
+ IN p_b4 int,
+ IN p_b5 int,
+ IN p_c1 int,
+ IN p_c2 int,
+ IN p_c3 int,
+ IN p_c4 int,
+ IN p_c5 int,
+ IN p_d1 int,
+ IN p_d2 int,
+ IN p_d3 int,
+ IN p_e1 int,
+ IN p_e2 int,
+ IN p_e3 int,
+ IN p_e4 int,
+ OUT return_code INT)
+BEGIN
+  DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+  SET @progID ="CPARUPDATE";
+  SET @dpDeptId = p_dp_dept_id;
+  SET @soaDeptId = p_soa_dept_id;
+  IF (SELECT COUNT(*) from cpar
+        WHERE service_category_group = p_service_category_group AND
+              project_file_part = p_project_file_part AND
+              project_file_no = p_project_file_no AND
+              department_id = p_department_id AND
+              cpar_no = p_cpar_no )= 0 THEN
+    SET return_code = -99;
+  ELSE
+    BEGIN
+    UPDATE `cpar` SET
+	authorized_person = p_authorized_person,
+	post_rank = p_post_rank,
+	start_date = p_start_date,
+	end_date = p_end_date,
+	finalized = p_finalized,
+	cpar_status = p_cpar_status,
+	last_updated_datetime = SYSDATE(),
+	last_updated_by_user = p_user_id,
+	score = p_score,
+	a1 = p_a1,
+	a2 = p_a2,
+	a3 = p_a3,
+	a4 = p_a4,
+	a5 = p_a5,
+	a6 = p_a6,
+	a7 = p_a7,
+	a8 = p_a8,
+	a9 = p_a9,
+	b1 = p_b1,
+	b2 = p_b2,
+	b3 = p_b3,
+	b4 = p_b4,
+	b5 = p_b5,
+	c1 = p_c1,
+	c2 = p_c2,
+	c3 = p_c3,
+	c4 = p_c4,
+	c5 = p_c5,
+	d1 = p_d1,
+	d2 = p_d2,
+	d3 = p_d3,
+	e1 = p_e1,
+	e2 = p_e2,
+	e3 = p_e3,
+	e4 = p_e4
+	WHERE service_category_group = p_service_category_group
+	AND   project_file_part = p_project_file_part
+	AND   project_file_no = p_project_file_no
+	AND	  department_id = p_department_id
+	AND   cpar_no = p_cpar_no;
+
+    SET return_code = 1;
+  END;
+END IF;
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_delete_cpar`
+--
+
+DROP PROCEDURE IF EXISTS `sp_delete_cpar`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_delete_cpar`(
+ IN p_service_category_group varchar(30),
+ IN p_project_file_part varchar(10),
+ IN p_project_file_no varchar(10),
+ IN p_department_id varchar(10),
+ IN p_cpar_no varchar(10),
+ IN p_user_id varchar(30),
+ IN p_dp_dept_id varchar(10),
+ IN p_soa_dept_id varchar(10),
+ OUT return_code INT)
+BEGIN
+  DECLARE EXIT HANDLER FOR NOT FOUND
+    BEGIN
+      SET return_code = -2;
+      ROLLBACK;
+    END;
+  SET return_code =0;
+  START TRANSACTION;
+  /* Define variable to be passed to trigger*/
+  SET @userID = p_user_id;
+  SET @dpDeptId = p_dp_dept_id;
+  SET @soaDeptId = p_soa_dept_id;
+  SET @remarks = concat('DELETE CPAR for cat ',p_service_category_group,' ',p_department_id,' WA ',p_project_file_part,' ',p_project_file_no);
+  DELETE FROM cpar
+      WHERE service_category_group = p_service_category_group AND
+            project_file_part = p_project_file_part AND
+            project_file_no = p_project_file_no AND
+            department_id = p_department_id AND
+            cpar_no = p_cpar_no;
+  INSERT INTO audit_trail(
+    user_id, dp_department_id, soa_department_id, function_id,
+    entity_name, record_id, action_performed, date_time, remarks
+    )
+    VALUES
+    (
+    @userID, @dpDeptId, @soaDeptId, 'CPARDELETE',
+    'CPAR Delete', p_department_id, 'D', SYSDATE(), @remarks
+    );
+
+  COMMIT;
+  SET return_code = 1;
+END $$
+
+DELIMITER ;
+
+
+COMMIT;

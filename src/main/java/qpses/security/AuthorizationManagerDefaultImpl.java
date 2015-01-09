@@ -1,0 +1,43 @@
+package qpses.security;
+
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.List;
+
+import org.apache.log4j.Logger;
+
+public class AuthorizationManagerDefaultImpl implements AuthorizationManager {
+    
+    static Logger logger = Logger.getLogger(AuthorizationManagerDefaultImpl.class.getName());
+    private HashMap privilegeHash = new HashMap();    
+    
+    public AuthorizationManagerDefaultImpl() {
+        try {
+            SecurityDataBean secDB = new SecurityDataBean();
+            this.privilegeHash=secDB.getAccessPrivileges();
+
+        }catch(Exception ex) {
+            String error =
+                    "AuthorizationDataBean:selectAccessPrivielges\r\n" + ex.toString();
+            logger.error(error, ex);
+            throw new RuntimeException(error);
+        }
+    }
+    
+    public boolean isUserAuthorized(List pvg, String uri){
+        
+        boolean authorized = false;
+            Set<String> setOfKeys = privilegeHash.keySet();
+            for (String privilegeKey : setOfKeys){
+                if (authorized) break;
+            	String controlFileList = (String) privilegeHash.get(privilegeKey);
+                if (controlFileList.indexOf(","+uri+",")>=0) {
+                    if (pvg.contains(privilegeKey)) authorized = true;
+                }            
+            }
+                
+        return authorized;
+    }
+    
+}

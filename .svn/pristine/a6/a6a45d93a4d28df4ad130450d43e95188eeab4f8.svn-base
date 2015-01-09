@@ -1,0 +1,580 @@
+/*
+ * AdminWorkAssignmentServlet.java
+ *
+ * Created on 8th July, 2013
+ */
+
+package qpses.servlet;
+
+import java.io.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.sql.Date;
+
+import javax.servlet.*;
+import javax.servlet.http.*;
+import org.apache.commons.fileupload.DiskFileUpload;
+import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload.FileUploadException;
+import org.apache.log4j.Logger;
+import org.apache.poi.hssf.record.RecordFormatException;
+import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFRow;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+
+import qpses.business.ContractorInfo;
+import qpses.business.DeptInfo;
+import qpses.business.WorkAssignmentDataBean;
+import qpses.business.WorkAssignmentInfo;
+import qpses.security.SecurityContext;
+import qpses.util.Constant;
+import qpses.util.SysException;
+import qpses.util.SysManager;
+
+
+public class AdminWorkAssignmentServlet extends HttpServlet {
+    
+    // log4j
+    static Logger logger = Logger.getLogger(AdminWorkAssignmentServlet.class.getName());
+    
+    
+    private static String postScreen = null;
+    private static String requestAction = null;
+    
+    public void doPost(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        requestAction = request.getServletPath();
+        if (requestAction.equals("/qpsadmin/WorkAssignmentUpload.servlet")) {
+            performWorkAssignmentUpload(request, response);
+            return;
+        }
+        if (requestAction.equals("/qpsadmin/WorkAssignmentSearch.servlet")) {
+            performWorkAssignmentSearch(request, response);
+            return;
+        }
+        if (requestAction.equals("/qpsadmin/WorkAssignmentSearchReset.servlet")) {
+            performWorkAssignmentSearchReset(request, response);
+            return;
+        }
+    }
+    
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        doPost(request, response);
+    }
+    
+    private void performWorkAssignmentUpload(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        // initialization
+        SecurityContext secCtx = (SecurityContext) request.getSession().getAttribute("QPSES_SECURITY_CONTEXT");
+        DiskFileUpload upload = new DiskFileUpload();
+        upload.setRepositoryPath(Constant.QPSIS_TEMP_DIR);
+        upload.setSizeThreshold(102400);// limit Memory Size
+        upload.setSizeMax(-1); // unlimit file size
+        List allUploadeditems = null;
+        int uploadCounter =0;
+        int rejectedCounter =0;
+        int rowNo=0;
+        WorkAssignmentInfo wa = new WorkAssignmentInfo();
+        
+        
+        // parse request
+        try {
+            allUploadeditems = upload.parseRequest(request);
+        } catch (FileUploadException exFile) {
+            String UploadError = "ServletError:AdminWorkAssignmentServlet:performWorkAssignmentUpload\r\n" + exFile.getMessage();
+            logger.error(UploadError,exFile);
+            throw new IOException(UploadError);
+        }
+        
+        // get file and parameters
+        try {
+            
+            Iterator iter = allUploadeditems.iterator();
+            FileItem excelfile = null;
+            
+            while (iter.hasNext()) {
+                FileItem uploadeditem = (FileItem) iter.next();
+                if ((! uploadeditem.isFormField() && uploadeditem.getSize() != 0)){ // get excel file
+                    //&& uploadeditem.getContentType().startsWith("application/vnd.ms-excel")){ // file without zero size
+                    excelfile = uploadeditem;
+                    long excelfilesize = excelfile.getSize();
+                    wa.setExcelFileSize(excelfile.getSize());
+                    File filePath = new File(excelfile.getName());
+                    wa.setExcelFileName(filePath.getName());
+                    wa.setFileContentType(excelfile.getContentType());
+                }
+            }
+            
+            // start upload
+            int uploadStatus = 0;
+            if (excelfile ==null) {     // check for any excel file uploaded; otherwise, return error;
+                uploadStatus = -89;
+            }else{
+                InputStream excelFileStream = excelfile.getInputStream();
+                HSSFWorkbook wb    = new HSSFWorkbook(excelFileStream);
+                HSSFSheet sheet    = wb.getSheetAt(Constant.WORK_ASSIGNMENT_SHEET);
+                HSSFCell aCell = null;
+                HSSFRow aRow = null;
+                String fileError ="";
+                
+                // create temp file
+                WorkAssignmentDataBean waDB = new WorkAssignmentDataBean();
+                uploadStatus=waDB.createTempWorkAssignment();
+                
+                
+                if (uploadStatus!=1){ // if error, display error message
+                    uploadStatus = -19;
+                }else{
+                    if (sheet.getRow(Constant.WORK_ASSIGNMENT_TITLE_ROWNO) == null){
+                        uploadStatus = -49;
+                    }else{
+                        aCell =sheet.getRow(Constant.WORK_ASSIGNMENT_TITLE_ROWNO).getCell((short) Constant.WORK_ASSIGNMENT_TITLE_COLNO);
+                        if (! aCell.getStringCellValue().trim().equals(Constant.WORK_ASSIGNMENT_TITLE)) {
+                            uploadStatus = -49;  // wrong file title
+                        }else{
+                            aCell = sheet.getRow(Constant.WORK_ASSIGNMENT_WANO_ROWNO).getCell((short) Constant.WORK_ASSIGNMENT_WANO_COLNO);
+                            rowNo=(int) aCell.getNumericCellValue();
+                            if (rowNo == 0){
+                                uploadStatus = -39; // error in number of work assignment
+                            }else{
+                                int startRowNo = Constant.WORK_ASSIGNMENT_START_ROWNO;
+                                // for (int i=startRowNo;i< (rowNo+startRowNo);i++){
+                                int i= startRowNo;
+                                java.util.Date todayDate = new java.util.Date();
+                                while((uploadCounter+rejectedCounter)<rowNo){
+                                    // check work assignment closing date
+                                    HSSFCell cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_STATUS_COLNO);
+                                    String waStatus = cellRead.getStringCellValue().trim();
+                                    
+                                    // Set awarded contractor
+                                    cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_AWARD_CONTRACTOR_COLNO);
+                                    String awardedContractor =cellRead.getStringCellValue().trim();
+
+                                    //if  ((! waStatus.equals("x") && ! waStatus.equals("w") && ! waStatus.equals(""))
+                                    //&& awardContractor.equals("") && (closingDate !=null && closingDate.before(todayDate))){
+                                    //if ((waStatus.equals("b") || waStatus.equals("p")) && awardContractor.equals("")){
+                                    
+                                    /** 
+                                     * Avalible Work Assignment Status updated:
+                                    
+                                    b	Invitation issued
+									p	Proposal submitted
+                                    w	Invitation withdrew before proposal deadline
+                                    x	Invitation cancelled after proposal deadline
+									n	Assignment awarded
+									c	Assignment completed
+									t	Assignment terminated
+									
+                                    Ignored Assignment Status
+
+           							g	Invitation crossed group
+           							l	Assignment claimed LD
+           							d	Assignment delayed
+
+                                    **/
+                                    
+                                    if (waStatus.equals("b") || waStatus.equals("p")|| waStatus.equals("n")|| waStatus.equals("c")
+                                    		|| waStatus.equals("w")|| waStatus.equals("x")|| waStatus.equals("t")){    
+
+                                        cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_SERVICE_CATEGORY_COLNO);
+                                        String serviceCategoryGroup="";
+                                        if (cellRead.getCellType() == HSSFCell.CELL_TYPE_NUMERIC)
+                                            serviceCategoryGroup = Integer.toString((int) cellRead.getNumericCellValue()); 
+                                        else
+                                            serviceCategoryGroup = cellRead.getStringCellValue().trim();    
+                                        if (serviceCategoryGroup == null){
+                                            String err = "Invalid Service Category/Group found at row "+ (i+1) + "!";
+                                            throw new SysException(err);
+                                        }
+                                        
+                                        cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_DEPT_COLNO);
+                                        String deptId = cellRead.getStringCellValue().trim();    
+                                        if (deptId == null){
+                                            String err = "Invalid B/D found at row "+ (i+1) + "!";
+                                            throw new SysException(err);
+                                        }                                        
+                                                                                
+                                        cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_ISSUE_DATE_COLNO);
+                                        java.util.Date issueDate =cellRead.getDateCellValue();
+                                        if (issueDate == null){
+                                            String err = "Invalid Issue Date found at row "+ (i+1) + "!";
+                                            throw new SysException(err);
+                                        }                                        
+                                        
+                                        cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_CLOSING_DATE_COLNO);
+                                        java.util.Date closingDate =cellRead.getDateCellValue();
+                                        if (closingDate == null){
+                                            String err = "Invalid Closing Date found at row "+ (i+1) + "!";
+                                            throw new SysException(err);
+                                        }
+                                        
+                                        cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_DEBAR_CONTRACTOR_COLNO);
+                                        String debarredContractor = "";
+                                        if (cellRead != null)
+                                            debarredContractor = cellRead.getStringCellValue().trim();
+                                          
+                                        // Set Post/Rank
+                                        cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_POST_RANK_COLNO);
+                                        String postRank = "";
+                                        if (cellRead != null)
+                                        	postRank=cellRead.getStringCellValue().trim();
+
+                                        // Set Service Contract Ref. No
+                                        cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_SERVICE_CONTRACT_NO_COLNO);
+                                        String serviceContractNo = "";
+                                        if (cellRead != null) 
+                                        	serviceContractNo =cellRead.getStringCellValue().trim();
+                                        
+                                        cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_AUTHORIZED_PERSON_COLNO);
+                                        String authorizedPerson = cellRead.getStringCellValue().trim();    
+                                        if (authorizedPerson == null){
+                                            String err = "Invalid Authorised Person found at row "+ (i+1) + "!";
+                                            throw new SysException(err);
+                                        }
+
+                                        cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_FILE_PART_COLNO);
+                                        String filePart = cellRead.getStringCellValue().trim();  
+                                        if (filePart == null){
+                                            String err = "Invalid File Part No. found at row "+ (i+1) + "!";
+                                            throw new SysException(err);
+                                        }
+                                        
+                                        cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_FILE_NO_COLNO);
+                                        int fileNo = (int) cellRead.getNumericCellValue();    
+                                        if (fileNo == 0){
+                                            String err = "Invalid File No. found at row "+ (i+1) + "!";
+                                            throw new SysException(err);
+                                        }
+                                        
+                                        cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_WA_TITLE_COLNO);
+                                        String waTitle = cellRead.getStringCellValue().trim();    
+                                        if (waTitle == null){
+                                            String err = "Invalid Work Assignment Title found at row "+ (i+1) + "!";
+                                            throw new SysException(err);
+                                        }
+                                        
+                                        java.util.Date awardedDate=null;
+                                        if (waStatus.equals("n")||waStatus.equals("c")||!awardedContractor.equals("")){ 
+                                            cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_AWARDED_DATE_COLNO);
+                                            awardedDate =cellRead.getDateCellValue();
+                                        }
+                                        
+                                        double awardedContractValue = 0.0;
+                                        if (waStatus.equals("n")||waStatus.equals("c")||!awardedContractor.equals("")){ 
+                                            cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_CONTRACT_VALUE_COLNO);
+                                            awardedContractValue =(double) cellRead.getNumericCellValue();
+                                        }
+                                        
+                                        double aggregatedEffort = 0.0;
+                                        if (waStatus.equals("n")||waStatus.equals("c")||!awardedContractor.equals("")){ 
+                                            cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_AGGREGATED_EFFORT_COLNO);
+                                            aggregatedEffort =(double) cellRead.getNumericCellValue();
+                                        }
+
+                                        double totalProjectCost = 0.0;
+                                        if (waStatus.equals("n")||waStatus.equals("c")||!awardedContractor.equals("")){ 
+                                            cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_TOTAL_PROJECT_COST_COLNO);
+                                            totalProjectCost =(double) cellRead.getNumericCellValue();
+                                        }
+                                        
+                                        
+                                        // Set Planned Start Date and Planned Completion Date
+                                        
+                                        java.util.Date plannedStartDate=null;
+                                        cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_PLANNED_START_DATE_COLNO);
+                                        plannedStartDate =cellRead.getDateCellValue();
+                                            
+                                        java.util.Date plannedCompletionDate=null;
+                                        cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_PLANNED_COMPLETION_DATE_COLNO);
+                                        plannedCompletionDate =cellRead.getDateCellValue();                            
+                                        
+                                        //Set Contact Phone Number and Internet Mail
+                                        String contactPhoneNumber = "";
+                                        try{
+                                        	cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_CONTACT_PHONE_NUMBER_COLNO);
+                                        	if (cellRead.getCellType() == HSSFCell.CELL_TYPE_NUMERIC)
+                                        		contactPhoneNumber = Double.toString(cellRead.getNumericCellValue());
+                                        	else if (cellRead != null)
+                                        		contactPhoneNumber=cellRead.getStringCellValue().trim();
+                                        }catch(NullPointerException e){
+                                        	logger.warn("The Contact Phone number at row "+i+" is not of correct format.");
+                                        	contactPhoneNumber="";
+                                        }
+                                        
+                                        cellRead = sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_INTERNET_MAIL_COLNO);
+                                        String internetMail = "";
+                                        if (cellRead != null)
+                                        	internetMail=cellRead.getStringCellValue().trim();
+
+
+                                        wa.setStatus(waStatus);
+                                        wa.setServiceCategoryGroup(serviceCategoryGroup);
+                                        wa.setDepartmentId(deptId);
+                                        wa.setIssuedDate(SysManager.getSQLDate(issueDate));
+                                        wa.setClosingDate(SysManager.getSQLDate(closingDate));
+                                        wa.setDebarredContractor(debarredContractor);
+                                        wa.setAuthorizedPerson(authorizedPerson);
+                                        wa.setFilePart(filePart);
+                                        wa.setFileNo(fileNo);
+                                        wa.setTitle(waTitle);
+                                        wa.setAwardedContractor(awardedContractor);
+                                        wa.setAwardedContractValue(awardedContractValue);
+                                        wa.setAggregatedEffort(aggregatedEffort);
+                                        wa.setTotalProjectCost(totalProjectCost);
+                                        wa.setPostRank(postRank);
+                                        wa.setServiceContractNo(serviceContractNo);
+                                        wa.setContactPhoneNumber(contactPhoneNumber);
+                                        wa.setInternetMail(internetMail);
+                                        
+                                        if (awardedDate !=null){
+                                            wa.setAwardedDate(SysManager.getSQLDate(awardedDate));
+                                        }else{
+                                            wa.setAwardedDate(null);
+                                        }
+                                        if (plannedStartDate !=null){
+                                            wa.setPlannedStartDate(SysManager.getSQLDate(plannedStartDate));
+                                        }else{
+                                            wa.setPlannedStartDate(null);
+                                        }
+                                        if (plannedCompletionDate !=null){
+                                            wa.setPlannedCompletionDate(SysManager.getSQLDate(plannedCompletionDate));
+                                        }else{
+                                            wa.setPlannedCompletionDate(null);
+                                        }
+                                        uploadStatus = waDB.insertWorkAssignment(wa);
+                                        if (uploadStatus !=1){ // if any error, stop execution
+                                            uploadStatus = -29;
+                                            return;
+                                        }
+                                        uploadCounter ++;
+                                    }else{
+                                        // check if blank record
+                                        if (! ((String) ((HSSFCell) sheet.getRow(i).getCell((short) Constant.WORK_ASSIGNMENT_DEPT_COLNO)).getStringCellValue().trim()).equals("")){
+                                            rejectedCounter ++;
+                                        }
+                                    }
+                                    i++;
+                                }
+                                // if no error found, replace with the temporary file
+                                if (uploadStatus == 1){
+                                    waDB.writeWorkAssignmentHeader(uploadCounter,secCtx);
+                                    try{
+                                        waDB.replaceTempWorkAssignment();
+                                    }catch(Exception ex){
+                                    	logger.error(ex);
+                                        new ServletException("WorkAssignmentUpload ERROR: "+
+                                                "AdminWorkAssignmentServlet:performWorkAssignmentUpload: "+
+                                                "Replace file error\n" + ex.toString());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            
+            // return page
+            if (uploadStatus == 1){
+                postScreen = "WorkAssignmentList.jsp";
+                String Msg = "File imported successfully! " +
+                        rowNo + " records read; "+
+                        uploadCounter + " records imported; " +
+                        rejectedCounter + " records discarded.";
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSG",Msg);
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSGTYPE","MSG");
+                response.sendRedirect(postScreen);
+            } else if (uploadStatus == -89){
+                postScreen = "WorkAssignmentUpload.jsp";
+                String errMsg = "File cannot be imported! Please close the file if it was opened and retry again. \r\n"+
+                        "Otherwise, please check if the file is still exists and the file is in Excel format.";
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSG",errMsg);
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            } else if (uploadStatus == -19){
+                postScreen = "WorkAssignmentUpload.jsp";
+                String errMsg = "Problem encountered in creating temporary file for work assignment table. Please retry!";
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSG",errMsg);
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            } else if (uploadStatus == -29){
+                postScreen = "WorkAssignmentUpload.jsp";
+                String errMsg = "File Upload Error! Please check the excel file.";
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSG",errMsg);
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            } else if (uploadStatus == -39){
+                postScreen = "WorkAssignmentUpload.jsp";
+                String errMsg = "Cannot find the number of work assignments in the uploaded file! Please check the excel file.";
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSG",errMsg);
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            } else if (uploadStatus == -49){
+                postScreen = "WorkAssignmentUpload.jsp";
+                String errMsg = "The file name is found different from \"" + Constant.WORK_ASSIGNMENT_TITLE+ "\"! Please check the excel file.";
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSG",errMsg);
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }  else {
+                postScreen = "WorkAssignmentUpload.jsp";
+                String errMsg = "System Error!";
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSG",errMsg);
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }
+        } catch (RecordFormatException ex0) {
+            postScreen = "WorkAssignmentUpload.jsp";
+            String errMsg = "File cannot be imported! Please remove the macros in excel file.";
+            request.getSession().setAttribute("WORK_ASSIGNMENT_MSG",errMsg);
+            request.getSession().setAttribute("WORK_ASSIGNMENT_MSGTYPE","ERR");
+            RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+            dispatcher.forward(request, response);
+            return;
+        }catch (IOException ex){
+            if (ex.getMessage().indexOf("Invalid header signature")>=0){
+                postScreen = "WorkAssignmentUpload.jsp";
+                String errMsg = "File format is incorrect! Imported file name: " + wa.getExcelFileName() + " <BR> Please check the excel file.";
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSG",errMsg);
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+                return;
+            }else{
+            	logger.error(ex);
+                throw new ServletException("File IO Error: AdminWorkAssignmentServlet:performWorkAssignmentUpload" + ex.toString());
+            }
+        }catch(Exception ex){
+        	logger.error(ex.toString(),ex);
+        	if ("java.lang.NullPointerException".equals(ex.toString())){
+        		postScreen = "WorkAssignmentUpload.jsp";
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSG","Please update the correct work assignment numbers at Excel field H1!");
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            
+        	}else if (ex.getMessage().indexOf("Duplicate key")>=0){
+                postScreen = "WorkAssignmentUpload.jsp";
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }else if (ex.getMessage().indexOf("Unknown B/D")>=0){
+                postScreen = "WorkAssignmentUpload.jsp";
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }else if (ex.getMessage().indexOf("SQL error")>=0){
+                postScreen = "WorkAssignmentUpload.jsp";
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }else if (ex.getMessage().indexOf("No record")>=0){
+                postScreen = "WorkAssignmentUpload.jsp";
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }else if (ex.getMessage().indexOf("Invalid")>=0 && ex.getMessage().indexOf("found at row")>=0){
+                postScreen = "WorkAssignmentUpload.jsp";
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("WORK_ASSIGNMENT_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);                
+            }else{
+            	logger.error(ex);
+                throw new ServletException("WorkAssignmentUploadERROR: AdminWorkAssignmentServlet:performWorkAssignmentUpload: Get Request Error\n" + ex.toString());
+            }
+        }finally{
+            try{
+                WorkAssignmentDataBean waDB = new WorkAssignmentDataBean();
+                waDB.deleteTempWorkAssignment();
+            }catch (Exception ex){
+                throw new ServletException("WorkAssignmentUploadERROR: "+
+                        "AdminWorkAssignmentServlet:performWorkAssignmentUpload: "+
+                        "Get Request Error\n" + ex.toString());
+            }
+        }
+    }
+    
+    private void performWorkAssignmentSearch(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        
+        SecurityContext secCtx = (SecurityContext) request.getSession().getAttribute("QPSES_SECURITY_CONTEXT");
+        HashMap waHashMap = new HashMap();
+        DeptInfo dept = new DeptInfo();
+        ContractorInfo contractor = new ContractorInfo();
+        WorkAssignmentInfo wa = new WorkAssignmentInfo();
+        List<Date> dateFilters = new ArrayList<Date>();
+        
+        try {
+            String deptId = request.getParameter("DeptId");
+            String contractorId = request.getParameter("ContractorId");
+            String ServiceCategoryGroup = request.getParameter("ServiceCategoryGroup");
+            String waStatus = request.getParameter("WAStatus");
+            
+            String invitationStartDate = request.getParameter("InvitationStartDate");
+            String invitationEndDate = request.getParameter("InvitationEndDate");
+            String awardStartDate = request.getParameter("AwardStartDate");
+            String awardEndDate = request.getParameter("AwardEndDate");
+            
+            dateFilters.add(("".equals(invitationStartDate))?null:SysManager.getSQLDate(invitationStartDate));
+            dateFilters.add(("".equals(invitationEndDate))?null:SysManager.getSQLDate(invitationEndDate));
+            dateFilters.add(("".equals(awardStartDate))?null:SysManager.getSQLDate(awardStartDate));
+            dateFilters.add(("".equals(awardEndDate))?null:SysManager.getSQLDate(awardEndDate));
+            
+            if (! deptId.equals("")){
+                dept.setSplitDeptId(deptId);
+                wa.setDepartmentId(dept.getSOADeptId());
+            }
+            if (! contractorId.equals("")){
+            	contractor.setContractorId(contractorId);
+                wa.setAwardedContractor(contractorId);
+            }
+            if (! ServiceCategoryGroup.equals("")){
+                wa.setServiceCategoryGroup(ServiceCategoryGroup);
+            }
+            if (! waStatus.equals("")){
+                wa.setStatus(waStatus);
+            }
+            
+            waHashMap.put("DeptInfo",dept);
+            waHashMap.put("ContractorInfo",contractor);
+            waHashMap.put("WorkAssignment",wa);
+            waHashMap.put("DateFilters",dateFilters);
+            request.getSession().setAttribute("WORK_ASSIGNMENT_SEARCH_PARAMETER",waHashMap);
+            
+            postScreen = "WorkAssignmentSearch.jsp";
+            response.sendRedirect(postScreen);
+            return;
+        }catch(Exception ex){
+        	logger.error(ex);
+            throw new ServletException("Servlet Error: AdminWorkAssignmentServlet:performWorkAssignmentSearch\n" + ex.toString());
+        }
+    }
+    
+    private void performWorkAssignmentSearchReset(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException {
+        
+        try{
+            request.getSession().removeAttribute("WORK_ASSIGNMENT_SEARCH_PARAMETER");
+            postScreen = request.getHeader("referer");
+            response.sendRedirect(postScreen);
+            return;
+        }catch(Exception ex){
+        	logger.error(ex);
+            throw new ServletException("Servlet Error:  AdminWorkAssignmentServlet:performWorkAssignmentSearchReset\n" + ex.toString());
+        }
+    }
+}

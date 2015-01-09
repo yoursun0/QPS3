@@ -1,0 +1,181 @@
+/*************************************************************************/
+function GetWA_WAOnClick(scg, dept_id, wa_file_part, wa_file_no)
+{   
+    var thisForm = document.form;
+    
+    thisForm.scg.value          = scg;
+    thisForm.dept_id.value      = dept_id;
+    thisForm.wa_file_part.value = wa_file_part;
+    thisForm.wa_file_no.value   = wa_file_no;
+
+    thisForm.target = "_self";
+    thisForm.action = "WAChallenge.servlet";
+    thisForm.submit();
+}
+
+/*************************************************************************/
+
+function WAChallenge_Validation(f) 
+{
+    // regular expresssion for checking of empty string
+    reEmpty = new RegExp("[a-zA-Z.0-9]+");
+
+    reInteger = new RegExp("[0-9]+");
+
+    challengeNo = f.ChallengeNo.value;
+
+    switch (challengeNo)
+    {
+        case "1":
+            if (f.IssuedDate.value.search(reEmpty) < 0)
+            {
+                alert("Please input the issued date of the invitation letter!");
+                f.IssuedDate.select();
+                f.IssuedDate.focus();
+                return false;
+            }
+            break;
+        case "2":
+            if (f.ClosingDate.value.search(reEmpty) < 0)
+            {
+                alert("Please input the invitation closing date of the work assignment!");
+                f.ClosingDate.select();
+                f.ClosingDate.focus();
+                return false;
+            }
+            break;
+        case "3":
+            if (f.ClosingDate.value.search(reEmpty) < 0)
+            {
+                alert("Please input the invitation closing date of the work assignment!");
+                f.ClosingDate.select();
+                f.ClosingDate.focus();
+                return false;
+            }
+            /*if (f.Surname.value.search(reEmpty) < 0)
+            {
+                alert("Please input the surname of the person who issued the invitation letter!");
+                f.Surname.select();
+                f.Surname.focus();
+                return false;
+            }*/
+            break;
+        case "4":
+            if (f.ClosingDate.value.search(reEmpty) < 0)
+            {
+                alert("Please input the invitation closing date of the work assignment!");
+                f.ClosingDate.select();
+                f.ClosingDate.focus();
+                return false;
+            }
+            /*if (f.NoOfInvitedContractor.value.search(reEmpty) < 0)
+            {
+                alert("Please input number of invited contractor!");
+                f.NoOfInvitedContractor.select();
+                f.NoOfInvitedContractor.focus();
+                return false;
+            }
+            
+            if (f.NoOfInvitedContractor.value.search(reInteger) < 0)
+            {
+                alert("Please input an integer for the number of invited contractor!");
+                f.NoOfInvitedContractor.select();
+                f.NoOfInvitedContractor.focus();
+                return false;
+            }*/
+            break;
+        case "5":
+            if (f.DebarredContractor.value == "" && !f.chkDebarredContractor[0].checked)
+            {
+                alert("Please check at least one option!");                  
+                return false;
+            }
+            break;
+    }
+      
+    return true;  
+}
+
+
+function WAChallenge_BtnBackOnClick(obj)
+{
+    var f = document.form;
+    
+    f.action = f.forwardScreen.value;
+    f.target = "_self";
+    f.submit();
+}
+
+function WAChallenge_BtnNextOnClick(obj)
+{
+    var f = document.form;
+
+    if (f.ChallengeNo.value == "5")
+    {
+        f.DebarredContractor.value = "";
+        
+        for (var i = 0; i < f.chkDebarredContractor.length; i++)
+        {
+            if (f.chkDebarredContractor[i].checked)
+            {
+                if (f.DebarredContractor.value == "")
+                    f.DebarredContractor.value = f.chkDebarredContractor[i].value;
+                else
+                {	
+                    if (f.chkDebarredContractor[i].value != "") // Avoid adding "No debarred contractor" value
+                        f.DebarredContractor.value += "," + f.chkDebarredContractor[i].value;
+                }
+            }
+        }        
+    }
+
+    if (WAChallenge_Validation(f)) 
+    {   
+        f.action = "WAChallengeValidation.servlet";
+        f.target = "_self";
+        f.submit();
+    }
+}
+
+
+function WAChallenge_chkDebarredContractor_OnClick(flag)
+{
+    var f = document.form;
+ 
+    // Clear all contractor selection if "No debarred contractor is selected" is selected
+    if (flag == "NO_DEBARRED")
+    {
+        for (var i = 1; i < f.chkDebarredContractor.length; i++)
+            f.chkDebarredContractor[i].checked = false;
+    }
+    else
+    {
+        f.chkDebarredContractor[0].checked = false;
+    }
+}
+
+/*************************************************************************/
+function ShowImage_DownloadFile()
+{   
+    document.form.action               = "../qpsuser/CPSSLUserWAC";
+    document.form.request_action.value = "getPDF";
+    document.form.target               = "_self";
+    document.form.submit();
+}
+
+function ShowImage_BtnBackOnClick()
+{
+    document.form.action               = "../qpsuser/CPSSLUser";
+    document.form.request_action.value = "";
+    document.form.target               = "_self";
+    document.form.submit();
+}
+
+function ShowImage_PageNoOnClick(pageNo)
+{
+    document.form.action        = "../qpsuser/CPSShowImage.jsp";
+    document.form.page_no.value = pageNo;
+    document.form.target        = "_self";
+    document.form.submit();
+}
+/*************************************************************************/

@@ -1,0 +1,302 @@
+-- MySQL script for QPS3 Database
+-- Redesign DB schema for debarrment logic and Admin debarrment function
+-- HKMCI appends their change to this DB script after running all phrase1 SQL script
+-- ------------------------------------------------------
+-- Server version 5.5-community
+
+use qpsis;
+
+--
+-- Table structure for table `qpsis`.`debarment`
+--
+
+DROP TABLE IF EXISTS `debarment`;
+CREATE TABLE `debarment` (
+  `debarment_id` INT NOT NULL auto_increment,
+  `service_category_group` varchar(3) NOT NULL,
+  `contractor_id` varchar(20) NOT NULL,
+  `start_date` DATE,
+  `end_date` DATE,
+  `active_indicator` TINYINT(1),
+  `created_datetime` datetime NOT NULL,
+  `last_updated_datetime` datetime NOT NULL,
+  `last_updated_by_user` varchar(30) NOT NULL,
+  PRIMARY KEY  (`debarment_id`),
+  KEY `FK_debarment` (`contractor_id`),
+  CONSTRAINT `FK_debarment` FOREIGN KEY (`contractor_id`) REFERENCES `contractor` (`contractor_id`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;
+
+
+
+
+--
+-- Procedure `qpsis`.`sp_insert_debarment`
+--
+
+DROP PROCEDURE IF EXISTS `sp_insert_debarment`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_insert_debarment`(
+ IN p_service_category_group varchar(3),
+ IN p_contractor_id varchar(20),
+ IN p_start_date DATE,
+ IN p_end_date DATE,
+ IN p_release INT,
+ IN p_admin_id varchar(30),
+ IN p_dp_dept_id varchar(10),
+ IN p_soa_dept_id varchar(10),
+ OUT return_code INT)
+BEGIN
+DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+SET return_code = 0;
+/* Define variable to be passed to trigger*/
+SET @adminID = p_admin_id;
+SET @dpDeptId = p_dp_dept_id;
+SET @soaDeptId = p_soa_dept_id;
+SET @remarks = concat('Debar Cat ',p_service_category_group,' contractor: ',p_contractor_id,' from ',p_start_date,' to ',p_end_date);
+
+    INSERT INTO debarment
+    (service_category_group,
+     contractor_id,
+     start_date,
+     end_date,
+     active_indicator,
+     created_datetime,
+     last_updated_datetime,
+     last_updated_by_user)
+    Values
+    (p_service_category_group,
+     p_contractor_id,
+     p_start_date,
+     p_end_date,
+     p_release,
+	 SYSDATE(),
+     SYSDATE(),
+     @adminID
+    );
+    SET return_code = 1;
+		  
+	  INSERT INTO audit_trail(
+		user_id, dp_department_id, soa_department_id, function_id,
+		entity_name, record_id, action_performed, date_time, remarks
+		)
+		VALUES
+		(
+		@adminID, @dpDeptId, @soaDeptId, 'DEBARADD',
+		'Debar contractor', p_contractor_id , 'A', SYSDATE(), @remarks
+		);
+
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_release_debarment`
+--
+
+DROP PROCEDURE IF EXISTS `sp_release_debarment`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_release_debarment`(
+ IN p_debarment_id INT,
+ IN p_admin_id varchar(30),
+ IN p_dp_dept_id varchar(10),
+ IN p_soa_dept_id varchar(10),
+ OUT return_code INT)
+BEGIN
+  DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+  SET return_code =0;
+  /* Define variable to be passed to trigger*/
+  SET @adminID = p_admin_id;
+  SET @dpDeptId = p_dp_dept_id;
+  SET @soaDeptId = p_soa_dept_id;
+  
+  SET @contractor = (SELECT contractor_id from debarment
+      WHERE debarment_id = p_debarment_id);
+  SET @remarks = concat('Release Debarment of ',@contractor);
+  
+  UPDATE debarment SET active_indicator = -1 WHERE debarment_id = p_debarment_id;
+  INSERT INTO audit_trail(
+		user_id, dp_department_id, soa_department_id, function_id,
+		entity_name, record_id, action_performed, date_time, remarks
+		)
+		VALUES
+		(
+		@adminID, @dpDeptId, @soaDeptId, 'DEBARRELEASE',
+		'Release Debarment', p_debarment_id, 'A', SYSDATE(), @remarks
+		);
+  SET return_code = 1;
+END $$
+
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_delete_debarment`
+--
+
+DROP PROCEDURE IF EXISTS `sp_delete_debarment`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_delete_debarment`(
+ IN p_debarment_id INT,
+ IN p_admin_id varchar(30),
+ IN p_dp_dept_id varchar(10),
+ IN p_soa_dept_id varchar(10),
+ OUT return_code INT)
+BEGIN
+  DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+  SET return_code =0;
+  /* Define variable to be passed to trigger*/
+  SET @adminID = p_admin_id;
+  SET @dpDeptId = p_dp_dept_id;
+  SET @soaDeptId = p_soa_dept_id;
+  
+  SET @contractor = (SELECT contractor_id from debarment
+      WHERE debarment_id = p_debarment_id);
+  SET @remarks = concat('DELETE Debarment of ',@contractor);
+  
+  DELETE FROM debarment WHERE debarment_id = p_debarment_id;
+  INSERT INTO audit_trail(
+		user_id, dp_department_id, soa_department_id, function_id,
+		entity_name, record_id, action_performed, date_time, remarks
+		)
+		VALUES
+		(
+		@adminID, @dpDeptId, @soaDeptId, 'DEBARDELETE',
+		'Delete Debarment', p_debarment_id, 'A', SYSDATE(), @remarks
+		);
+  SET return_code = 1;
+END $$
+
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_select_debarment`
+--
+
+DROP PROCEDURE IF EXISTS `sp_select_debarment`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_select_debarment`(
+IN p_order_by varchar(20),
+IN p_order_dir varchar(10)
+)
+BEGIN
+  IF (p_order_by = "Category") THEN
+    IF p_order_dir = "DESC" THEN
+      SELECT deb.*, con.contractor_name FROM debarment AS deb LEFT JOIN contractor AS con
+          ON deb.contractor_id=con.contractor_id ORDER BY service_category_group DESC;
+    ELSE
+      SELECT deb.*, con.contractor_name FROM debarment AS deb LEFT JOIN contractor AS con
+          ON deb.contractor_id=con.contractor_id ORDER BY service_category_group;
+    END IF;
+  ELSEIF (p_order_by = "ContractorId") THEN
+    IF p_order_dir = "DESC" THEN
+      SELECT deb.*, con.contractor_name FROM debarment AS deb LEFT JOIN contractor AS con
+          ON deb.contractor_id=con.contractor_id ORDER BY contractor_id DESC;
+    ELSE
+      SELECT deb.*, con.contractor_name FROM debarment AS deb LEFT JOIN contractor AS con
+          ON deb.contractor_id=con.contractor_id ORDER BY contractor_id;
+    END IF;
+  ELSEIF (p_order_by = "Contractor") THEN
+    IF p_order_dir = "DESC" THEN
+      SELECT deb.*, con.contractor_name FROM debarment AS deb LEFT JOIN contractor AS con
+          ON deb.contractor_id=con.contractor_id ORDER BY contractor_name DESC;
+    ELSE
+      SELECT deb.*, con.contractor_name FROM debarment AS deb LEFT JOIN contractor AS con
+          ON deb.contractor_id=con.contractor_id ORDER BY contractor_name;
+    END IF;
+  ELSEIF (p_order_by = "StartDate") THEN
+    IF p_order_dir = "DESC" THEN
+      SELECT deb.*, con.contractor_name FROM debarment AS deb LEFT JOIN contractor AS con
+          ON deb.contractor_id=con.contractor_id ORDER BY start_date DESC;
+    ELSE
+      SELECT deb.*, con.contractor_name FROM debarment AS deb LEFT JOIN contractor AS con
+          ON deb.contractor_id=con.contractor_id ORDER BY start_date;
+    END IF;
+  ELSEIF (p_order_by = "EndDate") THEN
+    IF p_order_dir = "DESC" THEN
+      SELECT deb.*, con.contractor_name FROM debarment AS deb LEFT JOIN contractor AS con
+          ON deb.contractor_id=con.contractor_id ORDER BY end_date DESC;
+    ELSE
+      SELECT deb.*, con.contractor_name FROM debarment AS deb LEFT JOIN contractor AS con
+          ON deb.contractor_id=con.contractor_id ORDER BY end_date;
+    END IF;
+  ELSEIF (p_order_by = "lastUpdateUser") THEN
+    IF p_order_dir = "DESC" THEN
+      SELECT deb.*, con.contractor_name FROM debarment AS deb LEFT JOIN contractor AS con
+          ON deb.contractor_id=con.contractor_id ORDER BY last_update_by_user DESC;
+    ELSE
+      SELECT deb.*, con.contractor_name FROM debarment AS deb LEFT JOIN contractor AS con
+          ON deb.contractor_id=con.contractor_id ORDER BY last_update_by_user;
+    END IF;
+  ELSE
+    IF p_order_dir = "DESC" THEN
+      SELECT deb.*, con.contractor_name FROM debarment AS deb LEFT JOIN contractor AS con
+          ON deb.contractor_id=con.contractor_id ORDER BY debarment_id DESC;
+    ELSE
+      SELECT deb.*, con.contractor_name FROM debarment AS deb LEFT JOIN contractor AS con
+          ON deb.contractor_id=con.contractor_id ORDER BY debarment_id;
+    END IF;
+  END IF;
+END $$
+
+DELIMITER ;
+
+
+
+
+--
+-- Procedure `qpsis`.`sp_select_debarment_by_id`
+--
+
+DROP PROCEDURE IF EXISTS `sp_select_debarment_by_id`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_select_debarment_by_id`(
+IN p_id INT
+)
+BEGIN
+      SELECT deb.*, con.contractor_name FROM debarment AS deb LEFT JOIN contractor AS con
+          ON deb.contractor_id=con.contractor_id WHERE debarment_id = p_id;
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_select_contractor_by_catgp`
+--
+
+DROP PROCEDURE IF EXISTS `sp_select_contractor_by_catgp`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_select_contractor_by_catgp`(
+IN p_cat_gp varchar(3))
+BEGIN
+
+    IF (p_cat_gp = '1') THEN
+        SELECT * FROM contractor WHERE 1J_indicator = -1 ORDER BY contractor_name;
+    ELSEIF (p_cat_gp = '2/N') THEN
+        SELECT * FROM contractor WHERE 2N_indicator = -1 ORDER BY contractor_name;
+    ELSEIF (p_cat_gp = '2/J') THEN
+        SELECT * FROM contractor WHERE 2J_indicator = -1 ORDER BY contractor_name;
+    ELSEIF (p_cat_gp = '3/N') THEN
+        SELECT * FROM contractor WHERE 3N_indicator = -1 ORDER BY contractor_name;
+    ELSEIF (p_cat_gp = '3/J') THEN
+        SELECT * FROM contractor WHERE 3J_indicator = -1 ORDER BY contractor_name;
+    ELSEIF (p_cat_gp = '4') THEN
+        SELECT * FROM contractor WHERE 4J_indicator = -1 ORDER BY contractor_name;
+    END IF;
+
+END $$
+
+DELIMITER ;
+
+
+Commit;

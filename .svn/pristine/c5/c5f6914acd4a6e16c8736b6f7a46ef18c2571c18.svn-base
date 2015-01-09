@@ -1,0 +1,271 @@
+<%@page contentType="text/html"%>
+<%@page pageEncoding="UTF-8"%>
+<%@ page import="qpses.business.ACLInfo,
+								qpses.business.DeptInfo,
+                                qpses.business.ACLDataBean,
+                                qpses.business.DeptDataBean,
+                                java.util.List,
+                                qpses.util.SysManager"%>
+<%
+
+    // initialize variable
+    String user_id = "";
+    String dept_id = "";
+    String dept_name = "";
+    String first_name = "";
+    String last_name = "";
+    String email = "";
+    String password = "";
+    int active_ind = 0;
+    int email_ind = 0;
+    String creation_date="";
+    String last_updated_date="";
+    String last_updated_by="";
+    String org_key1="";
+    String org_key2="";
+    String org_key3="";
+    String effective_date ="";
+    String expiry_date ="";
+    int access_failure_count=0;
+
+    ACLInfo acl = new ACLInfo();
+    
+
+    // get parameters from previous screen
+    String pre_screen = getValue(request.getParameter("PostScreen"));
+    if (pre_screen.equals("")){
+        pre_screen = (String) session.getAttribute("ACL_POST_SCREEN");
+    }
+    String order_by = getValue(request.getParameter("OrderBy"));
+    String order_dir = getValue(request.getParameter("OrderDir"));
+
+    // Get department list
+    DeptDataBean dpDB = new DeptDataBean();
+    List deptList = dpDB.selectDept();
+
+    // check  for message and get last input from session variables
+    String msg =   getValue((String)  session.getAttribute("ACL_MSG"));
+    String msgtype =   getValue((String)  session.getAttribute("ACL_MSGTYPE"));
+
+    if (!msg.equals("")){
+        session.removeAttribute("ACL_MSG");
+        session.removeAttribute("ACL_MSGTYPE");
+    }
+
+    acl = (ACLInfo) session.getAttribute("ACL_DATA");
+    if (acl!=null){
+        org_key1 = acl.getOrgKey1();
+        org_key2 = acl.getOrgKey2();
+        org_key3 = acl.getOrgKey3();
+        user_id = acl.getUserId();
+        dept_id = acl.getDeptId();
+        dept_name = acl.getDeptName();
+        active_ind = acl.getActiveInd();
+        email_ind = acl.getEmailInd();
+        password = acl.getPassword();
+        if (acl.getEffectiveDate()!=null) effective_date =  SysManager.getStringfromSQLDate(acl.getEffectiveDate());
+        if (acl.getExpiryDate()!=null) expiry_date =  SysManager.getStringfromSQLDate(acl.getExpiryDate());
+        ACLDataBean aclDB =new ACLDataBean();
+        acl = aclDB.selectACLByKeys(org_key1, org_key2, org_key3);
+        creation_date = SysManager.getStringfromSQLDateTime(acl.getCreatedDate());
+        access_failure_count = acl.getAccessFailureCount();
+        last_updated_date = SysManager.getStringfromSQLDateTime(acl.getLastUpdatedDate());
+        last_updated_by = acl.getLastUpdatedBy();
+        session.removeAttribute("ACL_DATA");
+    } else{
+
+        // get data from database
+        org_key1 = getValue(request.getParameter("selectedKey1"));
+        org_key2 = getValue(request.getParameter("selectedKey2"));
+        org_key3 = getValue(request.getParameter("selectedKey3"));
+
+        if (org_key1.equals("")||
+                org_key2.equals("")||
+                org_key3.equals("")){
+            org_key1 = getValue(request.getParameter("OrgKey1"));
+            org_key2 = getValue(request.getParameter("OrgKey2"));
+            org_key3 = getValue(request.getParameter("OrgKey3"));
+        }
+        if (org_key1.equals("")||
+                org_key2.equals("")||
+                org_key3.equals("")){
+            response.sendRedirect("ACLList.jsp");
+            return;
+        }
+        ACLDataBean aclDB =new ACLDataBean();
+        acl = aclDB.selectACLByKeys(org_key1, org_key2, org_key3);
+        if (acl!=null){
+            user_id = acl.getUserId();
+            dept_id = acl.getDeptId();
+            dept_name = acl.getDeptName();
+            
+            first_name = getValue(acl.getFirstName());
+            last_name = getValue(acl.getLastName());
+            email = getValue(acl.getEmail());
+            password = getValue(acl.getPassword());
+            active_ind = acl.getActiveInd();
+            email_ind = acl.getEmailInd();
+            creation_date = SysManager.getStringfromSQLDateTime(acl.getCreatedDate());
+            access_failure_count = acl.getAccessFailureCount();
+            last_updated_date = SysManager.getStringfromSQLDateTime(acl.getLastUpdatedDate());
+            last_updated_by = acl.getLastUpdatedBy();
+            if (acl.getEffectiveDate()!=null) effective_date =  SysManager.getStringfromSQLDate(acl.getEffectiveDate());
+            if (acl.getExpiryDate()!=null) expiry_date =  SysManager.getStringfromSQLDate(acl.getExpiryDate());
+        }
+    }
+
+
+    // Get list of expiry date from end date of each assessment period
+    ACLDataBean aclDB = new ACLDataBean();
+    List expiryDateList = aclDB.selectExpiryDate();
+
+
+%>
+<%!private String getValue(String temp){ return (temp == null )? "" : temp;}%>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title>SOA-QPS3 Quality Professional Services Information System Administration - Update User</title>
+        <link rel="STYLESHEET" type="text/css" href="../styles/style.css">
+        <link rel="STYLESHEET" type="text/css" href="../styles/calendar.css">
+        <script language="JavaScript" src="../js/simplecalendar.js" type="text/javascript"></script>                        
+        <script language="JavaScript" src="../js/aclcheck.js" type="text/javascript"></script>                               
+    </head>
+    <body>
+        <%@include file="include/header.jsp"%>
+        <fieldset class="function"> 
+            <table class="function_title"><tr><td>Access Control List Maintenance</td></tr></table>            		        
+            <form name="form1" method="POST" action="ACLAdd.jsp">            
+                <table border="0" cellspacing="0" cellpadding="0" width="98%" class="tableNoBorder" align="center">
+                    <tr>
+                        <td class="title1"> 
+                            <p align="left">Update User</p>
+                        </td>
+                    </tr>
+                    <tr> 
+                        <td> <%= (! msg.equals(""))? "<div class=\"errMessage\">"+ msg + "</div><br>":""%> 
+                        </td>
+                    </tr>
+                    <tr> 
+                        <td> 
+                            <div align="center"> 
+                                <table  width="98%" cellspacing="1" class="tableBackground">
+                                    <tr width="15%"> 
+                                        <td class="tableVerticalHeaderAlignLeft1" width="25%">User ID</td>
+                                        
+                                        <td class="tableVerticalContentAlignLeft1" width="75%"> <%=user_id%> 
+                                        </td>
+                                    </tr>
+                                    <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">First 
+                                                    Name</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> <%=first_name%> </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Last 
+                                                    Name</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> <%=last_name%> </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Email Address</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> <%=email%> </td>
+                                                </tr>
+                                                <tr> 
+                                        			<td class="tableVerticalHeaderAlignLeft1" width="25%">Department</td>
+                                        			<td class="tableVerticalContentAlignLeft1" width="75%"> <%=dept_name%> </td>
+                                   				</tr>
+                                   				<input type="hidden" name="Password" value="" size="30" maxlength="30" />
+                                   				<input type="hidden" name="ConfirmPassword" value="" size="30" maxlength="30" />
+                                               <!--  <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Password</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <input type="password" name="Password" value="" size="30" maxlength="30" />
+                                                    </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Confirm Password</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <input type="password" name="ConfirmPassword" value="" size="30" maxlength="30" />
+                                                    </td>
+                                                </tr> -->
+                                    <tr> 
+                                        <td class="tableVerticalHeaderAlignLeft1" width="19%">Effective 
+                                        Date</td>
+                                        <td class="tableVerticalContentAlignLeft1" width="81%"> 
+                                        <input type="text" name="EffectiveDate" value="<%=effective_date%>" class="inputText" size="10" readonly/>
+                                        <a href="javascript: void(0);" onMouseOver="if (timeoutId) clearTimeout(timeoutId);window.status='Show Calendar';return true;"  onMouseOut="if (timeoutDelay) calendarTimeout();window.status='';"   onClick="g_Calendar.show(event,'form1.EffectiveDate',true, 'dd-mmm-yyyy');return false"> 
+                                        <img src="../images/calendar.gif" name="imgCalendar" width="34" height="21" border="0" alt=""></a> 
+                                        (dd-MMM-yyyy) </td>
+                                    </tr>
+                                    <tr> 
+                                         <td class="tableVerticalHeaderAlignLeft1" width="19%">Expiry 
+                                         Date </td>
+                                         <td class="tableVerticalContentAlignLeft1" width="81%"> 
+                                         <input type="text" name="ExpiryDate" value="<%=expiry_date%>" class="inputText" size="10"  readonly/>
+                                         <a href="javascript: void(0);" onMouseOver="if (timeoutId) clearTimeout(timeoutId);window.status='Show Calendar';return true;"  
+                                         onMouseOut="if (timeoutDelay) calendarTimeout();window.status='';"   
+                                         onClick="g_Calendar.show(event,'form1.ExpiryDate',true, 'dd-mmm-yyyy');return false"> 
+                                         <img src="../images/calendar.gif" name="imgCalendar" width="34" height="21" border="0" alt=""></a> 
+                                         (dd-MMM-yyyy) </td>
+                                    </tr>
+                                    <tr> 
+                                        <td class="tableVerticalHeaderAlignLeft1">Receive System Alert Email?</td>
+                                        
+                                        <td class="tableVerticalContentAlignLeft1">
+                                        <input type="radio" name="EmailInd" value="-1" <%= ((email_ind == -1)?"CHECKED":"")%>/>
+                                        Yes 
+                                        <input type="radio" name="EmailInd" value="0" <%= ((email_ind == 0)?"CHECKED":"")%> />
+                                        No </td>
+                                    </tr>
+                                    <tr> 
+                                        <td class="tableVerticalHeaderAlignLeft1">Locked?</td>
+                                        
+                                        <td class="tableVerticalContentAlignLeft1">
+                                        <input type="radio" name="ActiveInd" value="0" <%= ((active_ind == 0)?"CHECKED":"")%>/>
+                                        Yes 
+                                        <input type="radio" name="ActiveInd" value="-1" <%= ((active_ind == -1)?"CHECKED":"")%> />
+                                        No </td>
+                                    </tr>
+                                    <tr> 
+                                        <td class="tableVerticalHeaderAlignLeft1">Creation Date</td>
+                                        <td class="tableVerticalContentAlignLeft1"><%=creation_date%></td>
+                                    </tr>
+                                    <tr> 
+                                        <td class="tableVerticalHeaderAlignLeft1">Last Updated Date</td>
+                                        <td class="tableVerticalContentAlignLeft1"><%=last_updated_date%></td>
+                                    </tr>
+                                    <tr> 
+                                        <td class="tableVerticalHeaderAlignLeft1">Last Updated By</td>
+                                        <td class="tableVerticalContentAlignLeft1"><%=last_updated_by%></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+                <div align="center"></div>
+                <table border="0" cellpadding="3" align="center">
+                    <tr>
+                        <% if (active_ind == 0){%>
+                        <td>
+                            <div align="center"> <a href="#"><img src="../images/btn_unlock.jpg" width="98" height="42" name="UnlockUser" onClick="selectaction(form1,this)" border="0" alt="Unlock User"></a></div>
+                        </td>					 
+                        <%}%> 
+                        <td >                            
+                            <div align="center"> <a href="#"><img src="../images/btn_update.jpg" width="98" height="42" name="ConfirmUpdate" onClick="selectaction(form1,this)" border="0" alt="Update"></a></div>
+                        </td>
+                        <td>
+                            <div align="center"> <a href="#"><img src="../images/btn_cancel.jpg" width="98" height="42" name="Cancel" onClick="selectaction(form1,this)" border="0" alt="Cancel"></a></div>
+                        </td>
+                    </tr>
+                </table>
+                <input type="hidden" name="OrgKey1" value="<%=org_key1%>">
+                <input type="hidden" name="OrgKey2" value="<%=org_key2%>">
+                <input type="hidden" name="OrgKey3" value="<%=org_key3%>">  
+                <input type="hidden" name="PostScreen" value="<%=pre_screen%>">
+                <input type="hidden" name="OrderBy" value="<%=order_by%>">
+                <input type="hidden" name="OrderDir" value="<%=order_dir%>">                                                                                   
+            </form>    
+        </fieldset> 
+    </body>
+</html>

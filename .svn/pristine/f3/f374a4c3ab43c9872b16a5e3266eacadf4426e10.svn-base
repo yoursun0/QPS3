@@ -1,0 +1,67 @@
+package qpses.security;
+
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.isA;
+import static org.easymock.EasyMock.lt;
+import static org.easymock.EasyMock.replay;
+
+import org.junit.Test;
+
+import qpses.business.LogDataBean;
+import qpses.util.Constant;
+import qpses.util.SysException;
+import qpses.util.SysManager;
+
+public class TestLogoutForSecurityServlet extends SecurityServlet {
+
+	private SecurityDataBean secDB; 
+	private LogDataBean logDB; 
+	protected UserStatus uStatus;
+	
+    @Override
+	public SecurityDataBean getSecurityDataBean() throws SysException{
+    	try {
+    		uStatus = new UserStatus();
+			uStatus.expiryDate = SysManager.getSQLDate(Constant.QPSIS_EXPIRY_DATE);
+			uStatus.userId = "test.junit";
+			uStatus.dpDeptId = "junit";
+			uStatus.soaDeptId = "junit";
+    		// Pass a Mock DataBean
+    		secDB = createMock(SecurityDataBean.class);
+    		
+    		secDB.updateSystemOut(isA(SecurityContext.class));
+    		expect(secDB.getUserStatus(isA(SecurityContext.class),isA(String.class))).andReturn(uStatus).times(0,10);
+    		secDB.changePassword(isA(SecurityContext.class),isA(String.class),lt((byte)0));
+    		expectLastCall().times(0,10);
+    		
+    		
+			replay(secDB);
+		} catch (SecurityException e) {
+			throw new SysException(e.getMessage());
+		}
+        return secDB;
+    }
+    
+    @Override
+	public LogDataBean getLogDataBean() throws SysException{
+    	// Pass a Mock DataBean
+		logDB = createMock(LogDataBean.class);
+		
+		logDB.insertChangePasswordLog("test.junit","junit","junit","Y");
+		expectLastCall().times(0,10);
+
+		replay(logDB);
+        return logDB;
+    }
+    
+    @Test
+    public void test() throws SysException{
+    	LogDataBean logDB = getLogDataBean();
+    	SecurityDataBean secDB = getSecurityDataBean();
+    	logDB = null;
+    	secDB = null;
+    }
+    
+}

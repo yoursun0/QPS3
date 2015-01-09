@@ -1,0 +1,241 @@
+package qpses.business;
+
+import java.util.ArrayList;
+
+public class CeilingRateCat4Info
+{
+    public static final String MinorGroupInd = "N";
+    public static final String MajorGroupInd = "J";
+    
+    public static final int NumOfWorkingLocation = 3;
+    public static final int NumOfWorkingHourType = 3;
+    public static final int NumOfOneOffStaffCategory  = 6;
+    public static final int NumOfOnGoingStaffCategory = 5;
+    
+    public static final String[] WorkingLocationName   = {"Resident", "Non-Resident", "Off-Shore"};
+    public static final String[] WorkingLocationDBName = {"resident", "non_resident", "offshore"};
+    public static final String[] WorkingHourTypeName   = {"Office Hours", "Non-office Hours", "24-Hour Round-the-clock"};
+    public static final String[] WorkingHourTypeDBName = {"office_hours", "non_office_hours", "round_the_clock"};
+    
+    public static final String ExceedString    = "Yes";
+    public static final String NotExceedString = "No";
+    public static final String NoOfferString   = "No Offer";
+    
+    public static final double NoOfferDBNumber  = -999;   // Value indicates "no offer" in database
+    public static final double NoOfferWebNumber = -1000;  // Value indicates "no offer" from web page
+    
+    private double [][] OneOffStaffRate       = new double[this.NumOfOneOffStaffCategory][this.NumOfWorkingLocation];
+    private String[][] OneOffStaffRateExceed = new String[this.NumOfOneOffStaffCategory][this.NumOfWorkingLocation];
+    
+    private double [][] OnGoingStaffRate       = new double[this.NumOfOnGoingStaffCategory][this.NumOfWorkingHourType];
+    private String[][] OnGoingStaffRateExceed = new String[this.NumOfOnGoingStaffCategory][this.NumOfWorkingHourType];
+    
+    private String ContractorName;
+    private String ContractorID;
+    private String ServiceGroup;
+    private String Currency;
+    private int ActiveIndicator;
+    private String CreatedDate;
+    private String LastUpdatedDate;
+    private String LastUpdatedBy;
+    private int SupStaffIndicator;
+    
+    /** Creates a new instance of CeilingRateCat4Info */
+    public CeilingRateCat4Info()
+    {}
+    
+    public void CheckCeilingRate(CeilingRateCat4Info aCeilingRateCat4Info)
+    {
+        // Check one-off staff rate
+        for (int i = 0; i < this.NumOfOneOffStaffCategory; i++)
+        {
+            for (int j = 0; j < this.NumOfWorkingLocation; j++)
+            {
+                if (aCeilingRateCat4Info.getOneOffStaffRate(i, j) == this.NoOfferDBNumber &&
+                        this.getOneOffStaffRate(i, j) != this.NoOfferDBNumber ) // User input value for "no offer" field
+                    this.setOneOffStaffRateExceed(i, j, this.NoOfferString);
+                else if (this.getOneOffStaffRate(i, j) > aCeilingRateCat4Info.getOneOffStaffRate(i, j))
+                    this.setOneOffStaffRateExceed(i, j, this.ExceedString);
+                else
+                    this.setOneOffStaffRateExceed(i, j, this.NotExceedString);
+            }
+        }
+        
+        // Check on-going staff rate
+        for (int i = 0; i < this.NumOfOnGoingStaffCategory; i++)
+        {
+            for (int j = 0; j < this.NumOfWorkingHourType; j++)
+            {
+                if (aCeilingRateCat4Info.getOnGoingStaffRate(i, j) == this.NoOfferDBNumber &&
+                        this.getOnGoingStaffRate(i, j) != this.NoOfferDBNumber ) // User input value for "no offer" field
+                    this.setOnGoingStaffRateExceed(i, j, this.NoOfferString);                
+                else if (this.getOnGoingStaffRate(i, j) > aCeilingRateCat4Info.getOnGoingStaffRate(i, j))
+                    this.setOnGoingStaffRateExceed(i, j, this.ExceedString);
+                else
+                    this.setOnGoingStaffRateExceed(i, j, this.NotExceedString);
+            }
+        }
+    }
+    
+    public void setOneOffStaffRateExceed(int staffCategory, int workingLocation, String exceedString)
+    {
+        assert (staffCategory   >= 0 && staffCategory   < this.NumOfOneOffStaffCategory);
+        assert (workingLocation >= 0 && workingLocation < this.NumOfWorkingLocation);        
+        assert (exceedString.equals(this.ExceedString) || exceedString.equals(this.NotExceedString) || exceedString.equals(this.NoOfferString));
+        
+        this.OneOffStaffRateExceed[staffCategory][workingLocation] = exceedString;
+    }
+    
+    public String getOneOffStaffRateExceed(int staffCategory, int workingLocation)
+    {
+        assert (staffCategory   >= 0 && staffCategory   < this.NumOfOneOffStaffCategory);
+        assert (workingLocation >= 0 && workingLocation < this.NumOfWorkingLocation);
+        
+        return this.OneOffStaffRateExceed[staffCategory][workingLocation];
+    }
+    
+    public void setOnGoingStaffRateExceed(int staffCategory, int workingHourType, String exceedString)
+    {
+        assert (staffCategory   >= 0 && staffCategory   < this.NumOfOnGoingStaffCategory);
+        assert (workingHourType >= 0 && workingHourType < this.NumOfWorkingHourType);
+        assert (exceedString.equals(this.ExceedString) || exceedString.equals(this.NotExceedString) || exceedString.equals(this.NoOfferString));
+        
+        this.OnGoingStaffRateExceed[staffCategory][workingHourType] = exceedString;
+    }
+    
+    public String getOnGoingStaffRateExceed(int staffCategory, int workingHourType)
+    {
+        assert (staffCategory   >= 0 && staffCategory   < this.NumOfOnGoingStaffCategory);
+        assert (workingHourType >= 0 && workingHourType < this.NumOfWorkingHourType);
+        
+        return this.OnGoingStaffRateExceed[staffCategory][workingHourType];
+    }
+    
+    public String toOneOffStaffRateTableField(int staffCategory, int workingLocation)
+    {
+        assert (workingLocation >= 0 && workingLocation < this.NumOfWorkingLocation);
+        assert (staffCategory   >= 0 && staffCategory   < this.NumOfOneOffStaffCategory);
+        
+        // Return something like: one_off_sc1_resident
+        return "one_off_sc" + (staffCategory + 1) + "_" + this.WorkingLocationDBName[workingLocation];
+    }
+    
+    public String toOnGoingStaffRateTableField(int staffCategory, int workingHourType)
+    {
+        assert (workingHourType >= 0 && workingHourType < this.NumOfWorkingHourType);
+        assert (staffCategory   >= 0 && staffCategory   < this.NumOfOnGoingStaffCategory);
+        
+        // Return something like: ongoing_sc1_office_hours
+        return "ongoing_sc" + (staffCategory + 1) + "_" + WorkingHourTypeDBName[workingHourType];
+    }
+    
+    public void setOnGoingStaffRate(int staffCategory, int workingLocation, double staffRate)
+    {
+        assert (workingLocation >= 0 && workingLocation < this.NumOfWorkingLocation);
+        assert (staffCategory   >= 0 && staffCategory   < this.NumOfOnGoingStaffCategory);
+        
+        this.OnGoingStaffRate[staffCategory][workingLocation] = staffRate;
+    }
+    
+    public double getOnGoingStaffRate(int staffCategory, int workingLocation)
+    {
+        assert (workingLocation >= 0 && workingLocation < this.NumOfWorkingLocation);
+        assert (staffCategory   >= 0 && staffCategory   < this.NumOfOnGoingStaffCategory);
+        
+        return this.OnGoingStaffRate[staffCategory][workingLocation];
+    }
+    
+    public void setOneOffStaffRate(int staffCategory, int workingLocation, double staffRate)
+    {
+        assert (staffCategory   >= 0 && staffCategory   < this.NumOfOneOffStaffCategory);
+        assert (workingLocation >= 0 && workingLocation < this.NumOfWorkingLocation);
+        
+        this.OneOffStaffRate[staffCategory][workingLocation] = staffRate;
+    }
+    
+    public double getOneOffStaffRate(int staffCategory, int workingLocation)
+    {
+        assert (staffCategory   >= 0 && staffCategory   < this.NumOfOneOffStaffCategory);
+        assert (workingLocation >= 0 && workingLocation < this.NumOfWorkingLocation);
+        
+        return this.OneOffStaffRate[staffCategory][workingLocation];
+    }
+    
+    public String getServiceGroup()
+    { return this.ServiceGroup; }
+    
+    public void setServiceGroup(String serviceGroup)
+    {
+        assert (serviceGroup.equals(this.MajorGroupInd) || serviceGroup.equals(this.MinorGroupInd));
+        this.ServiceGroup = serviceGroup;
+    }
+    
+    public void setContractorName(String contractorName)
+    {
+        assert (contractorName != null && contractorName.equals(""));
+        this.ContractorName = contractorName;
+    }
+    
+    public String getContractorName()
+    { return this.ContractorName; }
+    
+    public void setContractorID(String contractorID)
+    { this.ContractorID = contractorID; }
+    
+    public String getContractorID()
+    { return this.ContractorID; }
+    
+    public void setCurrency(String currency)
+    {
+        assert (currency != null && currency.equals(""));
+        this.Currency = currency;
+    }
+    
+    public String getCurrency()
+    { return this.Currency; }
+    
+    public void setSupStaffIndicator(int supStaffIndicator)
+    {
+        assert (supStaffIndicator == 0 || supStaffIndicator == -1);
+        this.SupStaffIndicator = supStaffIndicator;
+    }
+    
+    public int getSupStaffIndicator()
+    { return this.SupStaffIndicator; }
+    
+    public void setActiveIndicator(int activeIndicator)
+    {
+        assert (activeIndicator == 0 || activeIndicator == -1);
+        this.ActiveIndicator = activeIndicator;
+    }
+    
+    public int getActiveIndicator()
+    { return this.ActiveIndicator; }
+    
+    public void setCreatedDate(String createdDate)
+    {
+        assert (createdDate != null && createdDate.equals(""));
+        this.CreatedDate = createdDate;
+    }
+    
+    public String getCreatedDate()
+    { return this.CreatedDate; }
+    
+    public void setLastUpdatedDate(String lastUpdatedDate)
+    {
+        assert (lastUpdatedDate != null && lastUpdatedDate.equals(""));
+        this.LastUpdatedDate = lastUpdatedDate;
+    }
+    
+    public String getLastUpdatedDate()
+    { return this.LastUpdatedDate; }
+    
+    public void setLastUpdatedBy(String lastUpdatedBy)
+    {
+        assert (lastUpdatedBy != null && lastUpdatedBy.equals(""));
+        this.LastUpdatedBy = lastUpdatedBy;
+    }
+    
+    public String getLastUpdatedBy()
+    { return this.LastUpdatedBy; }
+}

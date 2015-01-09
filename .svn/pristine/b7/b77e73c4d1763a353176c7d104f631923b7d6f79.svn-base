@@ -1,0 +1,866 @@
+-- MySQL script for QPS3 Database
+-- Redesign DB schema for CPAR logic and Key Statistics Report
+-- HKMCI appends their change to this DB script after running all phrase1 SQL script
+-- ------------------------------------------------------
+-- Server version 5.5-community
+
+use qpsis;
+
+--
+-- Alter Work Assignment Table to Add some columns
+--
+
+-- ALTER TABLE `work_assignment` DROP `service_contract_no` ;
+-- ALTER TABLE `work_assignment` DROP `post_rank` ;
+
+ALTER TABLE `work_assignment` ADD `service_contract_no` VARCHAR(50);
+ALTER TABLE `work_assignment` ADD `post_rank` VARCHAR(150);
+ALTER TABLE `work_assignment` ADD `planned_start_date` Date;
+ALTER TABLE `work_assignment` ADD `planned_completion_date` Date;
+ALTER TABLE `work_assignment` ADD `contact_phone_number` VARCHAR(50);
+ALTER TABLE `work_assignment` ADD `internet_mail` VARCHAR(50);
+
+
+--
+-- Initialize `service_contractor_no` table
+--
+
+UPDATE `work_assignment` SET `service_contract_no` = 'GCIO 5/11-1-00-001';
+UPDATE `work_assignment` SET `post_rank` = 'Engineer';
+
+
+
+--
+-- Procedure `qpsis`.`sp_select_srv_wa_user`
+--
+
+DROP PROCEDURE IF EXISTS `sp_select_srv_wa_user`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_select_srv_wa_user`
+(p_dept_id VARCHAR(1024))
+BEGIN
+	SELECT *
+	FROM work_assignment AS WA, bd_name AS BD  
+	WHERE  
+		BD.soa_department_id = p_dept_id AND
+		WA.department_id    = p_dept_id  AND
+		WA.closing_date    <= CURDATE()
+	ORDER BY service_category_group ASC, work_assignment_title ASC
+	;
+END $$
+
+DELIMITER ;
+
+--
+-- Procedure `qpsis`.`sp_insert_work_assignment`
+--
+
+DROP PROCEDURE IF EXISTS `sp_insert_work_assignment`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_insert_work_assignment`(IN p_service_category_group varchar(3),
+
+ IN p_file_part varchar(15),
+
+ IN p_file_no int,
+
+ IN p_dept_id varchar(10),
+
+ IN p_status char(1),
+
+ IN p_title varchar(400),
+
+ IN p_closing_date DATE,
+
+ IN p_debarred_contractor varchar(100),
+
+ IN p_issued_date DATE,
+
+ IN p_authorized_person varchar(100),
+
+ IN p_awarded_contractor varchar(20),
+
+ IN p_awarded_date DATE,
+
+ IN p_awarded_contract_value DECIMAL(20,3),
+
+ IN p_aggregated_effort DECIMAL(20,3),
+
+ IN p_total_project_cost DECIMAL(20,3),
+
+ IN p_post_rank varchar(150),
+
+ IN p_service_contract_no varchar(50),
+
+ IN p_planned_start_date DATE,
+
+ IN p_planned_completion_date DATE,
+
+ IN p_contact_phone_number varchar(50),
+
+ IN p_internet_mail varchar(50),
+
+ OUT return_code INT)
+BEGIN
+
+DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+
+SET return_code = 0;
+
+IF (SELECT COUNT(*) FROM temp_work_assignment
+
+      WHERE service_category_group = p_service_category_group AND
+
+            project_file_part = p_file_part AND
+
+            project_file_no = p_file_no AND
+
+            department_id = p_dept_id > 0) THEN
+
+  SET return_code = -99;
+
+END IF;
+
+IF return_code =0 THEN
+
+/* check for any B/D not found in the database*/
+
+  BEGIN
+
+    IF (SELECT COUNT(*) FROM bd_name WHERE soa_department_id = p_dept_id) =0 THEN
+
+      SET return_code = -89;
+
+    END IF;
+
+  END;
+
+END IF;
+
+/* insert record if no error found*/
+
+IF return_code =0 THEN
+
+ BEGIN
+
+  INSERT INTO temp_work_assignment
+
+    (service_category_group,
+
+     project_file_part,
+
+     project_file_no,
+
+     department_id,
+
+     assignment_status,
+
+     work_assignment_title,
+
+     closing_date,
+
+     debarred_contractor,
+
+     issue_date,
+
+     authorized_person,
+
+     awarded_contractor,
+
+     awarded_date,
+	
+	 awarded_contract_value,
+
+	 aggregated_effort,
+
+	 total_project_cost,
+
+	 post_rank,
+
+	 service_contract_no,
+
+	 planned_start_date,
+
+	 planned_completion_date,
+
+	 contact_phone_number,
+
+	 internet_mail
+	)
+
+    Values
+
+    (p_service_category_group,
+
+     p_file_part,
+
+     p_file_no,
+
+     p_dept_id,
+
+     p_status,
+
+     p_title,
+
+     p_closing_date,
+
+     p_debarred_contractor,
+
+     p_issued_date,
+
+     p_authorized_person,
+
+     p_awarded_contractor,
+
+     p_awarded_date,
+
+	 p_awarded_contract_value,
+
+	 p_aggregated_effort,
+
+	 p_total_project_cost,
+
+     p_post_rank,
+
+     p_service_contract_no,
+
+	 p_planned_start_date,
+
+	 p_planned_completion_date,
+
+	 p_contact_phone_number,
+
+	 p_internet_mail
+  );
+
+    SET return_code = 1;
+
+ END;
+
+END IF;
+
+END $$
+
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_create_temp_work_assignment`
+--
+
+DROP PROCEDURE IF EXISTS `sp_create_temp_work_assignment`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_create_temp_work_assignment`(OUT return_code INT)
+BEGIN
+
+  DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+
+  SET return_code =0;
+
+  DROP TABLE IF EXISTS `temp_work_assignment`;
+
+  CREATE TABLE `temp_work_assignment` (
+
+    `service_category_group` VARCHAR(3) NOT NULL,
+
+    `project_file_part` VARCHAR(15) NOT NULL,
+
+    `project_file_no` INT(10) unsigned NOT NULL,
+
+    `department_id` VARCHAR(10) NOT NULL,
+
+    `assignment_status` CHAR(1) NOT NULL,
+
+    `work_assignment_title` VARCHAR(400) NOT NULL,
+
+    `closing_date` DATE NOT NULL,
+
+    `debarred_contractor` VARCHAR(100) default NULL,
+
+    `issue_date` DATE NOT NULL,
+
+    `authorized_person` VARCHAR(100) NOT NULL,
+
+	`post_rank` VARCHAR(150),
+
+	`service_contract_no` VARCHAR(50),
+
+    `awarded_contractor` VARCHAR(20) default NULL,
+
+    `awarded_date` DATE default NULL,
+
+	`awarded_contract_value` DECIMAL(20,3),
+
+	`aggregated_effort` DECIMAL(20,3),
+
+	`total_project_cost` DECIMAL(20,3),
+
+	`planned_start_date` DATE,
+
+	`planned_completion_date` DATE,
+
+	`contact_phone_number` VARCHAR(50),
+
+	`internet_mail` VARCHAR(50),
+
+    PRIMARY KEY  (`service_category_group`,`project_file_part`,`project_file_no`,`department_id`)
+
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+  SET return_code = 1;
+
+END $$
+
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_write_work_assignment_header`
+--
+
+DROP PROCEDURE IF EXISTS `sp_write_work_assignment_header`;
+DELIMITER $$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_write_work_assignment_header`(IN p_counter INT,
+ IN p_admin_id varchar(30),
+ IN p_dp_dept_id varchar(10),
+ IN p_soa_dept_id varchar(10),
+ OUT return_code INT)
+BEGIN
+  DECLARE EXIT HANDLER FOR NOT FOUND
+  BEGIN
+   ROLLBACK;
+   SET return_code = -2;
+  END;
+  START TRANSACTION;
+  INSERT INTO temp_work_assignment
+  (service_category_group,
+   project_file_part,
+   project_file_no,
+   department_id,
+   issue_date,
+   closing_date,
+   assignment_status,
+   work_assignment_title,
+   authorized_person
+  )
+  Values
+  ("HDR",
+   "1",
+   p_counter,
+   "QPSIS",
+   CAST(SYSDATE() AS DATE),
+   CAST(SYSDATE() AS DATE),
+   "h",
+   "QPSIS Header",
+   p_admin_id);
+/* write audit_trail*/
+  INSERT INTO audit_trail
+      (user_id,
+       soa_department_id,
+       dp_department_id,
+       function_id,
+	   record_id,
+       entity_name,
+       action_performed,
+       date_time,
+       remarks)
+    VALUES
+    (p_admin_id,
+     p_soa_dept_id,
+     p_dp_dept_id,
+     "WAIMPORT",
+     "Import WA",
+     "work_assignment",
+     "A",
+     CAST(SYSDATE() AS DATE),
+     CONCAT(p_counter, " records imported")
+    );
+  SET return_code = 1;
+END $$
+
+DELIMITER ;
+
+--
+-- Procedure `qpsis`.`sp_search_work_assignment`
+--
+
+DROP PROCEDURE IF EXISTS `sp_search_work_assignment`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_search_work_assignment`(
+ IN p_soa_dept_id varchar(10),
+ IN p_service_category_group varchar(3),
+ IN p_contractor_id varchar(20),
+ IN p_assignment_status varchar(1),
+ IN p_invitation_start_date date,
+ IN p_invitation_end_date date,
+ IN p_award_start_date date,
+ IN p_award_end_date date,
+ IN p_order_by varchar(20),
+ IN p_order_dir varchar(10))
+BEGIN
+  IF p_order_by = 'Dept' THEN
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY department_id DESC,
+                   service_category_group,
+                   issue_date DESC,
+                   closing_date DESC,
+                   work_assignment_title;
+    ELSE
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY department_id,
+                   service_category_group,
+                   issue_date DESC,
+                   closing_date DESC,
+                   work_assignment_title;
+    END IF;
+  ELSEIF p_order_by = 'IssueDate' THEN
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY issue_date DESC,
+                   service_category_group,
+                   department_id,
+                   closing_date DESC,
+                   work_assignment_title;
+    ELSE
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY issue_date,
+                   service_category_group,
+                   department_id,
+                   closing_date DESC,
+                   work_assignment_title;
+    END IF;
+  ELSEIF p_order_by = 'ClosingDate' THEN
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY closing_date DESC,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   work_assignment_title;
+    ELSE
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY closing_date,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   work_assignment_title;
+    END IF;
+  ELSEIF p_order_by = 'AwardedDate' THEN
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY awarded_date DESC,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   work_assignment_title;
+    ELSE
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY awarded_date,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   work_assignment_title;
+    END IF;
+  ELSEIF p_order_by = 'Contractor' THEN
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY awarded_contractor DESC,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   work_assignment_title;
+    ELSE
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY awarded_contractor,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   work_assignment_title;
+    END IF;  
+  ELSEIF p_order_by = 'Title' THEN
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY work_assignment_title DESC,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   closing_date DESC;
+    ELSE
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY work_assignment_title,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   closing_date DESC;
+    END IF;
+  ELSEIF p_order_by = 'Status' THEN
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY assignment_status DESC,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   closing_date DESC,
+                   work_assignment_title;
+    ELSE
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY assignment_status,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   closing_date DESC,
+                   work_assignment_title;
+    END IF;
+  ELSE
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY service_category_group DESC,
+                   department_id,
+                   issue_date DESC,
+                   closing_date DESC,
+                   work_assignment_title;
+    ELSE
+      SELECT * FROM work_assignment
+        WHERE department_id LIKE IFNULL(p_soa_dept_id,'%') AND
+              service_category_group LIKE IFNULL(p_service_category_group,'%') AND
+              service_category_group <> 'HDR' AND
+              assignment_status LIKE IFNULL(p_assignment_status,'%') AND
+              awarded_contractor LIKE IFNULL(p_contractor_id,'%') AND
+              issue_date >= p_invitation_start_date AND
+              issue_date <= p_invitation_end_date AND
+              ((awarded_date >=  p_award_start_date AND
+              awarded_date <=  p_award_end_date) OR
+              awarded_date IS NULL)
+          ORDER BY service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   closing_date DESC,
+                   work_assignment_title;
+    END IF;
+  END IF;
+END $$
+
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_select_work_assignment`
+--
+
+DROP PROCEDURE IF EXISTS `sp_select_work_assignment`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_select_work_assignment`(
+IN p_order_by varchar(20),
+IN p_order_dir varchar(10))
+BEGIN
+  IF p_order_by = 'Dept' THEN
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> "HDR"
+          ORDER BY department_id DESC,
+                   service_category_group,
+                   issue_date DESC,
+                   closing_date DESC,
+                   work_assignment_title;
+    ELSE
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> "HDR"
+          ORDER BY department_id,
+                   service_category_group,
+                   issue_date DESC,
+                   closing_date DESC,
+                   work_assignment_title;
+    END IF;
+  ELSEIF p_order_by = 'IssueDate' THEN
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> "HDR"
+          ORDER BY issue_date DESC,
+                   service_category_group,
+                   department_id,
+                   closing_date DESC,
+                   work_assignment_title;
+    ELSE
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> "HDR"
+          ORDER BY issue_date,
+                   service_category_group,
+                   department_id,
+                   closing_date DESC,
+                   work_assignment_title;
+    END IF;
+  ELSEIF p_order_by = 'ClosingDate' THEN
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> "HDR"
+          ORDER BY closing_date DESC,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   work_assignment_title;
+    ELSE
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> "HDR"
+          ORDER BY closing_date,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   work_assignment_title;
+    END IF;
+  ELSEIF p_order_by = 'AwardedDate' THEN
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> 'HDR'
+          ORDER BY awarded_date DESC,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   work_assignment_title;
+    ELSE
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> 'HDR'
+          ORDER BY awarded_date,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   work_assignment_title;
+    END IF;
+  ELSEIF p_order_by = 'Contractor' THEN
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> 'HDR'
+          ORDER BY awarded_contractor DESC,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   work_assignment_title;
+    ELSE
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> 'HDR'
+          ORDER BY awarded_contractor,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   work_assignment_title;
+    END IF;  
+  ELSEIF p_order_by = 'Title' THEN
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> "HDR"
+          ORDER BY work_assignment_title DESC,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   closing_date DESC;
+    ELSE
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> "HDR"
+          ORDER BY work_assignment_title,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   closing_date DESC;
+    END IF;
+  ELSEIF p_order_by = 'Status' THEN
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> "HDR"
+          ORDER BY assignment_status DESC,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   closing_date DESC,
+                   work_assignment_title;
+    ELSE
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> "HDR"
+          ORDER BY assignment_status,
+                   service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   closing_date DESC,
+                   work_assignment_title;
+    END IF;
+  ELSE
+    IF p_order_dir = 'DESC' THEN
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> "HDR"
+          ORDER BY service_category_group DESC,
+                   department_id,
+                   issue_date DESC,
+                   closing_date DESC,
+                   work_assignment_title;
+    ELSE
+      SELECT * FROM work_assignment
+          WHERE service_category_group <> "HDR"
+          ORDER BY service_category_group,
+                   department_id,
+                   issue_date DESC,
+                   closing_date DESC,
+                   work_assignment_title;
+    END IF;
+  END IF;
+END $$
+
+DELIMITER ;
+
+
+Commit;
+
+

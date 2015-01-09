@@ -1,0 +1,782 @@
+package qpses.security;
+
+import java.sql.CallableStatement;
+
+import qpses.util.Constant;
+import qpses.util.DataBean;
+import qpses.util.SysManager;
+
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Vector;
+import qpses.util.SysException;
+import org.apache.log4j.Logger;
+
+public class SecurityDataBean extends DataBean {
+    
+    static Logger logger = Logger.getLogger(SecurityDataBean.class.getName());
+    
+    private static final String SELECT_SEC_CTX =
+            "{Call sp_select_security_context(?,?)}";
+    private static final String SELECT_USER_STATUS =
+            "{Call sp_select_user_status(?,?,?,?,?)}";
+    private static final String SELECT_ACCESS_PRIVILEGES =
+            "{Call sp_select_access_privileges(?,?,?,?,?)}";
+    private static final String SELECT_ACCESS_FAILURE_COUNT =
+            "{Call sp_select_access_failure_count(?,?,?,?)}";
+    private static final String SELECT_CPAR_FAILURE_COUNT =
+            "{Call sp_select_cpar_failure_count(?,?)}";
+    private static final String SELECT_LOGIN_FAILURE_COUNT =
+            "{Call sp_select_login_failure_count(?,?)}";
+    private static final String LOCK_USER_ACCOUNT =
+            "{Call sp_lock_user_account(?,?,?,?,?)}";
+    private static final String TEMP_LOCK_USER_ACCOUNT =
+            "{Call sp_temp_lock_user_account(?,?)}";
+    private static final String RESET_ACCESS_FAILURE_COUNT =
+            "{Call sp_reset_access_failure_count(?,?,?,?)}";
+    private static final String RESET_CPAR_FAILURE_COUNT =
+            "{Call sp_reset_cpar_failure_count(?,?)}";
+    private static final String RESET_LOGIN_FAILURE_COUNT =
+            "{Call sp_reset_login_failure_count(?,?)}";
+    private static final String SET_ACCESS_FAILURE_COUNT =
+            "{Call sp_set_access_failure_count(?,?,?,?,?)}";
+    private static final String SET_CPAR_FAILURE_COUNT =
+            "{Call sp_set_cpar_failure_count(?,?,?)}";
+    private static final String UPDATE_LAST_ACCESS_ATTEMPT =
+            "{Call sp_update_last_access_attempt(?,?,?,?)}";    
+    private static final String SELECT_ACCESSIBLE_FUNCTION =
+            "{Call sp_select_accessible_function(?)}";
+    private static final String SELECT_ALL_PRIVILEGES =
+            "{Call sp_select_all_privileges()}";
+    private static final String SELECT_ADMIN_EMAILS =
+            "SELECT email from acl where user_group in ('S','SP')";
+    private static final String UPDATE_SYSTEM_OUT_LOG =
+            "{Call sp_update_system_out_log(?,?)}";
+    private static final String UPDATE_PASSWORD =
+            "{Call sp_update_password(?,?,?,?,?,?)}";
+    private static final String WRITE_ACCESS_LOG =
+            "{Call sp_write_access_log(?,?,?,?)}";
+    private static final String INSERT_CHALLENGE_LOG = 
+             "{Call sp_insert_challenge_log(?,?,?,?,?,?,?,?,?,?,?,?)}";
+    private static final String INSERT_CHANGE_PASSWORD_LOG = 
+            "{Call sp_insert_change_password_log(?,?,?,?)}";
+    
+    ResultSet rs = null;
+    
+    /**
+     * Constructor for SecurityDataBean.
+     */
+    public SecurityDataBean() throws SysException{
+        super("ADMIN");
+        
+    }
+    
+    /*
+     *  Check user information in ACL
+     */
+    protected SecurityContext selectSecCTX(String userId)
+    throws SecurityException,SysException {
+        
+        SecurityContext secCtx = null;
+        Connection connection = null;
+        CallableStatement cs = null;
+        int returnCode =0;
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(SELECT_SEC_CTX);
+            cs.setString("p_user_id",userId);
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            rs = cs.executeQuery();
+            returnCode = cs.getInt("return_code");
+            if (returnCode ==1 && rs.next()) {
+                secCtx = new SecurityContext();
+                secCtx.userId = userId;
+                secCtx.dpDeptId = rs.getString("dp_department_id");
+                secCtx.userDPDeptId= rs.getString("dp_department_id");
+                secCtx.soaDeptId = rs.getString("soa_department_id");
+                secCtx.userSOADeptId = rs.getString("soa_department_id");
+                secCtx.userName = rs.getString("firstname")+" "+rs.getString("lastname");
+                secCtx.userGroup = rs.getString("user_group");
+                secCtx.firstname = rs.getString("firstname");
+                secCtx.lastname = rs.getString("lastname");
+                secCtx.email = rs.getString("email");
+            }
+        } catch (SQLException ex) {
+            String error =
+                    "SecurityDataBean:selectSecCTX: SQL Exception: \r\n"+
+                    "SQLState:" + ex.getSQLState() +":" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } catch (Exception ex) {
+            String error =
+                    "SecurityDataBean:selectSecCTX\r\n" + ex.getMessage();
+            logger.error(error);
+            throw new SecurityException(error);
+        } finally {
+            super.close();
+        }
+        return secCtx;
+    }
+ 
+    
+          /*
+           *  get user privileges from privileges / user_privileges table
+           */
+    protected Vector createAccessPrivileges(SecurityContext secCtx)
+    throws SecurityException,SysException {
+        Vector pvgVector = new Vector();
+        Connection connection = null;
+        CallableStatement cs = null;
+        int returnCode =0;
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(SELECT_ACCESS_PRIVILEGES);
+            String userId = secCtx.getUserId();
+            String dpDeptId = secCtx.getDPDeptId();
+            String soaDeptId = secCtx.getSOADeptId();
+            String usergroup = secCtx.getUserGroup();
+            cs.setString("p_user_id",userId);
+            cs.setString("p_dp_dept_id",dpDeptId);
+            cs.setString("p_soa_dept_id",soaDeptId);
+            cs.setString("p_user_group",usergroup);
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            rs = cs.executeQuery();
+            returnCode = cs.getInt("return_code");
+            // read the privileges
+            String authorizedUserGroup="";
+            if  (returnCode ==1){
+                while (rs.next()) {
+                    // double check for the access privileges before assignment
+                    authorizedUserGroup = rs.getString("authorized_user_group");
+                    if (usergroup.equals("U")){
+                        if (authorizedUserGroup.trim().indexOf("#"+usergroup+"#")>=0){
+                            String privilegeId = rs.getString("privilege_id");
+                            pvgVector.add(privilegeId);
+                        }
+                    }else{
+                            String privilegeId = rs.getString("privilege_id");
+                            pvgVector.add(privilegeId);                        
+                    }
+                }
+            }
+        } catch (SQLException ex) {
+            String error = "SecurityDataBean.createAccessPrivileges: SQLError: \r\n"+
+                    "SQLstate: " +ex.getSQLState() +";"+ ex.getNextException();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } catch(Exception ex){
+            String error = "SecurityDataBean.createAccessPrivileges\r\n" + ex.toString();
+            logger.error(error, ex);
+            throw new SecurityException(error);
+        } finally {
+            return pvgVector;
+        }
+        
+    }
+    
+    
+      /*
+       *  get all access privileges
+       */
+    protected HashMap getAccessPrivileges()
+    throws SecurityException,SysException {
+        HashMap privilegeHash = new HashMap();
+        Connection connection = null;
+        CallableStatement cs = null;
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(SELECT_ALL_PRIVILEGES);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                String privilegeId= rs.getString("privilege_id");
+                String path_info=rs.getString("path_info");
+                String controlFileList = rs.getString("control_file_list").replaceAll(",",","+path_info);
+                String privilegeGroup = rs.getString("privilege_group");
+                if (controlFileList !=null){
+                    // add delimiter to the head and tail of the file list
+                    controlFileList = "," + path_info+ controlFileList + ",";
+                }
+                privilegeHash.put(privilegeId, controlFileList);
+            }
+            
+        } catch (SQLException ex) {
+            String error =
+                    "SecurityDataBean:getAccessPrivileges\n SQL State=" +ex.getSQLState() + "," + ex.getMessage();
+            logger.error(error,ex);
+            throw new RuntimeException(error);
+        }
+        return privilegeHash;
+        
+    }
+    
+    /*
+     *  get all admin emails
+     */
+  protected List<String> getAdminEmails()
+  throws SecurityException,SysException {
+      List<String> emailList = new ArrayList<String>();
+      Connection connection = null;
+      PreparedStatement ps = null;
+      try {
+          connection = this.getConnection();
+          ps = connection.prepareStatement(SELECT_ADMIN_EMAILS);
+          rs = ps.executeQuery();
+          while (rs.next()) {
+              String email= rs.getString("email");
+              emailList.add(email);
+          }
+          
+      } catch (SQLException ex) {
+          String error =
+                  "SecurityDataBean:getAdminEmails\n SQL State=" +ex.getSQLState() + "," + ex.getMessage();
+          logger.error(error,ex);
+          throw new RuntimeException(error);
+      }
+      return emailList;
+      
+  }
+    
+    
+       /*
+        *  Get the user status information
+        */
+  protected UserStatus getUserStatus(SecurityContext secCtx, String password)
+    throws SecurityException,SysException {
+        
+        UserStatus uStatus = null;
+        Connection connection = null;
+        CallableStatement cs = null;
+        int returnCode =0;
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(SELECT_USER_STATUS);
+            cs.setString("p_user_id",secCtx.userId);
+            cs.setString("p_dp_dept_id",secCtx.dpDeptId);
+            cs.setString("p_soa_dept_id",secCtx.soaDeptId);
+            cs.setString("p_password",password);
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            rs = cs.executeQuery();
+            returnCode = cs.getInt("return_code");
+            if (returnCode ==1 && rs.next()) {
+                uStatus = new UserStatus();
+                uStatus.userId = secCtx.userId;
+                uStatus.dpDeptId = secCtx.dpDeptId;
+                uStatus.soaDeptId = secCtx.soaDeptId;
+                uStatus.firstname = secCtx.firstname;
+                uStatus.lastname = secCtx.lastname;
+                uStatus.email = secCtx.email;
+                
+                if (rs.getTimestamp("last_access_date") != null){
+                    uStatus.lastAccessAttempt = rs.getTimestamp("last_access_date");
+                }
+                uStatus.expiryDate = rs.getDate("expiry_date");
+                uStatus.activeInd=rs.getInt("active_indicator");
+                uStatus.passwordInd=rs.getInt("password_indicator");
+                
+                int failureCount = rs.getInt("login_failure_count");
+                uStatus.loginFailure = failureCount;
+                java.sql.Timestamp lockDate = rs.getTimestamp("login_failure_date");
+                
+                // The user is disabled because he or she login fails by wrong password too many times
+                
+                if (failureCount >= Constant.QPSIS_WRONG_PASSWORD_ATTEMPT_LIMIT){
+                	
+                	// If the disabled time 1 hour is not passed, set the user status to be inactive
+                	if (lockDate.getTime()> new java.util.Date().getTime()){
+                		uStatus.activeInd=0;
+                	}else{
+                	// If the disabled time 1 hour is passed, reset the user from disabled to enabled
+                		resetFailureCount(secCtx,"Login");
+                	}
+                }
+            }
+        } catch (SQLException ex) {
+            String error =
+                    "SecurityDataBean:getUserStatus: SQL Exception: \r\n"+
+                    "SQLState:" + ex.getSQLState() +":" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } catch (Exception ex) {
+            String error =
+                    "SecurityDataBean:getUserStatus\r\n" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } finally {
+            super.close();
+        }
+        return uStatus;
+    }
+    
+       /*
+        *  Get the user status information
+        */
+    protected void writeAccessLog(UserStatus uStatus, SecurityContext secCtx)
+    throws SecurityException,SysException {
+                
+        Connection connection = null;
+        CallableStatement cs = null;
+        int returnCode =0;
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(WRITE_ACCESS_LOG);
+            cs.setString("p_user_id",secCtx.userId);
+            cs.setString("p_dp_dept_id",secCtx.dpDeptId);            
+            String remarks = "SUCCESS";
+            if (uStatus.isLocked()){
+                remarks = "LOCKED";                
+            }else if (uStatus.isExpired()){
+                remarks = "EXPIRED";
+            }
+            
+            cs.setString("p_remarks",remarks);
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            rs = cs.executeQuery();
+            returnCode = cs.getInt("return_code");
+            return;
+        } catch (SQLException ex) {
+            String error =
+                    "SecurityDataBean:writeAccessLog: SQL Exception: \r\n"+
+                    "SQLState:" + ex.getSQLState() +":" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } catch (Exception ex) {
+            String error =
+                    "SecurityDataBean:writeAccessLog\r\n" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } finally {
+            super.close();
+        }
+
+    }
+    
+    /**
+     **  Get the access / login / CPAR failure count
+     **/
+    protected int getFailureCount(SecurityContext secCtx, String type)
+    throws SecurityException,SysException {
+        
+    	String sqlStatement = SELECT_ACCESS_FAILURE_COUNT;
+    	String parameter = "access_failure_count";
+    	
+    	if ("Access".equals(type)){
+    		sqlStatement = SELECT_ACCESS_FAILURE_COUNT;
+    		parameter = "access_failure_count";
+    	}else if ("Login".equals(type)){
+    		sqlStatement = SELECT_LOGIN_FAILURE_COUNT;
+    		parameter = "login_failure_count";
+    	}else if ("CPAR".equals(type)){
+    		sqlStatement = SELECT_CPAR_FAILURE_COUNT;
+    		parameter = "cpar_failure_count";
+    	}
+    	
+        int failureCount = -1;
+        Connection connection = null;
+        CallableStatement cs = null;
+        int returnCode =0;
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(sqlStatement);
+            cs.setString("p_user_id",secCtx.userId);
+            if ("Access".equals(type)){
+            	cs.setString("p_dp_dept_id",secCtx.dpDeptId);
+            	cs.setString("p_soa_dept_id",secCtx.soaDeptId);
+            }
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            rs = cs.executeQuery();
+            returnCode = cs.getInt("return_code");
+            if (returnCode !=1){
+                throw new SysException("Failed to get "+type+" failure count! \r\n" +
+                        "User ID: " + secCtx.getUserId() +
+                        "Dept ID: " + secCtx.getDPDeptId());
+            }
+            if (rs.next()) {
+                failureCount = rs.getInt(parameter);
+            }
+        } catch (SQLException ex) {
+            String error =
+                    "SecurityDataBean:getFailureCount:"+sqlStatement+" SQL Exception: \r\n"+
+                    "SQLState:" + ex.getSQLState() +":" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } catch (Exception ex) {
+            String error =
+                    "SecurityDataBean:getFailureCount:"+sqlStatement+" \r\n" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } finally {
+            super.close();
+        }
+        return failureCount;
+    }
+
+     /**
+      **  Lock user account by changing the active indicator of the user
+      **  If temp is true, Temporarily Lock user account for 1 hour
+      **/
+    protected int lockUserAccount(SecurityContext secCtx,int failureCount,boolean temp)
+    throws SecurityException,SysException {
+        
+    	String sqlStatement = LOCK_USER_ACCOUNT;
+    	if (temp){
+    		sqlStatement = TEMP_LOCK_USER_ACCOUNT;
+    	}
+    	
+        int result=0;
+        Connection connection = null;
+        CallableStatement cs = null;
+        int returnCode =0;
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(sqlStatement);
+            cs.setString("p_user_id",secCtx.userId);
+            if (!temp){
+            	cs.setString("p_dp_dept_id",secCtx.dpDeptId);
+            	cs.setString("p_soa_dept_id",secCtx.soaDeptId);
+            	cs.setInt("p_failure_count",failureCount);
+            }
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            result = cs.executeUpdate();
+            returnCode = cs.getInt("return_code");
+            if (result !=1 || returnCode !=1){
+                throw new SysException("Failed to lock user account! \r\n" +
+                        "User ID: " + secCtx.getUserId() +
+                        "Dept ID: " + secCtx.getDPDeptId());
+            }
+        } catch (SQLException ex) {
+            String error =
+                    "SecurityDataBean:lockUserAccount: SQL Exception: \r\n"+
+                    "SQLState:" + ex.getSQLState() +":" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } catch (Exception ex) {
+            String error =
+                    "SecurityDataBean:lockUserAccount\r\n" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } finally {
+            super.close();
+        }
+        return returnCode;
+    }
+    
+        /**
+         **  Reset the access / login / CPAR failure count
+         **/
+    protected void setFailureCount(SecurityContext secCtx, int failureCount, String type)
+    throws SecurityException,SysException {
+        
+    	String sqlStatement = SET_ACCESS_FAILURE_COUNT;
+    	
+    	if ("Access".equals(type)){
+    		sqlStatement = SET_ACCESS_FAILURE_COUNT;
+    	}else if ("CPAR".equals(type)){
+    		sqlStatement = SET_CPAR_FAILURE_COUNT;
+    	}
+    	
+        int result=0;
+        Connection connection = null;
+        CallableStatement cs = null;
+        int returnCode =0;
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(sqlStatement);
+            cs.setString("p_user_id",secCtx.userId);
+            if ("Access".equals(type)){
+            	cs.setString("p_dp_dept_id",secCtx.dpDeptId);
+            	cs.setString("p_soa_dept_id",secCtx.soaDeptId);
+            }
+            cs.setInt("p_failure_count",failureCount);
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            result=cs.executeUpdate();
+            returnCode = cs.getInt("return_code");
+            if (returnCode !=1 || result !=1) {
+                throw new SysException("Failed to set "+type+" failure count of the user account! \r\n" +
+                        "User ID: " + secCtx.getUserId() +
+                        "Dept ID: " + secCtx.getDPDeptId());
+            }
+        } catch (SQLException ex) {
+            String error =
+                    "SecurityDataBean:setFailureCount: SQL Exception: \r\n"+
+                    "SQLState:" + ex.getSQLState() +":" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } catch (Exception ex) {
+            String error =
+                    "SecurityDataBean:setFailureCount\r\n" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } finally {
+            super.close();
+        }
+        return;
+    }
+    
+  /*
+   *  Reset the access failure count
+   */
+    protected void resetFailureCount(SecurityContext secCtx, String type)
+    throws SecurityException,SysException {
+        
+    	String sqlStatement = RESET_ACCESS_FAILURE_COUNT;
+    	
+    	if ("Access".equals(type)){
+    		sqlStatement = RESET_ACCESS_FAILURE_COUNT;
+    	}else if ("Login".equals(type)){
+    		sqlStatement = RESET_LOGIN_FAILURE_COUNT;
+    	}else if ("CPAR".equals(type)){
+    		sqlStatement = RESET_CPAR_FAILURE_COUNT;
+    	}
+    	
+        int result=0;
+        Connection connection = null;
+        CallableStatement cs = null;
+        int returnCode =0;
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(sqlStatement);
+            cs.setString("p_user_id",secCtx.userId);
+            if ("Access".equals(type)){
+            	cs.setString("p_dp_dept_id",secCtx.dpDeptId);
+            	cs.setString("p_soa_dept_id",secCtx.soaDeptId);
+            }
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            result=cs.executeUpdate();
+            returnCode = cs.getInt("return_code");
+            if (returnCode !=1 && result !=1) {
+                throw new SysException("Failed to reset "+type+" failure count of the user account! \r\n" +
+                        "User ID: " + secCtx.getUserId() +
+                        "Dept ID: " + secCtx.getDPDeptId());
+            }
+        } catch (SQLException ex) {
+            String error =
+                    "SecurityDataBean:resetFailureCount:"+sqlStatement+"  SQL Exception: \r\n"+
+                    "SQLState:" + ex.getSQLState() +":" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } catch (Exception ex) {
+            String error =
+                    "SecurityDataBean:resetFailureCount:"+sqlStatement+" \r\n" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } finally {
+            super.close();
+        }
+        return;
+    }
+
+    /*
+     *  Update the last access date and time
+     */
+    protected void updateLastAccessAttempt(SecurityContext secCtx)
+    throws SecurityException,SysException {
+        
+        int result=0;
+        Connection connection = null;
+        CallableStatement cs = null;
+        int returnCode =0;
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(UPDATE_LAST_ACCESS_ATTEMPT);
+            cs.setString("p_user_id",secCtx.userId);
+            cs.setString("p_dp_dept_id",secCtx.dpDeptId);
+            cs.setString("p_soa_dept_id",secCtx.soaDeptId);
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            result=cs.executeUpdate();
+            returnCode = cs.getInt("return_code");
+            if (returnCode !=1 || result !=1) {
+                throw new SysException("Failed to update last access date and time! \r\n" +
+                        "User ID: " + secCtx.getUserId() +
+                        "Dept ID: " + secCtx.getDPDeptId());
+            }
+        } catch (SQLException ex) {
+            String error =
+                    "SecurityDataBean:updateLastAccessAttempt: SQL Exception: \r\n"+
+                    "SQLState:" + ex.getSQLState() +":" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } catch (Exception ex) {
+            String error =
+                    "SecurityDataBean:updateLastAccessAttempt\r\n" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } finally {
+            super.close();
+        }
+        return;
+    }
+    
+    
+    protected String getAccessibleFunction(String userGroup)
+    throws SecurityException,SysException {
+        String fullFunctionList = "";
+        Connection connection = null;
+        CallableStatement cs = null;
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(SELECT_ACCESSIBLE_FUNCTION);
+            cs.setString("p_user_group",userGroup);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                String functionList= rs.getString("control_function_list");
+                if (! functionList.equals("")){
+                    fullFunctionList += ","+ functionList;
+                }
+            }
+            fullFunctionList = fullFunctionList + ",";
+        } catch (SQLException ex) {
+            String error =
+                    "SecurityDataBean:getAccessibleFunction\n SQL State=" +ex.getSQLState() + "," + ex.getMessage();
+            logger.error(error,ex);
+            throw new RuntimeException(error);
+        }
+        return fullFunctionList;
+        
+    }
+    
+    protected void updateSystemOut(SecurityContext secCtx)
+    throws SecurityException,SysException {
+        Connection connection = null;
+        CallableStatement cs = null;
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(UPDATE_SYSTEM_OUT_LOG);
+            String userId = secCtx.getUserId();
+            String deptId = secCtx.getDPDeptId();
+            cs.setString("p_user_id",userId);
+            cs.setString("p_dept_id",deptId);
+            cs.executeQuery();
+        } catch (SQLException ex) {
+            String error =
+                    "SecurityDataBean:updateSystemOut\n SQL State=" +ex.getSQLState() + "," + ex.getMessage();
+            logger.error(error,ex);
+            throw new RuntimeException(error);
+        }
+        
+    }
+    
+    protected void insertChallengeLog(String userID, String dpDeptID, String soaDeptID, String functionID, String question, String answer, 
+            String isCorrectAnswer, String isLocked, String serviceCategoryGroup, String projectFilePart, int projectFileNo, String deptID)
+    throws SysException 
+    {            
+        Connection cnn  = null;
+
+        try 
+        {
+            cnn = this.getConnection();
+            cnn.setAutoCommit(false);
+            
+            CallableStatement cs = this.getCStmt(this.INSERT_CHALLENGE_LOG);    
+            
+            cs.setString("p_user_id", userID);
+            cs.setString("p_dp_department_id", dpDeptID);
+            cs.setString("p_soa_department_id", soaDeptID);
+            cs.setString("p_function_id", functionID);
+            cs.setString("p_question", question);
+            cs.setString("p_answer", answer);
+            cs.setString("p_is_correct_answer", isCorrectAnswer);
+            cs.setString("p_is_locked", isLocked);
+            cs.setString("p_service_category_group", serviceCategoryGroup);
+            cs.setString("p_project_file_part", projectFilePart);
+            cs.setInt("p_project_file_no", projectFileNo);
+            cs.setString("p_department_id", deptID);                     
+
+            cs.executeUpdate();
+            
+            cnn.commit(); 
+        }
+        catch (Exception ex)
+        {
+            try
+            { if (cnn != null && !cnn.getAutoCommit()) cnn.rollback(); }
+            catch (Exception ex2)
+            { throw new SysException("SecurityDataBean: insertChallengeLog\n", ex2.getMessage()); }
+            
+            throw new SysException("SecurityDataBean: insertChallengeLog\n", ex.getMessage());
+        }
+        finally
+        { super.close(); }   
+    }
+    
+    protected void changePassword(SecurityContext secCtx, String password, byte indicator)
+    	    throws SecurityException,SysException {
+    	Connection connection = null;
+        CallableStatement cs = null;
+        int returnCode = 0;
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(UPDATE_PASSWORD);
+            String userId = secCtx.getUserId();
+            String dpDeptId = secCtx.getDPDeptId();
+            String soaDeptId = secCtx.getSOADeptId();
+            cs.setString("p_user_id",userId);
+            cs.setString("p_dp_dept_id",dpDeptId);
+            cs.setString("p_soa_dept_id",soaDeptId);
+            cs.setString("p_password",password);
+            cs.setByte("p_indicator", indicator);
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            cs.executeQuery();
+            returnCode = cs.getInt("return_code");
+            if (returnCode !=1) {
+                throw new SysException("Failed to update last access date and time! \r\n" +
+                        "User ID: " + secCtx.getUserId() +
+                        "Dept ID: " + secCtx.getDPDeptId());
+            }
+        } catch (SQLException ex) {
+            String error =
+                    "SecurityDataBean:updateLastAccessAttempt: SQL Exception: \r\n"+
+                    "SQLState:" + ex.getSQLState() +":" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } catch (Exception ex) {
+            String error =
+                    "SecurityDataBean:updateLastAccessAttempt\r\n" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SecurityException(error);
+        } finally {
+            super.close();
+        }
+    }
+    
+
+    protected void insertChangePasswordLog(String userID, String dpDeptID, String soaDeptID, String isSuccess)
+    throws SysException 
+    {            
+        Connection cnn  = null;
+
+        try 
+        {
+            cnn = this.getConnection();
+            cnn.setAutoCommit(false);
+            
+            CallableStatement cs = this.getCStmt(INSERT_CHANGE_PASSWORD_LOG);    
+            
+            cs.setString("p_user_id", userID);
+            cs.setString("p_dp_department_id", dpDeptID);
+            cs.setString("p_soa_department_id", soaDeptID);
+            cs.setString("p_is_success", isSuccess);           
+
+            cs.executeUpdate();
+            
+            cnn.commit(); 
+        }
+        catch (Exception ex)
+        {
+            try
+            { if (cnn != null && !cnn.getAutoCommit()) cnn.rollback(); }
+            catch (Exception ex2)
+            { throw new SysException("SecurityDataBean: insertChallengeLog\n", ex2.getMessage()); }
+            
+            throw new SysException("SecurityDataBean: insertChallengeLog\n", ex.getMessage());
+        }
+        finally
+        { super.close(); }   
+    }
+    
+}

@@ -1,0 +1,20 @@
+# Define logger
+log4j.rootLogger=debug, stdout, R
+log4j.appender.R=org.apache.log4j.RollingFileAppender
+log4j.appender.stdout=org.apache.log4j.ConsoleAppender
+
+# Define log record pattern
+log4j.appender.stdout.layout=org.apache.log4j.PatternLayout
+log4j.appender.stdout.layout.ConversionPattern=%d %5p [%t] (%F:%L) - %m%n
+
+log4j.appender.R.layout=org.apache.log4j.PatternLayout
+log4j.appender.R.layout.ConversionPattern=%d %5p [%t] (%F:%L) - %m%n
+
+# Log file location
+log4j.appender.R.File=C://programs//apache-tomcat//logs//qpsis.log
+
+# Log size for each file
+log4j.appender.R.MaxFileSize=100MB
+
+# Number of backup files to be retained
+log4j.appender.R.MaxBackupIndex=10

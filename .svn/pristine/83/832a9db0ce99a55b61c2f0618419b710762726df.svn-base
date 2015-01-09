@@ -1,0 +1,187 @@
+<%@page contentType="text/html"%>
+<%@page pageEncoding="UTF-8"%>
+<%@ page import="qpses.business.DeptInfo,
+                 qpses.business.DeptDataBean,
+                 qpses.business.ContractorInfo,
+                 qpses.business.ContractorDataBean,
+                 qpses.business.CPARInfo,
+                 qpses.business.CPARDataBean,
+                 qpses.util.SysManager,
+                 java.util.HashMap,
+                 java.util.List,
+                 java.util.ArrayList,
+                 java.sql.Date                 " %>
+                 
+<%!private String getValue(String temp){ return (temp == null )? "" : temp;}%>
+<%
+    // initialize variable
+	Date searchedCutOffStartDate = null;
+	Date searchedCutOffEndDate = null;
+    String searchedCutOffStartDateStr = "";
+    String searchedCutOffEndDateStr = "";
+	
+    HashMap searchParaHashMap = (HashMap) session.getAttribute("DOWNLAOD_CPAR_LIST_SEARCH_PARAMETER");
+    
+    if (searchParaHashMap!=null){
+    	searchedCutOffStartDate = (Date)searchParaHashMap.get("CutOffStartDate");
+    	searchedCutOffEndDate = (Date)searchParaHashMap.get("CutOffEndDate");
+    	if (searchedCutOffStartDate != null) searchedCutOffStartDateStr = SysManager.getStringfromSQLDate(searchedCutOffStartDate);
+    	if (searchedCutOffEndDate != null) searchedCutOffEndDateStr = SysManager.getStringfromSQLDate(searchedCutOffEndDate);
+    } 
+    
+%>			
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title>SOA-QPS3 Quality Professional Services Information System Administration - View Released CPARs</title>
+        <link rel="STYLESHEET" type="text/css" href="../styles/style.css">
+        <link rel="stylesheet" type="text/css" href="../styles/calendar.css">               
+        <script language="JavaScript" type="text/javascript" src="../js/CPARListcheck.js"></script>
+        <script language="javascript" type="text/javascript" src="../js/simplecalendar.js"></script>
+			         		
+    </head>
+    <body> 
+        <%@include file="include/header.jsp"%>        
+        <fieldset class="function"> 
+            <table class="function_title"><tr><td>View Released CPARs</td></tr></table>            		
+                    
+                <table width="98%" border="0" cellspacing="0" cellpadding="0" align="center" class="tableborder">
+                    <tr> 
+                        <td> 
+                            <table width="100%" border="0" cellspacing="0" cellpadding="5">
+                                <!-- <tr class="tableborder"> 
+                                    <td class="title1"> Search Work Assignment</td>
+                                </tr>  -->
+                                <tr class="tableborder"> 
+                                    <td> 
+                                        <div align="left">Input searching criteria below: </div>
+                                    </td>
+                                </tr>
+                                <tr class="tableborder"> 
+                                    <td> 
+                                        <div id="dropdown" align="center"> 
+                                            <form name="form1" method="POST" action="CPARRecordDownload.jsp">
+                                            <table  width="98%" cellspacing="1" class="tableBackground">
+												<tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Service Category Group</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <select id="Category"  class="step1" name="Category">
+                                                            <option value="">Please select service category group</option>
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Contractor Name</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <select id="ContractorName" class="step2" name="ContractorName">
+                                                            <option value="">Please select contractor</option>
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Contractor ID</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <input type="text" id="ContractorId" name="ContractorId" value="Contractor ID" size="30" maxlength="30" readonly disabled />
+                                                    </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Cut off Date</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> From
+                                                        <input class="text" type="text" id="CutOffStartDate" name="CutOffStartDate" value="<%= searchedCutOffStartDateStr %>" readonly>
+                       									<a class="cal" href="javascript: void(0);" 
+                       									     onMouseOver="if (timeoutId) clearTimeout(timeoutId); window.status='Show Calendar'; return true;" 
+                     									     onMouseOut="if (timeoutDelay) calendarTimeout(); window.status='';" 
+                          									 onClick="g_Calendar.show(event, 'form1.CutOffStartDate', true, 'dd-mmm-yyyy'); return false;"> 
+                            									<img src="../images/calendar.gif" name="imgCalendar" width="34" height="21" border="0" alt="" align="absbottom">
+                        								</a>
+                        								</input> to 
+                        								<input class="text" type="text" id="CutOffEndDate" name="CutOffEndDate" value="<%= searchedCutOffEndDateStr %>" readonly>
+                       									<a class="cal" href="javascript: void(0);" 
+                       									     onMouseOver="if (timeoutId) clearTimeout(timeoutId); window.status='Show Calendar'; return true;" 
+                     									     onMouseOut="if (timeoutDelay) calendarTimeout(); window.status='';" 
+                          									 onClick="g_Calendar.show(event, 'form1.CutOffEndDate', true, 'dd-mmm-yyyy'); return false;"> 
+                            									<img src="../images/calendar.gif" name="imgCalendar" width="34" height="21" border="0" alt="" align="absbottom">
+                        								</a>
+                        								</input>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                            <table border="0" cellpadding="3" align="center">
+                                <tr> 
+                                    <td width="50%"> 
+                                        <div align="center"> <a href="#"><img src="../images/btn_search.jpg" width="98" height="42" name="Search" onClick="CPARSelectaction(form1,this)" border="0" alt="Search"></a></div>
+                                    </td>
+                                    <td width="50%"> 
+                                        <div align="center"> <a href="#"><img src="../images/btn_reset.jpg" width="98" height="42" name="SearchReset" onClick="CPARSelectaction(form1,this)" border="0" alt="Reset searching criteria"></a></div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+                <BR>
+			                <div id="search_results" align="center">
+			                </div>
+
+            <%session.removeAttribute("DOWNLAOD_CPAR_LIST_SEARCH_PARAMETER");%> 
+        </fieldset> 		    
+    </body>
+    
+	<script language="JavaScript" type="text/javascript" src="../js/jquery.min.js"></script>
+  	<script language="JavaScript" type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/knockout/2.3.0/knockout-min.js"></script>
+    <script language="JavaScript" type="text/javascript" src="../js/jquery.cascadingdropdown.js"></script>  
+     <script type="text/javascript">
+		function viewmodel() {
+            this.phones = ko.observableArray([]);
+            this.loading = ko.observable(false);
+        }
+
+        var dropdown = new viewmodel();
+
+        ko.applyBindings(dropdown, document.getElementById('dropdown'));
+        $(function(){
+
+            $('#dropdown').cascadingDropdown({
+                selectBoxes: [
+                    {
+                        selector: '.step1',
+                        source: [{ label: 'Cat 1', value: '1' }, { label: 'Cat 2 Minor', value: '2/N' }, { label: 'Cat 2 Major', value: '2/J' }, { label: 'Cat 3 Minor', value: '3/N' }, { label: 'Cat 3 Major', value: '3/J' }, { label: 'Cat 4', value: '4' }]
+                    },
+                    {
+                        selector: '.step2',
+                        requires: ['.step1'],
+                        source: function(request, response) {
+                            $.getJSON('options.jsp', request, function(data) {
+                                var selectOnlyOption = data.length <= 1;
+                                response($.map(data, function(item, index) {
+                                    return {
+                                        label: item.name,
+                                        value: item.id,
+                                        selected: selectOnlyOption
+                                    };
+                                }));
+                            });
+                        }
+                    }
+                ]
+            });
+            
+            $('#ContractorName').change(function(){
+                $('#ContractorId').val($(this).val());
+                document.getElementById('ContractorId').disabled = false;
+            });
+
+            $('#Category').change(function(){
+                $('#ContractorId').val("Please select Contractor Above");
+                $('#ContractorName').val("Please select contractor");
+                document.getElementById('ContractorId').disabled = true;
+            });
+
+        });
+		</script>
+</html>

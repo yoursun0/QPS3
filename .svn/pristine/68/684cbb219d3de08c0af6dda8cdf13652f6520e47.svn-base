@@ -1,0 +1,475 @@
+package qpses.servlet;
+
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URL;
+import java.sql.Date;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.log4j.Logger;
+
+import qpses.business.*;
+import qpses.security.SecurityContext;
+import qpses.util.*;
+
+@SuppressWarnings("serial")
+public final class AdminCPARListServlet extends HttpServlet
+{
+
+	private static String adminId = null;
+	
+	// Get class name
+    static String MyClassName = AdminCPARListServlet.class.getName();
+    
+    // Set up Log4J
+    static Logger logger = Logger.getLogger(MyClassName);
+    
+    // Admin web page base URL
+    public static final String AdminBaseUrl = "/qpsadmin/";
+    
+    private static String postScreen = null;
+    private static String requestAction = null;
+    
+    private static final int BYTES_DOWNLOAD = 1024;
+    
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException
+    {
+        doPost(request, response);
+    }
+    
+    public void doPost(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException
+    {
+        String myName = "[" + MyClassName + "." + "doPost" + "]";
+        logger.debug(myName + " " + "started");
+        
+        String requestAction = "";
+        
+        try
+        {
+        	requestAction = request.getServletPath();
+            
+            if (requestAction == null) requestAction = "";
+            
+            logger.debug(myName + " " + "Request Action = " + requestAction);
+           
+            if (requestAction.equals(AdminBaseUrl+"CPAROutstandingList.servlet"))
+            { this.OutstandingCPARList(request, response); }
+            else if (requestAction.equals(AdminBaseUrl+"CPAROutstandingDownload.servlet"))
+            { this.OutstandingCPARdownload(request, response); }
+          	else if (requestAction.equals(AdminBaseUrl+"CPARRecordSearch.servlet"))
+            { this.CPARListSearch(request, response); }
+            else if (requestAction.equals(AdminBaseUrl+"CPARRecordSearchReset.servlet"))
+            { this.CPARListResetSearch(request, response); }
+            else if (requestAction.equals(AdminBaseUrl+"CPARRecordDownload.servlet"))
+            { this.CPARListDownload(request, response); }
+            else	
+            { throw new SysException(myName, "[" + requestAction + "]" + " " + "is not allowed."); }
+        }
+        catch (Exception ex)
+        { 
+        	String err = myName+ex.getMessage();
+        	logger.error(err,ex);
+        	throw new ServletException(err); 
+        }
+        
+        logger.debug(myName + " " + "ended");
+    }
+    
+    
+	private void OutstandingCPARList(HttpServletRequest request,HttpServletResponse response) 
+			throws ServletException, IOException, SysException {
+		String myName = "[" + MyClassName + "." + "OutstandingCPARList" + "]";
+		logger.debug(myName + " " + "started");
+
+		String url = AdminBaseUrl + "CPAROutstandingList.jsp";
+
+		WorkAssignmentDataBean waDB =new WorkAssignmentDataBean();
+	    Map allWAOutstandingListforCPAR = new HashMap();
+	    allWAOutstandingListforCPAR = waDB.getWorkAssignmentForCPAROustanding();
+	    request.getSession().setAttribute("CPAR_OUTSTANDING_LIST", allWAOutstandingListforCPAR);
+
+		logger.debug(myName + " " + "Forward to URL: " + url);
+
+		RequestDispatcher requestDispatcher = getServletContext().getRequestDispatcher(url);
+		requestDispatcher.forward(request, response);
+
+		logger.debug(myName + " " + "ended");
+	}
+	
+	private void OutstandingCPARdownload(HttpServletRequest request,HttpServletResponse response) 
+			throws ServletException{
+		String myName = "[" + MyClassName + "." + "OutstandingCPARdownload" + "]";
+		logger.debug(myName + " " + "started");
+
+		
+        try{
+        	String currentDateStr = SysManager.getCurDateTimeStr("dd-MMM-yyyy");
+            String generateReportDate = "Report Generation Date: " + currentDateStr;
+
+        	HashMap allOutstandingMap = (HashMap) request.getSession().getAttribute("CPAR_OUTSTANDING_LIST");
+            
+            URL getDirectoryPath = Thread.currentThread().getContextClassLoader().getResource("");
+    		String directoryPath = getDirectoryPath.toString().replace("file:/", "") + "qpses/util/";
+    		String serverInputFilePath = directoryPath + Constant.CPARS_OUTSTANDING_TEMPLATE_NAME;
+    		String serverOutputFilePath = directoryPath + "ExportCPARsOutstanding.xls";
+    		String serverOutputFileRelativePath = "/WEB-INF/classes/qpses/util/ExportCPARsOutstanding.xls";
+    		String clientOutputFileName = "CPARsOutstandingReport.xls";
+    		
+    		MSExcelHelper msxlsHelper = new MSExcelHelper(serverInputFilePath, serverOutputFilePath);
+    		
+    		msxlsHelper.setExcelValue(1, 1, 1, generateReportDate, false);
+    		
+    		int i = 1;
+    		int startRow = Constant.CPARS_OUTSTANDING_START_ROW;
+            for (Object key : allOutstandingMap.keySet()) {
+            	WorkAssignmentInfo wa = new WorkAssignmentInfo();
+            	wa = (WorkAssignmentInfo) allOutstandingMap.get(key);
+            	
+            	msxlsHelper.setExcelValue(1, startRow, 1, String.valueOf(i), false);
+            	msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_OUTSTANDING_SERVICE_CONTRACT_REF_NO_COLUMN, wa.getServiceContractNo(), false);
+            	msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_OUTSTANDING_DEPARTMENT_COLUMN, wa.getDepartmentId(), false);
+            	msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_OUTSTANDING_CONTRACTOR_COLUMN, wa.getAwardedContractor(), false);
+            	msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_OUTSTANDING_TITLE_COLUMN, wa.getTitle(), false);
+            	
+            	i++;
+            	startRow++;
+            }
+    		
+    		msxlsHelper.process();
+    		//System.out.println(msxlsHelper.getHtmlText());
+    		
+    		response.setContentType("application/vnd.ms-excel");
+    		response.setHeader("Content-Disposition", "attachment;filename=\"" + clientOutputFileName + "\"");
+    		ServletContext ctx = getServletContext();
+    		InputStream is = ctx.getResourceAsStream(serverOutputFileRelativePath);
+    	 
+    		try {
+    			
+    			logger.debug("Start Download...");
+	    		int read=0;
+	    		byte[] bytes = new byte[BYTES_DOWNLOAD];
+	    		OutputStream os = response.getOutputStream();
+	    	 
+	    		while((read = is.read(bytes))!= -1){
+	    			os.write(bytes, 0, read);
+	    		}
+	    		os.flush();
+	    		os.close();	
+	    		logger.debug("Download End.");
+    		}
+    		catch(Exception ex){
+    			logger.error(ex);
+	            throw new ServletException("Servlet Error:  AdminCPARServlet:OutstandingCPARdownload \nDownload Error\n" + ex.toString());
+	        }
+
+    		//Clear Memory and delete output file
+    		msxlsHelper.close();
+    		//postScreen = request.getHeader("referer");
+            //response.sendRedirect(postScreen);
+    		
+    		SecurityContext secCtx = (SecurityContext)(request.getSession().getAttribute("QPSES_SECURITY_CONTEXT"));
+    		LogDataBean logDB = new LogDataBean();
+    		logDB.insertAdminLog(secCtx.getUserId(), secCtx.getDPDeptId(), secCtx.getSOADeptId(), "outstanding_cpar", "OUTSTAND", SysManager.getCurDateTimeStr("dd-MMM-yyyy"), "Download Outstanding CPAR List");
+            
+        }catch(Exception ex){
+        	logger.error(ex);
+            throw new ServletException("Servlet Error:  AdminCPARServlet:OutstandingCPARdownload\n" + ex.toString());
+        }
+
+		logger.debug(myName + " " + "ended");
+		return;
+	}
+	
+	private void CPARListSearch(HttpServletRequest request, HttpServletResponse response)
+		    throws ServletException, IOException {
+		        
+		String myName = "[" + MyClassName + "." + "CPARListSearch" + "]";
+		logger.debug(myName + " " + "started");
+
+		HashMap CPARSearchPara = new HashMap();
+
+		try {
+			int recordCount = 1;
+			String category = request.getParameter("Category");
+			String contractorName = request.getParameter("ContractorName");
+			String contractorId = request.getParameter("ContractorId");
+			String cutOffStartDateStr = request.getParameter("CutOffStartDate");
+			String cutOffEndDateStr = request.getParameter("CutOffEndDate");
+			Date cutOffStartDate = ("".equals(cutOffStartDateStr)) ? null : SysManager.getSQLDate(cutOffStartDateStr);
+			Date cutOffEndDate = ("".equals(cutOffEndDateStr)) ? null : SysManager.getSQLDate(cutOffEndDateStr);
+			
+			List<CPARInfo> allCPARList = new ArrayList<CPARInfo>();
+			CPARDataBean cparDB = new CPARDataBean();
+			allCPARList = cparDB.getCPARRecord(contractorName, category, cutOffStartDate, cutOffEndDate);
+			
+			CPARSearchPara.put("Category", category);
+			CPARSearchPara.put("ContractorId", contractorId);
+			CPARSearchPara.put("ContractorName", contractorName);
+			CPARSearchPara.put("CutOffStartDate", cutOffStartDate);
+			CPARSearchPara.put("CutOffEndDate", cutOffEndDate);
+			request.getSession().setAttribute("DOWNLAOD_CPAR_LIST_SEARCH_PARAMETER", CPARSearchPara);
+			request.getSession().setAttribute("DOWNLAOD_CPAR_LIST_REPORT_PARAMETER", allCPARList);
+
+			//postScreen = "CPARRecordDownload.jsp";
+			//response.sendRedirect(postScreen);
+			
+			// Generate Layout 
+			response.setContentType("text/html"); 
+			response.getWriter().write("<table border='0' cellspacing='0' cellpadding='0' width='98%' class='tableborder' align='center'>");
+			response.getWriter().write("<tr class='title1'><td>Report</td></tr> ");
+			response.getWriter().write("<tr><td align='left'><div align='left'>No. of records : " + allCPARList.size() + "</div></td></tr> ");
+
+			if (! allCPARList.isEmpty()){
+				response.getWriter().write("<tr>");
+				response.getWriter().write("<td>");
+				response.getWriter().write("<form name='form2' method='POST' action='CPARRecordDownload.jsp' >");
+				response.getWriter().write("<img type='image' name='DownloadCPARsRecord' class='function_button' src='../images/btn_download.jpg' alt='Download EXCEL File' onclick='DownloadFile(form2, this)'>");  
+				response.getWriter().write("</form>");
+				response.getWriter().write("</td>");
+				response.getWriter().write("</tr>");
+	
+				response.getWriter().write("<tr>");
+				response.getWriter().write("<td>");
+				response.getWriter().write("<div align='center'>");
+			
+				response.getWriter().write("<table width='100%' cellspacing='1' class='tableBackground'>");
+				response.getWriter().write("<tr>");
+				response.getWriter().write("<td align='center' width='3%' class='tableHeaderAlignCenter1'>No.</td>");
+				response.getWriter().write("<td align='center' width='8%' class='tableHeaderAlignCenter1'>Category</td>");
+				response.getWriter().write("<td align='center' width='8%' class='tableHeaderAlignCenter1'>Bureau /Department</td>");
+				response.getWriter().write("<td align='center' width='8%' class='tableHeaderAlignCenter1'>Contractor</td>");
+				response.getWriter().write("<td align='center' width='8%' class='tableHeaderAlignCenter1'>Service Contract Ref. No.</td>");
+				response.getWriter().write("<td align='center' width='8%' class='tableHeaderAlignCenter1'>Completed / In-progress CPAR</td>");
+				response.getWriter().write("<td align='center' width='41%' class='tableHeaderAlignCenter1'>Work Assignment Title </td>");
+				response.getWriter().write("<td align='center' width='8%' class='tableHeaderAlignCenter1'>CPAR Start Date</td>");
+				response.getWriter().write("<td align='center' width='8%' class='tableHeaderAlignCenter1'>CPAR End Date</td>");
+				response.getWriter().write("</tr>");
+				for (CPARInfo cparRecord: allCPARList) {
+					String categoryStr = "";
+					if ( "c".equals(cparRecord.getStatus()) ){
+						categoryStr = "Completed";
+				    } else if ( "p".equals(cparRecord.getStatus()) ){
+				    	categoryStr = "In-progress";
+				    }
+					response.getWriter().write("<tr>");
+					response.getWriter().write("<td align='center' width='3%' class='tableContentAlignCenter1'>" + recordCount + "</td>");
+					response.getWriter().write("<td width='8%' class='tableContentAlignLeft1'>" + cparRecord.getCategory() + "</td>");
+					response.getWriter().write("<td width='8%' class='tableContentAlignLeft1'>" + cparRecord.getDepartmentId() + "</td>");
+					response.getWriter().write("<td width='8%' class='tableContentAlignLeft1'>" + cparRecord.getAwardedContractor() + "</td>");
+					response.getWriter().write("<td width='8%' class='tableContentAlignLeft1'>" + cparRecord.getServiceContractNo() + "</td>");
+					response.getWriter().write("<td width='8%' class='tableContentAlignLeft1'>" + categoryStr + "</td>");
+					response.getWriter().write("<td width='41%' class='tableContentAlignLeft1'>" + cparRecord.getWorkAssignmentTitle() + "</td>");
+					response.getWriter().write("<td width='8%' class='tableContentAlignLeft1'>" 
+							+ SysManager.getSpecialFormatStringfromSQLDate(cparRecord.getStartDate()) + "</td>");
+					response.getWriter().write("<td width='8%' class='tableContentAlignLeft1'>" 
+							+ SysManager.getSpecialFormatStringfromSQLDate(cparRecord.getEndDate())+ "</td>");
+					response.getWriter().write("</tr>");
+				
+					recordCount++;
+				}
+				
+				response.getWriter().write("</table>");
+
+				response.getWriter().write("</div>");
+				response.getWriter().write("</td>");
+				response.getWriter().write("</tr>");
+			}
+
+			response.getWriter().write("</table>");
+			
+		} catch (Exception ex) {
+			String err = "Servlet Error: AdminCPARListServlet:CPARListSearch\n"
+					+ ex.toString();
+			logger.error(err, ex);
+			throw new ServletException(err);
+		}
+
+		logger.debug(myName + " " + "ended");
+		return;
+	}
+	
+	
+	private void CPARListResetSearch(HttpServletRequest request, HttpServletResponse response)
+		    throws ServletException {
+		        
+		String myName = "[" + MyClassName + "." + "CPARListResetSearch" + "]";
+		logger.debug(myName + " " + "started");
+
+		try {
+			request.getSession().removeAttribute("DOWNLAOD_CPAR_LIST_IS_SEARCH");
+			request.getSession().removeAttribute("DOWNLAOD_CPAR_LIST_SEARCH_PARAMETER");
+			postScreen = request.getHeader("referer");
+			response.sendRedirect(postScreen);
+		} catch (Exception ex) {
+			logger.error(ex);
+			throw new ServletException("Servlet Error:  AdminCPARListServlet:CPARListResetSearch\n" + ex.toString());
+		}
+
+		logger.debug(myName + " " + "ended");
+		return;
+	}
+
+	private void CPARListDownload(HttpServletRequest request, HttpServletResponse response) 
+			throws ServletException {
+
+		String myName = "[" + MyClassName + "." + "CPARListDownload" + "]";
+		logger.debug(myName + " " + "started");
+
+		try {
+			int threeMark = 3;
+	    	int twoMark = 2;
+	    	int oneMark = 1;
+	    	DecimalFormat myFormatter = new DecimalFormat("0.00");
+			String currentDateStr = SysManager.getCurDateTimeStr("dd-MMM-yyyy");
+			String generateReportDate = "Report Generation Date: " + currentDateStr;
+
+			List<CPARInfo> allCPARList = (List<CPARInfo>) request.getSession().getAttribute("DOWNLAOD_CPAR_LIST_REPORT_PARAMETER");
+
+			URL getDirectoryPath = Thread.currentThread().getContextClassLoader().getResource("");
+			String directoryPath = getDirectoryPath.toString().replace("file:/", "") + "qpses/util/";
+			String serverInputFilePath = directoryPath + Constant.CPARS_LIST_DOWNLOAD_TEMPLATE_NAME;
+			String serverOutputFilePath = directoryPath + "ExportCPARsRecordt.xls";
+			String serverOutputFileRelativePath = "/WEB-INF/classes/qpses/util/ExportCPARsRecordt.xls";
+			String clientOutputFileName = "CPARsRecordt.xls";
+
+			MSExcelHelper msxlsHelper = new MSExcelHelper(serverInputFilePath, serverOutputFilePath);
+
+			//msxlsHelper.setExcelValue(1, 2, 2, title, false);
+			msxlsHelper.setExcelValue(1, 1, 2, generateReportDate, false);
+			int startRow = Constant.CPARS_LIST_DOWNLOAD_START_ROW;
+
+			for (CPARInfo cparRecord: allCPARList) {
+				String totalScore = null;
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_DEPARTMENT_ID_COLUMN, cparRecord.getDepartmentId(), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_CONTRACTOR_COLUMN, cparRecord.getAwardedContractor(), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_SERVICE_CONTRACT_REF_NO_COLUMN, cparRecord.getServiceContractNo(), false);
+				if ( "c".equals(cparRecord.getStatus()) ){
+					msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_CPAR_ATATUS_COLUMN, "Completed", false);
+			    } else if ( "p".equals(cparRecord.getStatus()) ){
+			    	msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_CPAR_ATATUS_COLUMN, "In-progress", false);
+			    }
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_AUTHORISED_PERSON_COLUMN, cparRecord.getAuthorizedPerson(), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_POST_COLUMN, cparRecord.getPostRank(), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_WA_TITLE_COLUMN, cparRecord.getWorkAssignmentTitle(), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_START_DAY_COLUMN, 
+						SysManager.getSpecialFormatStringfromSQLDate(cparRecord.getStartDate()), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_END_DAY_COLUMN, 
+						SysManager.getSpecialFormatStringfromSQLDate(cparRecord.getEndDate()), false);
+				
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_A1_COLUMN, calculateScore(cparRecord.getA1Score(), threeMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_A2_COLUMN, calculateScore(cparRecord.getA2Score(), threeMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_A3_COLUMN, calculateScore(cparRecord.getA3Score(), threeMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_A4_COLUMN, calculateScore(cparRecord.getA4Score(), oneMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_A5_COLUMN, calculateScore(cparRecord.getA5Score(), oneMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_A6_COLUMN, calculateScore(cparRecord.getA6Score(), oneMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_A7_COLUMN, calculateScore(cparRecord.getA7Score(), oneMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_A8_COLUMN, calculateScore(cparRecord.getA8Score(), oneMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_A9_COLUMN, calculateScore(cparRecord.getA9Score(), oneMark), false);
+				
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_B1_COLUMN, calculateScore(cparRecord.getB1Score(), twoMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_B2_COLUMN, calculateScore(cparRecord.getB2Score(), twoMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_B3_COLUMN, calculateScore(cparRecord.getB3Score(), twoMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_B4_COLUMN, calculateScore(cparRecord.getB4Score(), twoMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_B5_COLUMN, calculateScore(cparRecord.getB5Score(), twoMark), false);
+				
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_C1_COLUMN, calculateScore(cparRecord.getC1Score(), oneMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_C2_COLUMN, calculateScore(cparRecord.getC2Score(), oneMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_C3_COLUMN, calculateScore(cparRecord.getC3Score(), oneMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_C4_COLUMN, calculateScore(cparRecord.getC4Score(), oneMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_C5_COLUMN, calculateScore(cparRecord.getC5Score(), oneMark), false);
+				
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_OVERALL1_COLUMN, calculateScore(cparRecord.getD1Score(), oneMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_OVERALL2_COLUMN, calculateScore(cparRecord.getD2Score(), oneMark), false);
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_OVERALL3_COLUMN, calculateScore(cparRecord.getD3Score(), oneMark), false);
+				
+				if (cparRecord.getScore() != -1) {
+					totalScore = (String)myFormatter.format( cparRecord.getScore() );
+				}
+				msxlsHelper.setExcelValue(1, startRow, Constant.CPARS_LIST_DOWNLOAD_PERFORMANCE_MARK_COLUMN, totalScore, false);
+				
+				startRow ++;
+			}
+
+			msxlsHelper.process();
+			// System.out.println(msxlsHelper.getHtmlText());
+
+			response.setContentType("application/vnd.ms-excel");
+			response.setHeader("Content-Disposition", "attachment;filename=\""+ clientOutputFileName + "\"");
+			ServletContext ctx = getServletContext();
+			InputStream is = ctx.getResourceAsStream(serverOutputFileRelativePath);
+
+			try {
+
+				logger.debug("Start Download...");
+				int read = 0;
+				byte[] bytes = new byte[BYTES_DOWNLOAD];
+				OutputStream os = response.getOutputStream();
+
+				while ((read = is.read(bytes)) != -1) {
+					os.write(bytes, 0, read);
+				}
+				os.flush();
+				os.close();
+				logger.debug("Download End.");
+			} catch (Exception ex) {
+				logger.error(ex);
+				throw new ServletException("Servlet Error:  AdminCPARListServlet:CPARListDownload \nDownload Error\n" + ex.toString());
+			}
+
+			// Clear Memory and delete output file
+			msxlsHelper.close();
+			// postScreen = request.getHeader("referer");
+			// response.sendRedirect(postScreen);
+			SecurityContext secCtx = (SecurityContext)(request.getSession().getAttribute("QPSES_SECURITY_CONTEXT"));
+			LogDataBean logDB = new LogDataBean();
+			logDB.insertAdminLog(secCtx.getUserId(), secCtx.getDPDeptId(), secCtx.getSOADeptId(), "export_cpar", "ACPAR_EXPORT", currentDateStr, "Export CPAR List");
+			
+		} catch (Exception ex) {
+			logger.error(ex);
+			throw new ServletException("Servlet Error:  AdminCPARListServlet:CPARListDownload\n" + ex.toString());
+		}
+        
+		logger.debug(myName + " " + "ended");
+		return;
+	}
+	
+	private String calculateScore (int score, int rate) throws SysException {    
+		float divisionMark = 4;
+		float scoreFloat = 0 ;
+		String scoreStr = "";
+		DecimalFormat myFormatter = new DecimalFormat("0.00");
+		
+		if (score != -1){
+			scoreFloat = ((float)score * (float)rate) / divisionMark ;
+			scoreStr = (String)myFormatter.format( scoreFloat );
+		}
+		/*if (score == 0) {
+			scoreStr = "Poor";
+		} else if (score == 2) {
+			scoreStr = "Fair";
+		} else if (score == 3) {
+			scoreStr = "Satisfactory";
+		}else if (score == 4) {
+			scoreStr = "Good";
+		}*/
+		return scoreStr;
+	} 
+	
+
+}

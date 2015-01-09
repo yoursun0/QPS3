@@ -1,0 +1,110 @@
+package qpses.servlet;
+
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.isA;
+import static org.easymock.EasyMock.lt;
+import static org.easymock.EasyMock.replay;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.easymock.EasyMock;
+import org.junit.Test;
+
+import qpses.business.CPARDataBean;
+import qpses.business.CPARInfo;
+import qpses.business.ContractorDataBean;
+import qpses.business.ContractorInfo;
+import qpses.business.DeptDataBean;
+import qpses.business.DeptInfo;
+import qpses.business.LogDataBean;
+import qpses.business.WAChallengeInfo;
+import qpses.security.SecurityContext;
+import qpses.security.SecurityDataBean;
+import qpses.security.SecurityServlet;
+import qpses.security.UserStatus;
+import qpses.util.Constant;
+import qpses.util.SysException;
+import qpses.util.SysManager;
+
+public final class TestForStaffRateValidation extends StaffRateValidationSLUser {
+
+	private ServletContext servCtx; 
+	private DeptDataBean deptDB; 
+	private ContractorDataBean conDB;
+	private RequestDispatcher dispatcher;
+	protected UserStatus uStatus;
+	
+	@Override
+	public ServletContext getServletContext(){
+		try{
+			InputStream is = new FileInputStream("pom.xml");
+			dispatcher = createMock(RequestDispatcher.class);
+			servCtx = createMock(ServletContext.class);
+			expect(servCtx.getRequestDispatcher(isA(String.class))).andReturn(dispatcher);
+			dispatcher.forward(isA(HttpServletRequest.class), isA(HttpServletResponse.class));
+			expectLastCall().times(0,10);
+			expect(servCtx.getResourceAsStream(isA(String.class))).andReturn(is).times(0,9);
+		
+			replay(servCtx);
+			replay(dispatcher);
+		}catch(ServletException e){
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return servCtx;
+	}
+	
+    @Override
+	public DeptDataBean getDeptDataBean() throws SysException{
+    	try {
+    		
+    		DeptInfo aDeptInfo = new DeptInfo(); 
+    		// Pass a Mock DataBean
+    		deptDB = createMock(DeptDataBean.class);
+    		expect(deptDB.selectDeptByKeys(isA(String.class), isA(String.class))).andReturn(aDeptInfo).anyTimes();
+    		
+			replay(deptDB);
+		} catch (SecurityException e) {
+			throw new SysException(e.getMessage());
+		}
+        return deptDB;
+    }
+    
+    @Override
+    public ContractorDataBean getContractorDataBean() throws SysException{
+    	try {
+    		List<ContractorInfo> allCPARList = new ArrayList<ContractorInfo>();
+
+    		// Pass a Mock DataBean
+    		conDB = createMock(ContractorDataBean.class);
+    		expect(conDB.selectContractorByCatgp(isA(String.class))).andReturn(allCPARList).times(0,10);
+    		
+			replay(conDB);
+		} catch (SecurityException e) {
+			throw new SysException(e.getMessage());
+		}
+        return conDB;
+    }
+    
+    @Test
+    public void test() throws SysException{
+    	ContractorDataBean contractorDB = getContractorDataBean();
+    	DeptDataBean departmentDB = getDeptDataBean();
+    	contractorDB = null;
+    	departmentDB = null;
+    }
+    
+}

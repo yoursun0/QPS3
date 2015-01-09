@@ -1,0 +1,104 @@
+package qpses.servlet;
+
+import static org.easymock.EasyMock.createControl;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.isA;
+import static org.easymock.EasyMock.verify;
+import static org.junit.Assert.*;
+
+import java.io.IOException;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.easymock.IMocksControl;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
+import qpses.security.SecurityContext;
+import qpses.security.SecurityDataBean;
+import qpses.security.SecurityServlet;
+import qpses.security.TestLogoutForSecurityServlet;
+import qpses.security.UserStatus;
+
+public class CPARSLUserTest {
+
+    private SecurityServlet servlet;
+    private IMocksControl control;
+    private HttpServletRequest request;
+    private HttpServletResponse response;
+    private RequestDispatcher dispatcher;
+    private SecurityDataBean secDB;
+    private SecurityContext secCtx;
+    private HttpSession session;
+    private UserStatus uStatus;
+    private CPARSLUser slUser;
+    
+	@Before
+	public void setUp(){
+    	control = createControl();
+        request = control.createMock(HttpServletRequest.class);
+        response = control.createMock(HttpServletResponse.class);
+        dispatcher = control.createMock(RequestDispatcher.class);
+        secDB = control.createMock(SecurityDataBean.class);
+        session = control.createMock(HttpSession.class);
+        uStatus = new UserStatus();
+        secCtx = new SecurityContext();
+	}
+
+	@After
+	public void tearDown(){
+    	servlet = null;
+    	control = null;
+    	request = null;
+    	response = null;
+    	dispatcher = null; 
+    	secDB = null;
+    	secCtx = null;
+    	session = null;
+	}
+
+	@Test
+	public void testSearchCPAR() throws ServletException, IOException {
+		servlet = new TestLogoutForSecurityServlet();
+		slUser = new TestCRUDForCPARSLUser();
+		
+		secCtx.setUserId("junit.test");
+		secCtx.setDPDeptId("ogcio");
+		secCtx.setSOADeptId("OGCIO");
+		
+        expect(request.getServletPath()).andReturn(CPARSLUser.UserBaseUrl + "CPARSLUser");
+        expect(request.getSession()).andReturn(session).times(5);
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx);
+        
+        // expect(request.getRequestDispatcher("../logout.jsp")).andReturn(dispatcher);
+        
+        session.removeAttribute(isA(String.class));
+        expectLastCall().times(0,2);
+        session.setAttribute(isA(String.class),isA(String.class));
+        expectLastCall().times(0,2);
+        session.invalidate();
+        control.replay();
+    	
+        slUser.doGet(request, response);
+	}
+	
+	@Test
+	public void testDeleteCPAR() throws ServletException, IOException {
+		slUser = new TestCRUDForCPARSLUser();
+		
+        expect(request.getServletPath()).andReturn(CPARSLUser.UserBaseUrl + "CPARDelete.servlet");
+        expect(request.getSession()).andReturn(session).times(0,5);
+        expect(request.getParameter("cparNo")).andReturn("23");
+
+        control.replay();
+    	
+        slUser.doGet(request, response);
+	}
+
+}

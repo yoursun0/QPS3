@@ -1,0 +1,243 @@
+<%@page contentType="text/html"%>
+<%@page pageEncoding="UTF-8"%>
+<%@ page import="qpses.business.WorkAssignmentDataBean,
+                                qpses.business.WorkAssignmentInfo,
+                                qpses.business.DeptInfo,
+                                java.util.List,
+                                java.util.ArrayList,
+                                java.util.HashMap,
+                                qpses.util.SysManager" %>
+<%!private String getValue(String temp){ return (temp == null )? "" : temp;}%>
+<%
+
+    // initialization
+    WorkAssignmentInfo waHeader =null;
+    WorkAssignmentDataBean waDB =new WorkAssignmentDataBean();
+    List allWorkAssignmentList = new ArrayList();
+
+    String order_by = "";
+    String order_dir = "";
+    order_by = getValue(request.getParameter("OrderBy"));
+    order_dir = getValue(request.getParameter("OrderDir"));
+    if (order_by.equals("")) order_by = "ServiceCategory";
+    if (order_dir.equals("")) order_dir = "ASC";
+
+    allWorkAssignmentList = waDB.selectWorkAssignment(order_by,order_dir);
+    if (allWorkAssignmentList.size()>0){
+        WorkAssignmentDataBean waDB2 =new WorkAssignmentDataBean();
+        waHeader = waDB2.selectWorkAssignmentHeader();
+    }
+
+    // check and display for message
+    String msg =   getValue((String)  session.getAttribute("WORK_ASSIGNMENT_MSG"));
+    session.removeAttribute("WORK_ASSIGNMENT_MSG");
+    session.removeAttribute("WORK_ASSIGNMENT_MSGTYPE");
+%>            
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title>SOA-QPS3 Quality Professional Services Information System Administration - Work Assignment</title>             
+        <link rel="STYLESHEET" type="text/css" href="../styles/style.css">
+        <script language="JavaScript" src="../js/wacheck.js" type="text/javascript"></script>                           
+    </head>
+    <body>
+        <%@include file="include/header.jsp"%>
+        <fieldset class="function"> 
+            <table class="function_title"><tr><td>Work Assignment Information Maintenance</td></tr></table>            
+            <form name="form1" method="POST" action="">
+                <table width="98%" border="0" cellspacing="0" cellpadding="0" align="center" class="tableBorder">
+                    <tr> 
+                        <td width="24%" class="tabSelectedLeft">Work 
+                        Assignment List </td>
+                        <td width="18%" class="tabUnSelectMiddle" onclick="changepage('Import')">Import</td>
+                        <td width="15%" class="tabUnSelectRight" onclick="changepage('Search')">Search</td>
+                        <td width="43%"> 
+                            <div align="right">&nbsp;</div>
+                        </td>
+                    </tr>
+                    <tr> 
+                </table>					
+                <table width="98%" border="0" cellspacing="0" cellpadding="0" align="center" class="tableBorder">
+                    <tr class="title1"> 
+                        <td> 
+                            <%
+            out.print("List of Work Assignment Information ");
+                            %>
+                        </td>
+                    </tr>
+                    <tr> 
+                        <td> <%= (! msg.equals(""))? "<div class=\"errMessage\">"+ msg + "</div>":""%> 
+                    </tr>
+                    <tr>                         
+                        <td align="left"> 
+                            <div align="left">
+                            <%
+                            if (waHeader != null) {
+                                out.print("Last upload on ");
+                                out.print(SysManager.getStringfromSQLDateTime(waHeader.getLastUpdateDate()));
+                                out.print(" &nbsp&nbsp ");
+                                out.print(allWorkAssignmentList.size());
+                                out.print(" records imported.");
+                            }else{
+                            	out.print("No work assignment records.");
+                            }
+                            %>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr> 
+                    <td>
+                    <tr> 
+                    <td> 
+                    <div align="center"> 
+                        <%if (! allWorkAssignmentList.isEmpty()){%>			  
+                        <table width="98%" cellspacing="1" class="tableBackground">
+                            <tr> 
+                                <td align="center" width="3%" class="tableHeaderAlignCenter1">&nbsp;</td>
+                                <td align="center" width="6%" class="tableHeaderAlignCenter1">
+                                    <a href="#" class="table_header" onClick="changeorder(form1,'ServiceCategory','<%= ((order_by.equals("ServiceCategory") && order_dir.equals("ASC"))?"DESC":"ASC")%>')">Service<BR>Cat/Gp</a>
+                                    <% if (order_by.equals("ServiceCategory") && order_dir.equals("ASC")){%>
+                                    <img src="../images/up_arrow.gif" border = 0>
+                                    <%}%>
+                                    <% if (order_by.equals("ServiceCategory") && order_dir.equals("DESC")){%>
+                                    <img src="../images/down_arrow.gif" border = 0>
+                                    <%}%>																						                                        
+                                </td>                                                                                                                                                
+                                <td align="center" width="9%" class="tableHeaderAlignCenter1">
+                                    <a href="#" class="table_header" onClick="changeorder(form1,'Dept','<%= ((order_by.equals("Dept") && order_dir.equals("ASC"))?"DESC":"ASC")%>')">B/D</a>
+                                    <% if (order_by.equals("Dept") && order_dir.equals("ASC")){%>
+                                    <img src="../images/up_arrow.gif" border = 0>
+                                    <%}%>
+                                    <% if (order_by.equals("Dept") && order_dir.equals("DESC")){%>
+                                    <img src="../images/down_arrow.gif" border = 0>
+                                    <%}%>																						                                        
+                                </td>                                                                                                                                                
+                                <td align="center" width="8%" class="tableHeaderAlignCenter1">
+                                    <a href="#" class="table_header" onClick="changeorder(form1,'IssueDate','<%= ((order_by.equals("IssueDate") && order_dir.equals("ASC"))?"DESC":"ASC")%>')">Invitation Issue Date</a>
+                                    <% if (order_by.equals("IssueDate") && order_dir.equals("ASC")){%>
+                                    <img src="../images/up_arrow.gif" border = 0>
+                                    <%}%>
+                                    <% if (order_by.equals("IssueDate") && order_dir.equals("DESC")){%>
+                                    <img src="../images/down_arrow.gif" border = 0>
+                                    <%}%>																						                                        
+                                </td>                                                                                                                                               
+                                <td align="center" width="8%" class="tableHeaderAlignCenter1">
+                                    <a href="#" class="table_header" onClick="changeorder(form1,'ClosingDate','<%= ((order_by.equals("ClosingDate") && order_dir.equals("ASC"))?"DESC":"ASC")%>')">Invitation Closing Date</a>
+                                    <% if (order_by.equals("ClosingDate") && order_dir.equals("ASC")){%>
+                                    <img src="../images/up_arrow.gif" border = 0>
+                                    <%}%>
+                                    <% if (order_by.equals("ClosingDate") && order_dir.equals("DESC")){%>
+                                    <img src="../images/down_arrow.gif" border = 0>
+                                    <%}%>																						                                        
+                                </td>                                                                                                                                                                               
+                                <td align="center" width="30%" class="tableHeaderAlignCenter1">
+                                    <a href="#" class="table_header" onClick="changeorder(form1,'Title','<%= ((order_by.equals("Title") && order_dir.equals("ASC"))?"DESC":"ASC")%>')">Work Assignment Title</a>
+                                    <% if (order_by.equals("Title") && order_dir.equals("ASC")){%>
+                                    <img src="../images/up_arrow.gif" border = 0>
+                                    <%}%>
+                                    <% if (order_by.equals("Title") && order_dir.equals("DESC")){%>
+                                    <img src="../images/down_arrow.gif" border = 0>
+                                    <%}%>																						                                        
+                                </td>
+                                <td align="center" width="8%" class="tableHeaderAlignCenter1">
+                                    <a href="#" class="table_header" onClick="changeorder(form1,'Status','<%= ((order_by.equals("Status") && order_dir.equals("ASC"))?"DESC":"ASC")%>')">Status</a>
+                                    <% if (order_by.equals("Status") && order_dir.equals("ASC")){%>
+                                    <img src="../images/up_arrow.gif" border = 0>
+                                    <%}%>
+                                    <% if (order_by.equals("Status") && order_dir.equals("DESC")){%>
+                                    <img src="../images/down_arrow.gif" border = 0>
+                                    <%}%>																						                                        
+                                </td>         
+                                <td align="center" width="8%" class="tableHeaderAlignCenter1">
+                                    <a href="#" class="table_header" onClick="changeorder(form1,'AwardedDate','<%= ((order_by.equals("AwardedDate") && order_dir.equals("ASC"))?"DESC":"ASC")%>')">Awarded Date</a>
+                                    <% if (order_by.equals("AwardedDate") && order_dir.equals("ASC")){%>
+                                    <img src="../images/up_arrow.gif" border = 0>
+                                    <%}%>
+                                    <% if (order_by.equals("AwardedDate") && order_dir.equals("DESC")){%>
+                                    <img src="../images/down_arrow.gif" border = 0>
+                                    <%}%>																						                                        
+                                </td> 
+                                <td align="center" width="12%" class="tableHeaderAlignCenter1">
+                                    <a href="#" class="table_header" onClick="changeorder(form1,'Contractor','<%= ((order_by.equals("Contractor") && order_dir.equals("ASC"))?"DESC":"ASC")%>')">Awarded Contractor</a>
+                                    <% if (order_by.equals("Contractor") && order_dir.equals("ASC")){%>
+                                    <img src="../images/up_arrow.gif" border = 0>
+                                    <%}%>
+                                    <% if (order_by.equals("Contractor") && order_dir.equals("DESC")){%>
+                                    <img src="../images/down_arrow.gif" border = 0>
+                                    <%}%>																						                                        
+                                </td> 
+                                <td align="center" width="8%" class="tableHeaderAlignCenter1">Authorised 
+                                Person</td>
+                            </tr>
+                            <%
+                                // Display records
+                                for (int i = 0; i<allWorkAssignmentList.size();i++) {
+                                            WorkAssignmentInfo wa = new WorkAssignmentInfo();
+                                            wa = (WorkAssignmentInfo) allWorkAssignmentList.get(i);
+                                            // initialize variables
+                                            String service_category = "";
+                                            String dept_id ="";
+                                            String issued_date ="";
+                                            String closing_date ="";
+                                            String awarded_date ="";
+                                            String wa_title="";
+                                            String wa_status="";
+                                            String authorized_person="";
+                                            String awarded_contractor="";
+
+                                            // get values from vector element
+                                            service_category = wa.getServiceCategoryGroup();
+                                            dept_id = wa.getDepartmentId();
+                                            issued_date = SysManager.getStringfromSQLDate(wa.getIssuedDate());
+                                            closing_date = SysManager.getStringfromSQLDate(wa.getClosingDate());
+                                            if  (wa.getAwardedDate() != null){
+                                            	awarded_date = SysManager.getStringfromSQLDate(wa.getAwardedDate());
+                                            }
+                                            
+                                            wa_title=wa.getTitle();
+                                            if  (wa.getStatus().equals("b")){
+                                                wa_status="Invitation Issued";
+                                            }else if (wa.getStatus().equals("p")){
+                                                wa_status ="Proposal submitted";
+                                            }else if (wa.getStatus().equals("n")){
+                                                wa_status ="Assignment awarded";    
+                                            }else if (wa.getStatus().equals("c")){
+                                                wa_status ="Assignment completed";    
+                                            }else if (wa.getStatus().equals("w")){
+                                                wa_status ="Invitation withdrew";
+                                            }else if (wa.getStatus().equals("t")){
+                                                wa_status ="Assignment terminated";    
+                                            }else if (wa.getStatus().equals("x")){
+                                                wa_status ="Invitation cancelled";    
+                                            }
+                                            authorized_person=wa.getAuthorizedPerson();
+                                            awarded_contractor=getValue(wa.getAwardedContractor());
+                            %>
+                                                        
+                            <tr valign="top"> 
+                                <td align="center" width="3%" nowrap class="tableContentAlignCenter1"><%=(i+1)%></td>
+                                <td align="center" width="6%" nowrap class="tableContentAlignCenter1"><%=service_category%></td>
+                                <td align="center" width="9%" class="tableContentAlignCenter1"><%=dept_id%></td>
+                                <td align="center" width="8%" nowrap class="tableContentAlignCenter1"><%=issued_date%></td>
+                                <td align="center" width="8%" nowrap class="tableContentAlignCenter1"><%=closing_date%></td>
+                                <td width="30%" class="tableContentAlignLeft1"><%=wa_title%></td>
+                                <td width="8%" class="tableContentAlignCenter1"><%=wa_status%></td>
+                                <td width="8%" nowrap class="tableContentAlignCenter1"><%=awarded_date%></td>
+                                <td width="12%" class="tableContentAlignCenter1"><%=awarded_contractor%></td>
+                                <td width="8%" class="tableContentAlignCenter1"><%=authorized_person%> 
+                                </td>
+                            </tr>
+                            <%} // End for 
+                            }else{
+                                out.print("No records!");
+                            } // End if vector size >0 %>
+                            </table>
+                    </div>
+                </table>
+                <BR>
+                <input type="hidden" name="OrderBy" value="<%=order_by%>">
+                <input type="hidden" name="OrderDir" value="<%=order_dir%>">                
+            </form>
+        </fieldset>
+    </body>
+</html>

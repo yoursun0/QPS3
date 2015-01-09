@@ -1,0 +1,591 @@
+/*
+ * AdminQualitySubscoreServlet.java
+ *
+ * Created on 5th July, 2013
+ */
+
+package qpses.servlet;
+
+import com.lowagie.text.Cell;
+import com.lowagie.text.Chunk;
+import com.lowagie.text.Document;
+import com.lowagie.text.PageSize;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Vector;
+
+
+import javax.servlet.*;
+import javax.servlet.http.*;
+import org.apache.commons.fileupload.DiskFileUpload;
+import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload.FileUploadException;
+import org.apache.log4j.Logger;
+import org.apache.poi.hssf.record.RecordFormatException;
+import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import qpses.business.CeilingRateCat1Info;
+import qpses.business.PdfHelper;
+import qpses.business.QualitySubscoreDataBean;
+import qpses.business.QualitySubscoreInfo;
+import qpses.security.SecurityContext;
+import qpses.util.Constant;
+import qpses.util.SysException;
+
+public class AdminQualitySubscoreServlet extends HttpServlet {
+    
+    // log4j
+    static Logger logger = Logger.getLogger(AdminQualitySubscoreServlet.class.getName());
+    
+    
+    private static String postScreen = null;
+    private static String requestAction = null;
+    
+    public void doPost(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        requestAction = request.getServletPath();
+        if (requestAction.equals("/qpsadmin/CPSUpload.servlet")) {
+            performQualitySubscoreUpload(request, response);
+            return;
+        }
+        
+        if (requestAction.equals("/qpsadmin/CPSDelete.servlet")) {
+            performQualitySubscoreDelete(request, response);
+            return;
+        }
+        
+        
+         if (requestAction.equals("/qpsadmin/CPSPrintReport.servlet")) {
+            performQualitySubscorePrintReport(request, response);
+            return;
+        }
+    }
+    
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        doPost(request, response);
+    }
+    
+    private void performQualitySubscoreUpload(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        
+        // initialization
+        SecurityContext secCtx = (SecurityContext) request.getSession().getAttribute("QPSES_SECURITY_CONTEXT");
+        DiskFileUpload upload = new DiskFileUpload();
+        upload.setRepositoryPath(Constant.QPSIS_TEMP_DIR);
+        upload.setSizeThreshold(102400);// limit Memory Size
+        upload.setSizeMax(-1); // unlimit file size
+        List allUploadeditems = null;
+        
+        int rowNo=0;
+        int uploadStatus = 0;
+        QualitySubscoreInfo qs = new QualitySubscoreInfo();
+        
+        // parse request
+        try {
+            allUploadeditems = upload.parseRequest(request);
+        } catch (FileUploadException exFile) {
+            String UploadError = "ServletError:AdminQualitySubscoreServlet:performQualitySubscoreUpload\r\n" + exFile.getMessage();
+            throw new IOException(UploadError);
+        }
+        
+        // get file and parameters
+        
+        try {
+            Iterator iter = allUploadeditems.iterator();
+            FileItem excelfile = null;
+            QualitySubscoreDataBean qsDB = new QualitySubscoreDataBean();
+            while (iter.hasNext()) {
+                FileItem uploadeditem = (FileItem) iter.next();
+                if ((! uploadeditem.isFormField() && uploadeditem.getSize() != 0)){ // get excel file
+                    //&& uploadeditem.getContentType().startsWith("application/vnd.ms-excel")){ // file without zero size
+                    excelfile = uploadeditem;
+                    long excelfilesize = excelfile.getSize();
+                    qs.setExcelFileSize(excelfile.getSize());
+                    File filePath = new File(excelfile.getName());
+                    qs.setExcelFileName(filePath.getName());
+                    qs.setFileContentType(excelfile.getContentType());
+                } else if (uploadeditem.getFieldName().trim().endsWith("selectedKey1")) {
+                    if (uploadeditem.getString() == null){
+                        postScreen = "CPSList.jsp";
+                        String errMsg = "Failed to import records! Invalid parameters for import!";
+                        request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",errMsg);
+                        request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                        RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                        dispatcher.forward(request, response);
+                    }else{
+                        qs.setEffectivePeriodID(Integer.parseInt(uploadeditem.getString()));
+                    }
+                }
+            }
+            
+            // Put admin id into updated by user id
+            qs.setLastUpdatedBy(secCtx.getUserId());
+            int uploadCounter=0;
+            
+            if (excelfile ==null) {     // check for any excel file uploaded; otherwise, return error;
+                uploadStatus = -89;
+            }else{
+                try {
+                    InputStream excelFileStream = excelfile.getInputStream();
+                    HSSFWorkbook wb    = new HSSFWorkbook(excelFileStream);
+                    HSSFSheet sheet    = wb.getSheet(Constant.QUALITY_SUBSCORE_SHEETNAME);
+                    if (sheet == null){
+                        uploadStatus = -39;  // wrong sheet name
+                    }else{
+                        HSSFCell aCell = null;
+                        
+                        // create temporary file
+                        
+                        uploadStatus=qsDB.createTempQualitySubscore();
+                        
+                        if (uploadStatus !=1){
+                            uploadStatus = -19;
+                        }else{
+                            aCell =sheet.getRow(1).getCell((short) 1);
+                            if (aCell.getStringCellValue().trim().indexOf(Constant.QUALITY_SUBSCORE_TITLE) < 0 ) {
+                                uploadStatus =-49;// wrong file title
+                            } else{
+                                
+                                int start=Constant.SC1_QUALITY_SUBSCORE_STARTING_ROWNO;
+                                if (! (sheet.getRow(start - 1).getCell((short) Constant.QUALITY_SUBSCORE_CONTRACTOR_COLNO).getStringCellValue().trim())
+                                .equals(Constant.QUALITY_SUBSCORE_CONTRACTOR_COL_NAME)){
+                                    uploadStatus = -69;     //invalid file format
+                                }
+                                /* if (uploadStatus ==1 &&
+                                        ! (sheet.getRow(start - 2).getCell((short) Constant.QUALITY_SUBSCORE_QSCORE_COLNO).getStringCellValue().trim())
+                                        .equals(Constant.QUALITY_SUBSCORE_QSCORE_COL_NAME)){
+                                    uploadStatus = -79;     //invalid file format
+                                } */
+                                
+                                
+                                if (uploadStatus ==1){
+                                	
+                                	int count;
+                                	count = insertCPSforSC(qs,qsDB,sheet,"1",Constant.SC1_QUALITY_SUBSCORE_STARTING_ROWNO);
+                                	if (count>=0){
+                                		uploadCounter+=count;	
+                                	}else{
+                                		uploadStatus = count;
+                                		throw new Exception("Database error during CPS upload.");
+                                	}
+                                	insertCPSforSC(qs,qsDB,sheet,"2/N",Constant.SC2N_QUALITY_SUBSCORE_STARTING_ROWNO);
+                                	if (count>=0){
+                                		uploadCounter+=count;	
+                                	}else{
+                                		uploadStatus = count;
+                                		throw new Exception("Database error during CPS upload.");
+                                	}
+                                	insertCPSforSC(qs,qsDB,sheet,"2/J",Constant.SC2J_QUALITY_SUBSCORE_STARTING_ROWNO);
+                                	if (count>=0){
+                                		uploadCounter+=count;	
+                                	}else{
+                                		uploadStatus = count;
+                                		throw new Exception("Database error during CPS upload.");
+                                	}
+                                	insertCPSforSC(qs,qsDB,sheet,"3/N",Constant.SC3N_QUALITY_SUBSCORE_STARTING_ROWNO);
+                                	if (count>=0){
+                                		uploadCounter+=count;	
+                                	}else{
+                                		uploadStatus = count;
+                                		throw new Exception("Database error during CPS upload.");
+                                	}
+                                	insertCPSforSC(qs,qsDB,sheet,"3/J",Constant.SC3J_QUALITY_SUBSCORE_STARTING_ROWNO);
+                                	if (count>=0){
+                                		uploadCounter+=count;	
+                                	}else{
+                                		uploadStatus = count;
+                                		throw new Exception("Database error during CPS upload.");
+                                	}
+                                	insertCPSforSC(qs,qsDB,sheet,"4",Constant.SC4_QUALITY_SUBSCORE_STARTING_ROWNO);
+                                	if (count>=0){
+                                		uploadCounter+=count;	
+                                	}else{
+                                		uploadStatus = count;
+                                		throw new Exception("Database error during CPS upload.");
+                                	}
+                                			
+                                    // if no error occur, replace with temporary file
+                                    if (uploadStatus == 1){
+                                        qsDB.replaceTempQualitySubscore();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (RecordFormatException ex0){
+                    postScreen = "CPSUpload.jsp";
+                    String errMsg = "File format Error! Please check whether the file has autorun macros and remove the macros";
+                    request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",errMsg);
+                    request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                    RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                    dispatcher.forward(request, response);
+                }catch (IOException ex){
+                    if (ex.getMessage().indexOf("Invalid header signature")>=0){
+                        postScreen = "CPSUpload.jsp";
+                        String errMsg = "File format is incorrect! Imported file name: " + qs.getExcelFileName() + " <BR> Please check the excel file.";
+                        request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",errMsg);
+                        request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                        RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                        dispatcher.forward(request, response);
+                        return;
+                    }else{
+                        throw new ServletException("File IO Error: AdminQualitySubscoreServlet:performQualitySubscoreUpload" + ex.toString());
+                    }
+                } catch (Exception ex1) {
+                    throw new ServletException("QualitySubscoreUpload ERROR: AdminQualitySubscoreServlet:performQualitySubscoreUpload: Upload Error\n" + ex1.toString());
+                }
+            }
+            
+            // return page
+            if (uploadStatus == 1){
+                postScreen = "CPSList.jsp";
+                String Msg = "File imported successfully! " + uploadCounter + " records imported; ";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",Msg);
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","MSG");
+                response.sendRedirect(postScreen);
+            } else if (uploadStatus == -89){
+                postScreen = "CPSUpload.jsp";
+                String errMsg = "File cannot be imported! Please close the file if it was opened and retry again. Otherwise, please check if the file is still exists and the file is in Excel format.";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",errMsg);
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            } else if (uploadStatus == -19){
+                postScreen = "CPSUpload.jsp";
+                String errMsg = "Problem encountered in creating temporary quality subscore table. Please retry!";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",errMsg);
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            } else if (uploadStatus == -29){
+                postScreen = "CPSUpload.jsp";
+                String errMsg = "File Upload Error! Please check the excel file.";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",errMsg);
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            } else if (uploadStatus == -49){
+                postScreen = "CPSUpload.jsp";
+                String errMsg = "The header does not contans ["+ Constant.QUALITY_SUBSCORE_TITLE+"]! <BR>"+
+                        " Import file name : " + qs.getExcelFileName()+ "Please check the excel file.";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",errMsg);
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            } else if (uploadStatus == -39){
+                postScreen = "CPSUpload.jsp";
+                String errMsg = "Cannot find the worksheet ["+ Constant.QUALITY_SUBSCORE_SHEETNAME+"]! <BR> "+
+                        "Import file name : " + qs.getExcelFileName()+ "! Please check the excel file.";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",errMsg);
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            } else if (uploadStatus == -69){
+                postScreen = "CPSUpload.jsp";
+                String errMsg = "Wrong column identity for contractor at Column "+ (Constant.QUALITY_SUBSCORE_CONTRACTOR_COLNO +1) + "! <BR>" +
+                        "Required column name should be '" + Constant.QUALITY_SUBSCORE_CONTRACTOR_COL_NAME + "'";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",errMsg);
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            } else if (uploadStatus == -79){
+                postScreen = "CPSUpload.jsp";
+                String errMsg = "Wrong column identity for quality subscore at Column "+ (Constant.QUALITY_SUBSCORE_QSCORE_COLNO +1)+ "! <BR>" +
+                        "Required column name should be '" + Constant.QUALITY_SUBSCORE_QSCORE_COL_NAME + "'";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",errMsg);
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }  else {
+                postScreen = "CPSUpload.jsp";
+                String errMsg = "System Error! Upload status =" + uploadStatus;
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",errMsg);
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }
+        }catch (IOException ex){
+            if (ex.getMessage().indexOf("Invalid header signature")>=0){
+                postScreen = "CPSUpload.jsp";
+                String errMsg = "File format is incorrect! Imported file name: " + qs.getExcelFileName() + " <BR> Please check the excel file.";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",errMsg);
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+                return;
+            }else{
+                throw new ServletException("File IO Error: AdminQualitySubscoreServlet:performQualitySubscoreUpload" + ex.toString());
+            }
+        }catch(Exception ex){
+            if (ex.getMessage().indexOf("Duplicate key.*")>=0){
+                postScreen = "CPSUpload.jsp";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }else if (ex.getMessage().indexOf("SQL error")>=0){
+                postScreen = "CPSUpload.jsp";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }else if (ex.getMessage().indexOf("No record")>=0){
+                postScreen = "CPSUpload.jsp";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }else if (ex.getMessage().indexOf("Problem in creating temporary Contractor Performance Score file")>=0){
+                postScreen = "CPSUpload.jsp";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }else if (ex.getMessage().indexOf("Problem in deleting temporary Contractor Performance Score file")>=0){
+                postScreen = "CPSUpload.jsp";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("CEILING_RATE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }else if (ex.getMessage().indexOf("Problem in replacing temporary Contractor Performance Score file")>=0){
+                postScreen = "CPSUpload.jsp";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }
+            throw new ServletException("QualitySubscoreUpload ERROR: AdminQualitySubscoreServlet:performQualitySubscoreUpload: Get Request Error\n" + ex.toString());
+        } finally {
+            try{
+                QualitySubscoreDataBean qsDB = new QualitySubscoreDataBean();
+                qsDB.deleteTempQualitySubscore();
+                qsDB.writeAuditTrail(qs,secCtx,uploadStatus);
+            }catch(Exception ex){
+                throw new ServletException("Servlet Error: QualitySubscoreUpload ERROR: "+
+                        "AdminQualitySubscoreServlet:performQualitySubscoreUpload: "+"" +
+                        "Delete Temporary Contractor Performance Score file error\n" + ex.toString());
+            }
+        }
+        
+    }
+    
+    private int insertCPSforSC(QualitySubscoreInfo qs, QualitySubscoreDataBean qsDB, HSSFSheet sheet, String sc, int start) throws SysException{
+    	int uploadCounter=0;
+    	int rowNo=("2/J".equals(sc))?Constant.QUALITY_SUBSCORE_2J_ROWNO:Constant.QUALITY_SUBSCORE_ROWNO;
+    	
+    	qs.setServiceCategory(sc);
+        for (int i=start;i< (rowNo+start);i++){
+            qs.setContractorId((String) ((HSSFCell) sheet.getRow(i).getCell((short) Constant.QUALITY_SUBSCORE_CONTRACTOR_COLNO)).getStringCellValue().trim());
+            qs.setContractorName((String) ((HSSFCell) sheet.getRow(i).getCell((short) Constant.QUALITY_SUBSCORE_CONTRACTOR_NAME_COLNO)).getStringCellValue().trim());
+            qs.setScore((float) ((HSSFCell) sheet.getRow(i).getCell((short) Constant.QUALITY_SUBSCORE_QSCORE_COLNO)).getNumericCellValue());
+            int uploadStatus = qsDB.insertQualitySubscore(qs);      //write to temp file
+            if ((uploadStatus !=1)&&(uploadStatus !=11)){ // if any error, stop execution
+                return -29; // file upload error
+            }
+            uploadCounter ++;
+        }
+        return uploadCounter;
+    }
+    
+    private void performQualitySubscoreDelete(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        SecurityContext secCtx = (SecurityContext) request.getSession().getAttribute("QPSES_SECURITY_CONTEXT");
+        int updateStatus = 0;
+        QualitySubscoreInfo qs = new QualitySubscoreInfo();
+        
+        try {
+            if (request.getParameter("orgKey1") == null){
+                postScreen = "CPSList.jsp";
+                String errMsg = "Failed to delete records! Invalid parameters for deletion!";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",errMsg);
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }
+            qs.setOrgKey1(Integer.parseInt(request.getParameter("orgKey1")));
+            qs.setLastUpdatedBy(secCtx.getUserId());
+            QualitySubscoreDataBean qsDB = new QualitySubscoreDataBean();
+            updateStatus = qsDB.deleteQualitySubscore(qs, secCtx);
+            request.getSession().setAttribute("QUALITY_SUBSCORE_DATA",qs);
+            
+            // return page
+            if (updateStatus == 1){
+                request.getSession().removeAttribute("QUALITY_SUBSCORE_DATA");
+                postScreen = "CPSList.jsp";
+                String Msg = "Quality Subscore deleted successfully!";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",Msg);
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","MSG");
+                response.sendRedirect(postScreen);
+            }  else {
+                postScreen = "CPSDelete.jsp";
+                String errMsg = "System error encountered!";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",errMsg);
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }
+        } catch (Exception ex) {
+            if (ex.getMessage().indexOf("SQL error")>=0){
+                postScreen = "CPSUpload.jsp";
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSG",ex.getMessage().replaceAll("\\[QPSES Exception\\]",""));
+                request.getSession().setAttribute("QUALITY_SUBSCORE_MSGTYPE","ERR");
+                RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                dispatcher.forward(request, response);
+            }else{
+                throw new ServletException("QualitySubscoreDelete Database ERROR: AdminServlet:performQualitySubscoreDelete: database deletion error\n" + ex.toString());
+            }
+        }
+        
+    }
+    
+private void performQualitySubscorePrintReport(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException
+    {
+        try
+        {
+            // get user id
+            SecurityContext secCtx = (SecurityContext) request.getSession().getAttribute("QPSES_SECURITY_CONTEXT");
+            String adminId = secCtx.getUserId();
+            
+            // get to be printed effective period
+            String effectivePeriodID =request.getParameter("selectedKey1");                        
+            QualitySubscoreDataBean qsDB = new QualitySubscoreDataBean();
+            Vector<QualitySubscoreInfo> QualitySubscoreVector=qsDB.getQualitySubscoreByPeriod(effectivePeriodID, "1");
+            
+            QualitySubscoreInfo qs = (QualitySubscoreInfo) QualitySubscoreVector.get(0);
+
+            // Variable
+            int numOfCol = 0;
+            PdfPCell cell       = null;
+            PdfPTable aPdfTable = null;
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            
+            // Initialize PDF helper
+            PdfHelper pdfHelper = new PdfHelper();
+            pdfHelper.setDisplayUserName(adminId);
+            pdfHelper.setHeaderText("RESTRICTED (CONTRACT)");
+            pdfHelper.setFooterText("RESTRICTED (CONTRACT)");
+            
+            pdfHelper.setHeaderTextPos(40);
+            pdfHelper.setFooterTextPos(50);
+            
+            // Initialize PDF document
+            Document aPdfDoc = new Document(PageSize.A4);
+            PdfWriter writer = PdfWriter.getInstance(aPdfDoc, baos);
+            writer.setPageEvent(pdfHelper);
+            aPdfDoc.setMargins(50, 50, 70, 50);
+            aPdfDoc.open();
+            
+            // Set Title Paragraph as QPS3 enhancement
+            Paragraph aParagraph = pdfHelper.getTitleParagraph("The Government of the Hong Kong Special Administrative Region");
+            aParagraph.setAlignment(1);
+            aPdfDoc.add(aParagraph); 
+            aParagraph = pdfHelper.getTitleParagraph("Contractor Performance Scores for SOA-QPS Contractors");
+            aParagraph.setAlignment(1);
+            aPdfDoc.add(aParagraph);            
+            aParagraph = pdfHelper.getTitleParagraph("Effective Period: " + qs.getPeriodDesc());
+            aParagraph.setAlignment(1);
+            aPdfDoc.add(aParagraph);                        
+            aPdfDoc.add(Chunk.NEWLINE);
+            
+            List<String> categories = new ArrayList<String>();
+            categories.add("1");
+            categories.add("2/N");
+            categories.add("2/J");
+            categories.add("3/N");
+            categories.add("3/J");
+            categories.add("4");
+            
+            for (String category : categories){
+            	
+            	QualitySubscoreVector=qsDB.getQualitySubscoreByPeriod(effectivePeriodID, category);
+            	
+            	aParagraph = pdfHelper.getTitleParagraph("Service Category "+category.charAt(0));
+                aParagraph.setAlignment(1);
+                aPdfDoc.add(aParagraph);
+
+                if (category.lastIndexOf('N')>0){
+                	aParagraph = pdfHelper.getTitleParagraph("Minor Works Group");
+                    aParagraph.setAlignment(1);
+                    aPdfDoc.add(aParagraph);
+                }
+                
+                if (category.lastIndexOf('J')>0){
+                	aParagraph = pdfHelper.getTitleParagraph("Major Works Group");
+                    aParagraph.setAlignment(1);
+                    aPdfDoc.add(aParagraph);
+                }
+                
+                aPdfDoc.add(Chunk.NEWLINE);
+                
+            	// Set up table
+            	numOfCol = 2;
+            	aPdfTable            = new PdfPTable(numOfCol);
+            	int tableColWidths[] = {60, 40};
+    	        aPdfTable.setWidths(tableColWidths);
+    	        aPdfTable.setWidthPercentage(90);
+    	        aPdfTable.setHorizontalAlignment(PdfPTable.ALIGN_CENTER);
+                       
+            
+    	        // Row 1
+    	        cell = pdfHelper.getHeaderCell("Contractor Name");
+    	        cell.setHorizontalAlignment(Cell.ALIGN_CENTER);
+    	        aPdfTable.addCell(cell);
+            
+    	        cell = pdfHelper.getHeaderCell("Contractor Performance Score");
+    	        cell.setHorizontalAlignment(Cell.ALIGN_CENTER);
+    	        aPdfTable.addCell(cell);
+
+    	        for (int i = 0; i < QualitySubscoreVector.size(); i++)
+    	        {
+                
+    	        	// Data row
+    	        	qs = (QualitySubscoreInfo) QualitySubscoreVector.get(i);
+                
+    	        	cell = pdfHelper.getCell(qs.getContractorName());
+    	        	aPdfTable.addCell(cell);
+                
+    	        	cell = pdfHelper.getCell("" + qs.getScore());
+    	        	cell.setHorizontalAlignment(Cell.ALIGN_CENTER);
+    	        	aPdfTable.addCell(cell);
+    	        }
+            
+    	        aPdfDoc.add(aPdfTable);
+    	        
+    	        aPdfDoc.add(Chunk.NEWLINE);
+            
+            }
+            
+            // Write PDF objects to stream
+            aPdfDoc.close();
+            
+            // Response Setting
+            response.setContentType("application/pdf");
+            response.setHeader("Content-Disposition", "inline;filename=\"" + "(Restricted) SOA-QPS CPS ("+effectivePeriodID+").pdf" + "\"");
+            response.setHeader("Expires", "0");
+            response.setHeader("Cache-Control", "must-revalidate, post-check=0, pre-check=0");
+            response.setHeader("Pragma", "public");
+            response.setContentLength(baos.size());
+            
+            // Output PDF file
+            ServletOutputStream sos = response.getOutputStream();
+            baos.writeTo(sos);
+            sos.flush();
+            request.getSession().setAttribute("PDF_FILE_STREAM",baos);
+        }
+        catch(Exception ex)
+        {
+            throw new ServletException("Servlet Error: QualitySubscorePrintReport ERROR: " +
+                    "AdminQualitySubscoreServlet:performQualitySubscorePrintReport: " +
+                    "Get Request Error\n" + ex.toString());
+        }
+    }    
+}

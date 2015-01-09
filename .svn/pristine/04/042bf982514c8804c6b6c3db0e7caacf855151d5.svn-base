@@ -1,0 +1,422 @@
+/*
+ * AvgCeilingRateDataBean.java
+ */
+
+package qpses.business;
+
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Vector;
+import org.apache.commons.fileupload.FileItem;
+import org.apache.log4j.Logger;
+import qpses.security.SecurityContext;
+import qpses.util.SysException;
+import qpses.util.DataBean;
+import qpses.util.SysManager;
+
+public class AvgCeilingRateDataBean extends DataBean {
+    
+    
+    // log4j
+    static Logger logger = Logger.getLogger(AvgCeilingRateDataBean.class.getName());
+    
+    private static final String SEARCH_AVG_CEILING_RATE =
+            "{Call sp_search_avg_ceiling_rate(?,?,?,?,?)}";  // 5 parameters
+    private static final String SELECT_AVG_CEILING_RATE =
+            "{Call sp_select_avg_ceiling_rate(?,?)}";
+    private static final String SELECT_AVG_CEILING_RATE_BY_KEYS =
+            "{Call sp_select_avg_ceiling_rate_by_keys(?,?)}";
+    private static final String SELECT_EFFECTIVE_DATE =
+            "{Call sp_select_effective_date_of_avg_ceiling_rate()}";
+    private static final String INSERT_AVG_CEILING_RATE =
+            "{Call sp_insert_avg_ceiling_rate(?,?,?,?,?,?,?,?)}";
+    private static final String DELETE_AVG_CEILING_RATE =
+            "{Call sp_delete_avg_ceiling_rate(?,?,?,?,?,?)}";
+    private static final String RELEASE_AVG_CEILING_RATE =
+            "{Call sp_release_avg_ceiling_rate(?,?,?,?,?,?)}";
+    private static final String WRITE_AUDIT_TRAIL =
+            "{Call sp_write_avg_ceiling_rate_audit_trail(?,?,?,?,?,?)}";    
+    
+    
+    ResultSet rs = null;
+    
+    /**
+     * Constructor for AvgCeilingRateDataBean
+     */
+    public AvgCeilingRateDataBean()throws SysException {
+        super("ADMIN");
+    }
+    
+    public Vector selectAvgCeilingRate(String order_by, String order_dir) throws SysException {
+        
+        Vector allAvgCeilingRateVector = new Vector();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_AVG_CEILING_RATE);
+            cs.setString("p_order_by",order_by);
+            cs.setString("p_order_dir",order_dir);                        
+            //execute
+            rs = cs.executeQuery();
+            // put information into info object
+            while (rs.next()) {
+                AvgCeilingRateInfo acr = new AvgCeilingRateInfo();
+                acr.setEffectiveDate(rs.getDate("effective_date"));
+                acr.setServiceCategory(rs.getInt("service_category"));
+                acr.setActiveInd(rs.getInt("active_indicator"));
+                acr.setPDFFileName(rs.getString("file_name"));
+                acr.setPDFFileSize(rs.getLong("file_size"));
+                allAvgCeilingRateVector.add(acr);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: AvgCeilingRateDataBean:selectAvgCeilingRate\n" + ex.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allAvgCeilingRateVector;
+        
+    }
+    
+    public AvgCeilingRateInfo selectAvgCeilingRateByKeys(int service_category, String effective_date) throws SysException {
+        
+        AvgCeilingRateInfo acr = new AvgCeilingRateInfo();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_AVG_CEILING_RATE_BY_KEYS);
+            cs.setDate("p_effective_date",SysManager.getSQLDate(effective_date));
+            cs.setInt("p_service_category",service_category);
+            //execute
+            rs = cs.executeQuery();
+            // put information into info object
+            if (rs.next()) {
+                acr.setEffectiveDate(rs.getDate("effective_date"));
+                acr.setServiceCategory(rs.getInt("service_category"));
+                acr.setActiveInd(rs.getInt("active_indicator"));
+                acr.setPDFFileName(rs.getString("file_name"));
+                acr.setPDFFileSize(rs.getLong("file_size"));
+                acr.setCreatedDate(rs.getTimestamp("created_datetime").toString());
+                acr.setLastUpdatedDate(rs.getTimestamp("last_updated_datetime").toString());
+                acr.setLastUpdatedBy(rs.getString("last_updated_by_user"));
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: AvgCeilingRateDataBean:selectAvgCeilingRateByKeys\n" + ex.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return acr;
+        
+    }
+    
+    public Vector selectEffectiveDate() throws SysException {
+        
+        Vector allEffectiveDateVector = new Vector();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_EFFECTIVE_DATE);
+            //execute
+            rs = cs.executeQuery();
+            // put information into Vector
+            while (rs.next()) {
+                allEffectiveDateVector.add(rs.getDate("effective_date"));
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: AvgCeilingRateDataBean:selectEffectiveDate\n" + ex.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allEffectiveDateVector;
+        
+    }
+    
+    public AvgCeilingRateInfo selectAvgCeilingRateFile(int service_category, String effective_date) throws SysException {
+        
+        AvgCeilingRateInfo acr = new AvgCeilingRateInfo();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_AVG_CEILING_RATE_BY_KEYS);
+            cs.setDate("p_effective_date",SysManager.getSQLDate(effective_date));
+            cs.setInt("p_service_category",service_category);
+            //execute
+            rs = cs.executeQuery();
+            // put information into info object
+            if (rs.next()) {
+                acr.setPDFFile(rs.getBlob("pdf_file"));
+                acr.setPDFFileName(rs.getString("file_name"));
+                acr.setPDFFileSize(rs.getLong("file_size"));
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: AvgCeilingRateDataBean:selectAvgCeilingRateFile\n" + ex.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return acr;
+        
+    }
+    
+    
+    public Vector searchAvgCeilingRate(AvgCeilingRateInfo searchACR,String order_by, String order_dir) throws SysException {
+        
+        Vector AvgCeilingRateVector = new Vector();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SEARCH_AVG_CEILING_RATE);
+            
+            cs.setDate("p_effective_date",searchACR.getEffectiveDate());
+            cs.setInt("p_service_category",searchACR.getServiceCategory());
+            cs.setInt("p_active_ind",searchACR.getActiveInd());
+            cs.setString("p_order_by",order_by);
+            cs.setString("p_order_dir",order_dir);                        
+
+            // execute
+            rs = cs.executeQuery();
+            
+            // get data and put into Vector
+            while (rs.next()) {
+                AvgCeilingRateInfo acr = new AvgCeilingRateInfo();
+                acr.setEffectiveDate(rs.getDate("effective_date"));
+                acr.setServiceCategory(rs.getInt("service_category"));
+                acr.setActiveInd(rs.getInt("active_indicator"));
+                acr.setPDFFileName(rs.getString("file_name"));
+                acr.setPDFFileSize(rs.getLong("file_size"));
+                AvgCeilingRateVector.add(acr);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: AvgCeilingRateDataBean:searchAvgCeilingRate\n"
+                    + ex.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return AvgCeilingRateVector;
+        
+    }
+    
+    public int insertAvgCeilingRate(AvgCeilingRateInfo acr, FileItem pdffile) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        BufferedInputStream pdfFileStream = null;
+        int result = 0;
+        int returnCode=0;
+        //pdf File Steam Handling
+        try{
+            pdfFileStream = new BufferedInputStream(pdffile.getInputStream());
+        }catch (IOException IOex){
+            String error = "AvgCeilingRateDataBean:AvgCeilingRateDataBean:pdf File upload error!" + IOex.getMessage();
+        }
+        
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(INSERT_AVG_CEILING_RATE);
+            // get information from info object
+            cs.setDate("p_effective_date",acr.getEffectiveDate());
+            cs.setInt("p_service_category",acr.getServiceCategory());
+            cs.setBinaryStream("p_pdf_file",pdfFileStream, (int) acr.getPDFFileSize());
+            cs.setString("p_admin_id",acr.getLastUpdatedBy());
+            cs.setInt("p_active_ind",acr.getActiveInd());
+            cs.setString("p_file_name",acr.getPDFFileName());
+            cs.setInt("p_file_size",(int) acr.getPDFFileSize());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            //execute
+            result = cs.executeUpdate();
+            returnCode =cs.getInt("return_code");
+            // check execution result
+            if (returnCode !=1){
+                if (returnCode == -99){
+                    connection.rollback();
+                    String err = "Duplicate keys found! File already exist for service category " +acr.getServiceCategory() + " with the effective date  \""+ acr.getEffectiveDate().toString()+"\".";
+                    throw new SysException(err);
+                }else{
+                    connection.rollback();
+                String err = "SQL error! Return Code = " + returnCode +
+                        "Service Category: "+acr.getServiceCategory() + "; Effective Date: " + acr.getEffectiveDate().toString()+";";                        
+                    throw new SysException(err);
+                }
+            }
+            if (result != 1){
+                connection.rollback();
+                String err = "No record was inserted! <BR>"+
+                        "Service Category: "+acr.getServiceCategory() + "; Effective Date: " + acr.getEffectiveDate().toString()+";";                        
+                throw new SysException(err);
+            }                        
+            connection.commit();
+            return result;
+        } catch (SQLException ex0) {
+            String err = "SQL Error : AvgCeilingRateDataBean:insertAvgCeilingRate\n" +"SQLState:"+ ex0.getSQLState() +":"+  ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: AvgCeilingRateDataBean:insertAvgCeilingRate.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    public int deleteAvgCeilingRate(AvgCeilingRateInfo acr,SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(DELETE_AVG_CEILING_RATE);
+            // get information from info object
+            cs.setInt("p_service_category",acr.getServiceCategory());
+            cs.setDate("p_effective_date",acr.getEffectiveDate());
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            //execute            
+            result = cs.executeUpdate();
+            returnCode =cs.getInt("return_code");
+            // check execution result
+            if (returnCode !=1){
+                connection.rollback();
+                String err = "SQL error! Return Code = " + returnCode +
+                        "Service Category: "+acr.getServiceCategory() + "; Effective Date: " + acr.getEffectiveDate().toString()+";";                        
+                throw new SysException(err);
+            }        
+            if (result != 1){
+                connection.rollback();
+                String err = "No record was deleted! <BR>"+
+                        "Service Category: "+acr.getServiceCategory() + "; Effective Date: " + acr.getEffectiveDate().toString()+";";                        
+                throw new SysException(err);
+            }            
+            connection.commit();
+            return returnCode;
+        } catch (SQLException ex0) {
+            String err = "SQL Error : AvgCeilingRateDataBean:deleteAvgCeilingRate\n" +"SQLState:"+ ex0.getSQLState() +":"+  ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: AvgCeilingRateDataBean:deleteAvgCeilingRate.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+        
+    }
+    
+    /*
+     *  Release Ceiling Rate for publishing
+     */
+    
+    public int releaseAvgCeilingRate(AvgCeilingRateInfo acr, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(RELEASE_AVG_CEILING_RATE);
+            // get information from info object
+            cs.setInt("p_service_category",acr.getServiceCategory());
+            cs.setDate("p_effective_date",acr.getEffectiveDate());
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            //execute
+            cs.executeUpdate();
+            result = cs.executeUpdate();
+            returnCode =cs.getInt("return_code");
+            // check execution result
+            if (returnCode !=1){
+                connection.rollback();
+                String err = "SQL error! <BR> "+
+                        "Service Category: "+acr.getServiceCategory() + "; Effective Date: " + acr.getEffectiveDate().toString()+";"+
+                        "Return Code = " + returnCode;
+                throw new SysException(err);
+            }
+            connection.commit();
+            return returnCode;
+        } catch (SQLException ex0) {
+            String err = "SQL Error : AvgCeilingRateDataBean:deleteAvgCeilingRate\n" +"SQLState:"+ ex0.getSQLState() +":"+  ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: AvgCeilingRateDataBean:deleteAvgCeilingRate.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } catch (Exception ex1){
+            String err = "AvgCeilingRateDataBean:deleteAvgCeilingRate\n" + ex1.getMessage();
+            throw new SysException(err);
+        } finally {
+            super.close();
+        }
+        
+    }
+    
+    public int writeAuditTrail(AvgCeilingRateInfo acr, SecurityContext secCtx, int uploadStatus) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(WRITE_AUDIT_TRAIL);
+            // get information 
+            String recordId = acr.getServiceCategory() + "+" + acr.getEffectiveDate().toString();
+            cs.setString("p_record_id",recordId);
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            if (uploadStatus ==1){
+                cs.setString("p_remarks","AVERAGE CEILING RATES UPLOAD SUCCESSFULLY");
+            }else{
+                cs.setString("p_remarks","AVERAGE CEILING RATES UPLOAD FAILED");
+            }
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            //execute
+            result = cs.executeUpdate();
+            returnCode =cs.getInt("return_code");
+            // check execution result
+                      
+            connection.commit();
+            return result;
+        } catch (SQLException ex0) {
+            String err = "SQL Error : AvgCeilingRateDataBean:writeAuditTrail\n" +"SQLState:"+ ex0.getSQLState() +":"+  ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: AvgCeilingRateDataBean:writeAuditTrail.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+}

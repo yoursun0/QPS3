@@ -1,0 +1,92 @@
+package qpses.util;
+
+
+import static org.junit.Assert.*;
+
+import org.junit.*;
+
+import java.util.*;
+
+public class MSExcelHelperTest {
+	
+	private MSExcelHelper manager;
+	
+	@Before
+    public void setUp() {
+		String inputFilename = this.getClass().getResource(Constant.STAT_REPORT_NAME).getPath(); 
+		String outputFilename = "noproblemreport.xls";
+		
+		manager = new MSExcelHelper(inputFilename, outputFilename);
+    }
+
+    @After
+    public void tearDown() {
+    	manager = null;
+    }
+    
+    @Test(expected=qpses.util.SysException.class)
+    public void testGetHtmlErrorText() throws SysException{   
+    	String htmlTest = manager.getHtmlText();
+    }    
+    
+    @Test
+    public void testProcess(){   
+    	
+    	boolean isSucess = false;
+   
+		try {
+			isSucess = manager.process();
+			
+			assertTrue(isSucess);
+			
+		} catch (SysException e) {
+			e.printStackTrace();
+			fail("Process Error, encounter unexpected SysException "+e);
+		}
+    	
+    }
+    
+    @Test
+    public void testGetHtmlText(){   
+    	
+    	try {
+    	
+    		String htmlTest = manager.getHtmlText();
+    		
+    		assertNotNull(htmlTest);
+    	} catch (SysException e) {
+			//e.printStackTrace();
+			
+		}
+    	
+    } 
+    
+    @Test
+    public void testGetOutputFilePath(){   
+    	
+    	try {
+    	
+    		String path = manager.getOutputFilePath();
+    		
+    		assertNotNull(path);
+    	} catch (SysException e) {
+			//e.printStackTrace();
+			
+		}
+    	
+    }    
+    
+    @Test
+    public void testClose(){   
+    	
+    	try {
+    		manager.close();
+    		assertNull(null);
+    	} catch (SysException e) {
+			//e.printStackTrace();
+			
+		}
+    	
+    }   
+    
+}

@@ -1,0 +1,119 @@
+package qpses.servlet;
+
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.isA;
+import static org.easymock.EasyMock.lt;
+import static org.easymock.EasyMock.replay;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.easymock.EasyMock;
+import org.junit.Test;
+
+import qpses.business.CPARDataBean;
+import qpses.business.CPARInfo;
+import qpses.business.LogDataBean;
+import qpses.business.WAChallengeInfo;
+import qpses.security.SecurityContext;
+import qpses.security.SecurityDataBean;
+import qpses.security.SecurityServlet;
+import qpses.security.UserStatus;
+import qpses.util.Constant;
+import qpses.util.SysException;
+import qpses.util.SysManager;
+
+public final class TestCRUDForCPARSLUser extends CPARSLUser {
+
+	private ServletContext servCtx; 
+	private SecurityDataBean secDB; 
+	private LogDataBean logDB; 
+	private CPARDataBean cparDB;
+	private RequestDispatcher dispatcher;
+	protected UserStatus uStatus;
+	
+	@Override
+	public ServletContext getServletContext(){
+		try{
+			InputStream is = new FileInputStream("pom.xml");
+			dispatcher = createMock(RequestDispatcher.class);
+			servCtx = createMock(ServletContext.class);
+			expect(servCtx.getRequestDispatcher(isA(String.class))).andReturn(dispatcher);
+			dispatcher.forward(isA(HttpServletRequest.class), isA(HttpServletResponse.class));
+			expectLastCall().times(0,10);
+			expect(servCtx.getResourceAsStream(isA(String.class))).andReturn(is).times(0,9);
+		
+			replay(servCtx);
+			replay(dispatcher);
+		}catch(ServletException e){
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return servCtx;
+	}
+	
+    @Override
+	public SecurityDataBean getSecurityDataBean() throws SysException{
+    	try {
+    		uStatus = new UserStatus();
+
+    		// Pass a Mock DataBean
+    		secDB = createMock(SecurityDataBean.class);
+    		secDB.insertChallengeLog(isA(String.class), isA(String.class), isA(String.class), isA(String.class), isA(String.class), isA(String.class), isA(String.class), isA(String.class), isA(String.class), isA(String.class), lt(1000), isA(String.class));
+    		expectLastCall().times(0,10);
+    		
+			replay(secDB);
+		} catch (SecurityException e) {
+			throw new SysException(e.getMessage());
+		}
+        return secDB;
+    }
+    
+    @Override
+    public CPARDataBean getCPARDataBean() throws SysException{
+    	try {
+    		List<CPARInfo> allCPARList = new ArrayList<CPARInfo>();
+    		CPARInfo cpar = new CPARInfo();
+    		cpar.setStartDate(SysManager.getCurDateTime());
+    		cpar.setCreatedDate("2012-12-12 12:12:12.2");
+    		cpar.setLastUpdatedDate("2032-12-12 12:12:12.2");
+    		cpar.setFinalized("f");
+    		uStatus = new UserStatus();
+
+    		// Pass a Mock DataBean
+    		cparDB = createMock(CPARDataBean.class);
+    		expect(cparDB.selectCparByWac(EasyMock.isA(WAChallengeInfo.class))).andReturn(allCPARList).times(0,10);
+    		expect(cparDB.selectCparByCparNo(EasyMock.isA(WAChallengeInfo.class),lt(1000))).andReturn(cpar).times(0,10);
+    		expect(cparDB.selectNextCparDate(EasyMock.isA(WAChallengeInfo.class))).andReturn("2012-12-12").times(0,10);
+    		expect(cparDB.selectNextCparNo(EasyMock.isA(WAChallengeInfo.class))).andReturn(1).times(0,10);
+    		expect(cparDB.insertOrUpdateCPAR(EasyMock.isA(CPARInfo.class),EasyMock.isA(SecurityContext.class),EasyMock.anyBoolean(),EasyMock.contains("s"))).andReturn(1).times(0,10);
+    		expect(cparDB.deleteCPAR(EasyMock.isA(WAChallengeInfo.class),lt(100),EasyMock.isA(SecurityContext.class))).andReturn(1).times(0,10);
+    		
+			replay(cparDB);
+		} catch (SecurityException e) {
+			throw new SysException(e.getMessage());
+		}
+        return cparDB;
+    }
+    
+    @Test
+    public void test() throws SysException{
+    	CPARDataBean cparDB = getCPARDataBean();
+    	SecurityDataBean secDB = getSecurityDataBean();
+    	cparDB = null;
+    	secDB = null;
+    }
+    
+}

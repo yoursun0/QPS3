@@ -1,0 +1,118 @@
+.defaultfont
+{
+    FONT-FAMILY: Helvetica, Arial, Sans-Serif;
+    FONT-SIZE: 12;
+}
+
+/* http://meyerweb.com/eric/tools/css/reset/ 
+   v2.0 | 20110126
+   License: none (public domain)
+*/
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, 
+figure, figcaption, footer, header, hgroup, 
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers */
+article, aside, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section {
+	display: block;
+}
+body {
+	line-height: 1;
+}
+ol, ul {
+	list-style: none;
+}
+blockquote, q {
+	quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+	content: '';
+	content: none;
+}
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+/* Navigation Menus */
+
+   /* ^^^^^^^^ BELOW IS THE CODE FOR THE TOP MENU ^^^^^^^^^^ */
+
+#top-menu{background:#DDDDDD; height: 30px}
+
+#nav-main{width = 620px;position:relative;float:left;display:block;height:30px;font-size:14px;font-weight:bold;padding-left:14px;padding-right:14px;overflow:hidden;}
+#nav-main ul{margin:0;padding:0;list-style-type:none;width:auto;}
+#nav-main ul li{display:block;float:left;margin:0 1px 0 0;}
+#nav-main ul li a{display:block;float:left;text-decoration:none;padding:4px 12px 0 12px;height:26px;}
+#nav-main ul li a b{position:relative; bottom: 6px;white-space: nowrap;}
+#nav-main a {color:#666666;}
+#nav-main a:hover {color:#666666;background:#BBBBBB;}
+
+	/* ^^^^^^^^ ABOVE IS THE CODE FOR THE TOP MENU ^^^^^^^^^^ */
+	
+/* ----- Front Login Page -------*/
+
+.front-login{
+	color: #666666;
+	font-size:16px;
+	margin: 10px 20%;
+}
+
+.front-login p{
+	line-height: 30px;
+	text-align: center;
+}
+
+#front-page-img {
+	display: block;
+	margin: 70px auto 20px auto;
+	width: 829px;
+	height: 350px;
+}
+
+#front-login-form{
+	display: block;
+    margin-left: auto;
+    margin-right: auto;
+	text-align: right;
+	width: 280px;
+	padding-right:70px;
+}
+
+#front-login-form input.textbox{
+	width:160px;
+	height:24px;
+	margin: 8px 0px 0px 5px;
+	padding-top: 3px;
+}
+
+.submit-button{
+	margin-right: 45px;
+}
+
+.icon{
+	padding: 0 8px 0 2px;
+}
+
+.unauthorized{
+	text-align : center;	
+}

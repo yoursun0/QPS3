@@ -1,0 +1,358 @@
+/*
+ * AdminLogServlet.java
+ *
+ * Created on 28th June, 2013
+ */
+
+package qpses.servlet;
+
+import java.io.*;
+
+
+import javax.servlet.*;
+import javax.servlet.http.*;
+import org.apache.log4j.Logger;
+import qpses.business.LogDataBean;
+import qpses.business.LogInfo;
+
+public class AdminLogServlet extends HttpServlet {
+    
+    // log4j
+    static Logger logger = Logger.getLogger(AdminACLServlet.class.getName());
+    
+    
+    private static String postScreen = null;
+    private static String requestAction = null;
+    
+    public void doPost(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        requestAction = request.getServletPath();
+        if (requestAction.equals("/qpsadmin/AccessLogEnquiry.servlet")) {
+            performAccessLogEnquiry(request, response);
+            return;
+        }
+        if (requestAction.equals("/qpsadmin/AccessLogEnquiryReset.servlet")) {
+            performAccessLogEnquiryReset(request, response);
+            return;
+        }
+        if (requestAction.equals("/qpsadmin/UserLogEnquiry.servlet")) {
+            performUserLogEnquiry(request, response);
+            return;
+        }
+        if (requestAction.equals("/qpsadmin/UserLogEnquiryReset.servlet")) {
+            performUserLogEnquiryReset(request, response);
+            return;
+        }
+        if (requestAction.equals("/qpsadmin/SRVLogEnquiry.servlet")) {
+            performSRVLogEnquiry(request, response);
+            return;
+        }
+        if (requestAction.equals("/qpsadmin/SRVLogEnquiryReset.servlet")) {
+            performSRVLogEnquiryReset(request, response);
+            return;
+        }
+        if (requestAction.equals("/qpsadmin/AdminLogEnquiry.servlet")) {
+            performAdminLogEnquiry(request, response);
+            return;
+        }
+        if (requestAction.equals("/qpsadmin/AdminLogEnquiryReset.servlet")) {
+            performAdminLogEnquiryReset(request, response);
+            return;
+        }
+        if (requestAction.equals("/qpsadmin/SRVLogFile.servlet")) {
+            performSRVLogFile(request, response);
+            return;
+        }
+    }
+    
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        doPost(request, response);
+    }
+    
+    
+    private void performAccessLogEnquiry(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        
+        
+        int updateStatus =0;
+        LogInfo aclog = new LogInfo();
+        try {
+            // initialization
+            String fromDate = "";
+            String toDate = "";
+            String userId =  "";
+            String deptId=   "";
+            String [] acccessStatus= null;
+            
+            String activity= "";
+            String status= "";
+            
+            //get searching criteria from request
+            fromDate = request.getParameter("FromDate");
+            toDate = request.getParameter("ToDate");
+            userId = request.getParameter("UserId");
+            deptId=  request.getParameter("DeptId");
+            activity=request.getParameter("Activity");
+            acccessStatus=request.getParameterValues("Status");            
+            
+            //save searching criteria
+            if (! fromDate.equals("")) aclog.setFromDate(fromDate);
+            if (! toDate.equals("")) aclog.setToDate(toDate);
+            if (! userId.equals("")) aclog.setUserId(userId);
+            if (! deptId.equals("")) aclog.setDeptId(deptId);
+            if ( activity != null && ! activity.equals("")) aclog.setActivity(activity);
+            if ( acccessStatus != null){
+                for (int i=0;i<acccessStatus.length;i++){
+                    if (i==0){
+                        status = acccessStatus[i];
+                    }else{
+                        status = status + "," +acccessStatus[i];
+                    }
+                }
+                aclog.setStatus(status);
+            }
+            
+            // return to page
+            request.getSession().setAttribute("ACCESS_LOG_ENQUIRY_PARAMETER",aclog);
+            postScreen = "ACLogEnquiry.jsp";
+            response.sendRedirect(postScreen);
+            return;
+        }catch(Exception ex){
+            throw new ServletException("Servlet Error: AdminLogServlet:performAccessLogEnquiry: \r\n"+
+                    "Get Request Error\n" + ex.toString());
+        }
+    }
+    
+    private void performAccessLogEnquiryReset(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException {
+        
+        try{
+            request.getSession().removeAttribute("ACCESS_LOG_ENQUIRY_PARAMETER");
+            postScreen = request.getHeader("referer");
+            response.sendRedirect(postScreen);
+            return;
+        }catch(Exception ex){
+            throw new ServletException("Servlet Error: AdminLogServlet:performAccessLogEnquiryReset: \r\n"+
+                    "Get Request Error\n" + ex.toString());
+        }
+    }
+    
+    
+    private void performUserLogEnquiry(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        
+        
+        int updateStatus =0;
+        LogInfo userlog = new LogInfo();
+        try {
+            // initialization
+            String fromDate = "";
+            String toDate = "";
+            String userId =  "";
+            String deptId=   "";
+            String [] activities= null;
+            String activity = "";
+            
+            //get searching criteria from request
+            fromDate = request.getParameter("FromDate");
+            toDate = request.getParameter("ToDate");
+            userId = request.getParameter("UserId");
+            deptId=  request.getParameter("DeptId");
+            activities=request.getParameterValues("Activity");
+            
+            
+            // save searching criteria
+            if (! fromDate.equals("")) userlog.setFromDate(fromDate);
+            if (! toDate.equals("")) userlog.setToDate(toDate);
+            if (! userId.equals("")) userlog.setUserId(userId);
+            if (! deptId.equals("")) userlog.setDeptId(deptId);
+            if ( activities != null){
+                for (int i=0;i<activities.length;i++){
+                    if (i==0){
+                        activity = activities[i];
+                    }else{
+                        activity = activity + "," +activities[i];
+                    }
+                }
+                userlog.setActivity(activity);
+            }
+            
+            
+            // return to page
+            request.getSession().setAttribute("USER_LOG_ENQUIRY_PARAMETER",userlog);
+            postScreen = "UserLogEnquiry.jsp";
+            response.sendRedirect(postScreen);
+            return;
+        }catch(Exception ex){
+            throw new ServletException("Servlet Error: AdminLogServlet:performUserLogEnquiry: \r\n"+
+                    "Get Request Error\n" + ex.toString());
+        }
+    }
+    
+    private void performUserLogEnquiryReset(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException {
+        
+        try{
+            request.getSession().removeAttribute("USER_LOG_ENQUIRY_PARAMETER");
+            postScreen = request.getHeader("referer");
+            response.sendRedirect(postScreen);
+            return;
+        }catch(Exception ex){
+            throw new ServletException("Servlet Error: AdminLogServlet:performUserLogEnquiryReset: \r\n"+
+                    "Get Request Error\n" + ex.toString());
+        }
+    }
+    
+    private void performAdminLogEnquiry(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        
+        
+        int updateStatus =0;
+        LogInfo adminLog = new LogInfo();
+        try {
+            // initialization
+            String fromDate = "";
+            String toDate = "";
+            String userId =  "";
+            String [] activities= null;
+            String activity = "";
+            
+            //get searching criteria from request
+            fromDate = request.getParameter("FromDate");
+            toDate = request.getParameter("ToDate");
+            userId = request.getParameter("UserId");
+            activities=request.getParameterValues("Activity");
+            
+            
+            // save searching criteria
+            if (! fromDate.equals("")) adminLog.setFromDate(fromDate);
+            if (! toDate.equals("")) adminLog.setToDate(toDate);
+            if (! userId.equals("")) adminLog.setUserId(userId);
+            if ( activities != null){
+                for (int i=0;i<activities.length;i++){
+                    if (i==0){
+                        activity = activities[i];
+                    }else{
+                        activity = activity + "," +activities[i];
+                    }
+                }
+                adminLog.setActivity(activity);
+            }
+            
+            
+            // return to page
+            request.getSession().setAttribute("ADMIN_LOG_ENQUIRY_PARAMETER",adminLog);
+            postScreen = "AdminLogEnquiry.jsp";
+            response.sendRedirect(postScreen);
+            return;
+        }catch(Exception ex){
+            throw new ServletException("Servlet Error: AdminLogServlet:performAdminLogEnquiry: \r\n"+
+                    "Get Request Error\n" + ex.toString());
+        }
+    }
+    
+    private void performAdminLogEnquiryReset(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException {
+        
+        try{
+            request.getSession().removeAttribute("ADMIN_LOG_ENQUIRY_PARAMETER");
+            postScreen = request.getHeader("referer");
+            response.sendRedirect(postScreen);
+            return;
+        }catch(Exception ex){
+            throw new ServletException("Servlet Error: AdminLogServlet:performAdminLogEnquiryReset: \r\n"+
+                    "Get Request Error\n" + ex.toString());
+        }
+    }
+    
+    private void performSRVLogEnquiry(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        
+        
+        int updateStatus =0;
+        LogInfo srvLog = new LogInfo();
+        try {
+            // initialization
+            String fromDate = "";
+            String toDate = "";
+            String userId =  "";
+            String deptId=   "";
+            String serviceCategoryGroup ="";
+            
+            //get searching criteria from request
+            fromDate = request.getParameter("FromDate");
+            toDate = request.getParameter("ToDate");
+            userId = request.getParameter("UserId");
+            deptId=  request.getParameter("DeptId");
+            serviceCategoryGroup = request.getParameter("ServiceCategoryGroup");
+            
+            // save searching criteria
+            if (! fromDate.equals("")) srvLog.setFromDate(fromDate);
+            if (! toDate.equals("")) srvLog.setToDate(toDate);
+            if (! userId.equals("")) srvLog.setUserId(userId);
+            if (! deptId.equals("")) srvLog.setDeptId(deptId);
+            if (! serviceCategoryGroup.equals("")) srvLog.setServiceCategoryGroup(serviceCategoryGroup);
+            
+            
+            // return to page
+            request.getSession().setAttribute("SRV_LOG_ENQUIRY_PARAMETER",srvLog);
+            postScreen = "SRVLogEnquiry.jsp";
+            response.sendRedirect(postScreen);
+            return;
+        }catch(Exception ex){
+            throw new ServletException("Servlet Error: AdminLogServlet:performSRVLogEnquiry: \r\n"+
+                    "Get Request Error\n" + ex.toString());
+        }
+    }
+    
+    private void performSRVLogEnquiryReset(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException {
+        
+        try{
+            request.getSession().removeAttribute("SRV_LOG_ENQUIRY_PARAMETER");
+            postScreen = request.getHeader("referer");
+            response.sendRedirect(postScreen);
+            return;
+        }catch(Exception ex){
+            throw new ServletException("Servlet Error: AdminLogServlet:performSRVLogEnquiryReset: \r\n"+
+                    "Get Request Error\n" + ex.toString());
+        }
+    }
+    
+    private void performSRVLogFile(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+    // initialize variable
+        java.sql.Blob pdf_file = null;
+        int log_id;
+        
+        
+        try{
+            
+            // get parameters
+            log_id = Integer.parseInt(request.getParameter("orgKey1"));
+            
+            // get file
+            LogInfo srvLog = new LogInfo();
+            LogDataBean logDB =new LogDataBean();
+            srvLog = logDB.selectSRVLogFile(log_id);
+            
+            if (srvLog!=null){
+                pdf_file = srvLog.getStaffRateValidationReport();
+                
+                response.setContentType("application/pdf");
+                response.setHeader("Content-Disposition", "inline");
+                BufferedInputStream in   = new BufferedInputStream(pdf_file.getBinaryStream());
+                byte[] fileBytes         = pdf_file.getBytes(1, (int)pdf_file.length());
+                ServletOutputStream outs = response.getOutputStream();
+                outs.write(fileBytes);
+                outs.flush();
+                outs.close();
+            }
+            
+        }catch(Exception ex){
+            throw new ServletException("Servlet Error: AdminLogServlet:performSRVLogFile: \r\n"+
+                    "Get Request Error\n" + ex.toString());
+        }
+    }
+}

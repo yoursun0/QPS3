@@ -1,0 +1,546 @@
+/*
+ * WorkAssignmentDataBean.java
+ */
+
+package qpses.business;
+
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.ArrayList;
+import org.apache.log4j.Logger;
+import qpses.security.SecurityContext;
+import qpses.util.Constant;
+import qpses.util.SysException;
+import qpses.util.DataBean;
+import qpses.util.SysManager;
+
+public class WorkAssignmentDataBean extends DataBean {
+    
+    
+    // log4j
+    static Logger logger = Logger.getLogger(WorkAssignmentDataBean.class.getName());
+    
+    private static final String SEARCH_WORK_ASSIGNMENT =
+            "{Call sp_search_work_assignment(?,?,?,?,?,?,?,?,?,?)}"; 
+    private static final String CREATE_TEMP_WORK_ASSIGNMENT =
+            "{Call sp_create_temp_work_assignment(?)}";
+    private static final String SELECT_WORK_ASSIGNMENT_HEADER =
+            "{Call sp_select_work_assignment_header()}";
+    private static final String SELECT_WORK_ASSIGNMENT =
+            "{Call sp_select_work_assignment(?,?)}";
+    private static final String SELECT_WORK_ASSIGNMENT_BY_KEYS =
+            "{Call sp_select_work_assignment_by_keys(?,?,?,?)}";
+    private static final String SELECT_WORK_ASSIGNMENT_FOR_CPAR =
+            "{Call sp_select_work_assignment_for_cpar(?,?)}";
+    private static final String SELECT_WORK_ASSIGNMENT_FOR_CPAR_BY_ADMIN =
+            "{Call sp_select_work_assignment_for_cpar_by_admin(?)}";
+    private static final String DELETE_TEMP_WORK_ASSIGNMENT =
+            "{Call sp_delete_temp_work_assignment()}";
+    private static final String REPLACE_TEMP_WORK_ASSIGNMENT =
+            "{Call sp_replace_temp_work_assignment(?)}";
+    private static final String WRITE_WORK_ASSIGNMENT_HEADER =
+            "{Call sp_write_work_assignment_header(?,?,?,?,?)}";
+    private static final String INSERT_WORK_ASSIGNMENT =
+            "{Call sp_insert_work_assignment(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)}";
+    private static final String SELECT_WA_NO_INV_CONT =
+            "{Call sp_select_wa_no_inv_cont(?,?,?,?)}";
+    private static final String SELECT_CPAR_OUTSTANDING_NO_UPDATE =
+            "{Call sp_select_cpar_outstanding_no_update()}";
+    private static final String SELECT_CPAR_OUTSTANDING_PLANNED_COMPLETION_DATE =
+            "{Call sp_select_cpar_outstanding_planned_completion_date()}";
+    private static final String SELECT_CPAR_OUTSTANDING_PLANNED_START_DATE =
+            "{Call sp_select_cpar_outstanding_planned_start_date()}";
+    
+    ResultSet rs = null;
+    
+    /**
+     * Constructor for WorkAssignmentDataBean
+     */
+    public WorkAssignmentDataBean() throws SysException {
+        super("ADMIN");
+    }
+    
+        public int getNoOfInvCont(String scg, String deptID, String filePartNo, int fileNo) throws SysException 
+    {    
+        int noOfInvCont = 0;
+        
+        try {
+            CallableStatement cs = getCStmt(SELECT_WA_NO_INV_CONT);
+            cs.setString("p_service_category_group", scg);
+            cs.setString("p_department_id", deptID);
+            cs.setString("p_project_file_part", filePartNo);
+            cs.setInt("p_project_file_no", fileNo);
+            
+            rs = cs.executeQuery();
+            
+            if (rs.next()) 
+            { noOfInvCont = rs.getInt("no_of_inv_cont"); }
+            else
+            { throw new Exception("Cannot find number of invited contractor."); }
+        } catch (Exception ex) {
+            String error = "DB ERROR: WorkAssignmentDataBean:getNoOfInvCont\n" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally { super.close();}
+        
+        return noOfInvCont;
+    }    
+    
+    public List<WorkAssignmentInfo> searchWorkAssignment(WorkAssignmentInfo searchWorkAssignment,List<java.sql.Date> dateFilters, String order_by, String order_dir) throws SysException {
+        List<WorkAssignmentInfo> allWorkAssignmentList = new ArrayList<WorkAssignmentInfo>();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SEARCH_WORK_ASSIGNMENT);
+            cs.setString("p_soa_dept_id",searchWorkAssignment.getDepartmentId());
+            cs.setString("p_service_category_group",searchWorkAssignment.getServiceCategoryGroup());
+            cs.setString("p_assignment_status",searchWorkAssignment.getStatus());
+            cs.setString("p_contractor_id",searchWorkAssignment.getAwardedContractor());
+            
+            java.sql.Date invitation_start_date = SysManager.getSQLDate("01-Jan-1990");
+            java.sql.Date invitation_end_date = SysManager.getSQLDate(Constant.QPSIS_EXPIRY_DATE);
+            java.sql.Date award_start_date = SysManager.getSQLDate("01-Jan-1990");
+            java.sql.Date award_end_date = SysManager.getSQLDate(Constant.QPSIS_EXPIRY_DATE);
+            
+            if (dateFilters.get(0)!=null) invitation_start_date = dateFilters.get(0);
+            if (dateFilters.get(1)!=null) invitation_end_date = dateFilters.get(1);
+            if (dateFilters.get(2)!=null) award_start_date = dateFilters.get(2);
+            if (dateFilters.get(3)!=null) award_end_date = dateFilters.get(3);
+            
+            cs.setDate("p_invitation_start_date",invitation_start_date);
+            cs.setDate("p_invitation_end_date",invitation_end_date);
+            cs.setDate("p_award_start_date",award_start_date);
+            cs.setDate("p_award_end_date",award_end_date);
+            
+            cs.setString("p_order_by",order_by);
+            cs.setString("p_order_dir",order_dir);            
+            // execute
+            rs = cs.executeQuery();
+            
+            // get data and put into List
+            while (rs.next()) {
+                WorkAssignmentInfo wa = new WorkAssignmentInfo();
+                wa.setServiceCategoryGroup(rs.getString("service_category_group"));
+                wa.setDepartmentId(rs.getString("department_id"));
+                wa.setIssuedDate(rs.getDate("issue_date"));
+                wa.setClosingDate(rs.getDate("closing_date"));
+                wa.setAwardedDate(rs.getDate("awarded_date"));
+                wa.setTitle(rs.getString("work_assignment_title"));
+                wa.setAuthorizedPerson(rs.getString("authorized_person"));
+                wa.setStatus(rs.getString("assignment_status"));
+                wa.setAwardedContractor(rs.getString("awarded_contractor"));
+                allWorkAssignmentList.add(wa);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: WorkAssignmentDataBean:searchWorkAssginment\n"
+                    + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allWorkAssignmentList;
+        
+    }        
+        
+    public List selectWorkAssignment(String order_by, String order_dir) throws SysException {
+        
+        List allWorkAssignmentList = new ArrayList();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_WORK_ASSIGNMENT);
+            cs.setString("p_order_by",order_by);
+            cs.setString("p_order_dir",order_dir);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                WorkAssignmentInfo wa = new WorkAssignmentInfo();
+                wa.setServiceCategoryGroup(rs.getString("service_category_group"));
+                wa.setDepartmentId(rs.getString("department_id"));
+                wa.setIssuedDate(rs.getDate("issue_date"));
+                wa.setClosingDate(rs.getDate("closing_date"));
+                wa.setTitle(rs.getString("work_assignment_title"));
+                wa.setAuthorizedPerson(rs.getString("authorized_person"));
+                wa.setAwardedContractor(rs.getString("awarded_contractor"));
+                wa.setAwardedDate(rs.getDate("awarded_date"));
+                wa.setStatus(rs.getString("assignment_status"));
+                allWorkAssignmentList.add(wa);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: WorkAssignmentDataBean:selectWorkAssignment\n"
+                    + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allWorkAssignmentList;
+        
+    }
+    
+    public WAChallengeInfo selectWorkAssignmentForCpar(WAChallengeInfo wac) throws SysException {
+        
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_WORK_ASSIGNMENT_FOR_CPAR);
+            cs.setString("p_service_contract_no",wac.getServiceContractNo());
+            cs.setString("p_dept_id",wac.getDepartmentId());
+            rs = cs.executeQuery();
+            while (rs.next()) {
+            	wac.setServiceCategoryGroup(rs.getString("service_category_group"));
+                wac.setIssuedDate(rs.getDate("issue_date"));
+                wac.setClosingDate(rs.getDate("closing_date"));
+                wac.setTitle(rs.getString("work_assignment_title"));
+                wac.setAuthorizedPerson(rs.getString("authorized_person"));
+                wac.setPostRank(rs.getString("post_rank"));
+                wac.setDebarredContractor(rs.getString("debarred_contractor"));
+                wac.setDepartmentName(rs.getString("bd_name"));
+                wac.setStatus(rs.getString("assignment_status"));
+                wac.setAwardedDate(rs.getDate("awarded_date"));
+                wac.setAwardedContractor(rs.getString("awarded_contractor"));
+                wac.setFilePartNo(rs.getString("project_file_part"));
+                wac.setFileNo(rs.getInt("project_file_no"));
+                wac.setPlannedStartDate(rs.getDate("planned_start_date"));
+                wac.setPlannedCompletionDate(rs.getDate("planned_completion_date")); 
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: WorkAssignmentDataBean:selectWorkAssignmentForCpar\n"
+                    + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return wac;
+        
+    }
+    
+    public WAChallengeInfo selectWorkAssignmentForCparByAdmin(WAChallengeInfo wac) throws SysException {
+        
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_WORK_ASSIGNMENT_FOR_CPAR_BY_ADMIN);
+            cs.setString("p_service_contract_no",wac.getServiceContractNo());
+            rs = cs.executeQuery();
+            while (rs.next()) {
+            	wac.setServiceCategoryGroup(rs.getString("service_category_group"));
+                wac.setIssuedDate(rs.getDate("issue_date"));
+                wac.setClosingDate(rs.getDate("closing_date"));
+                wac.setTitle(rs.getString("work_assignment_title"));
+                wac.setAuthorizedPerson(rs.getString("authorized_person"));
+                wac.setPostRank(rs.getString("post_rank"));
+                wac.setDebarredContractor(rs.getString("debarred_contractor"));
+                wac.setDepartmentId(rs.getString("department_id"));
+                wac.setDepartmentName(rs.getString("bd_name"));
+                wac.setStatus(rs.getString("assignment_status"));
+                wac.setAwardedDate(rs.getDate("awarded_date"));
+                wac.setAwardedContractor(rs.getString("awarded_contractor"));
+                wac.setFilePartNo(rs.getString("project_file_part"));
+                wac.setFileNo(rs.getInt("project_file_no"));
+                wac.setPlannedStartDate(rs.getDate("planned_start_date"));
+                wac.setPlannedCompletionDate(rs.getDate("planned_completion_date")); 
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: WorkAssignmentDataBean:selectWorkAssignmentForCparByAdmin\n"
+                    + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return wac;
+        
+    }
+
+    public WAChallengeInfo selectWorkAssignmentByKeys(WAChallengeInfo wac) throws SysException {
+        
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_WORK_ASSIGNMENT_BY_KEYS);
+            cs.setString("p_service_category_group",wac.getServiceCategoryGroup());
+            cs.setString("p_dept_id",wac.getDepartmentId());
+            cs.setString("p_file_part_no",wac.getFilePartNo());
+            cs.setInt("p_file_no",wac.getFileNo());
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                wac.setIssuedDate(rs.getDate("issue_date"));
+                wac.setClosingDate(rs.getDate("closing_date"));
+                wac.setTitle(rs.getString("work_assignment_title"));
+                wac.setAuthorizedPerson(rs.getString("authorized_person"));
+                wac.setDebarredContractor(rs.getString("debarred_contractor"));
+                wac.setDepartmentName(rs.getString("bd_name"));
+                wac.setStatus(rs.getString("assignment_status"));
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: WorkAssignmentDataBean:selectWorkAssignmentByKeys\n"
+                    + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return wac;
+        
+    }
+    
+    public WorkAssignmentInfo selectWorkAssignmentHeader() throws SysException {
+        
+        WorkAssignmentInfo wa = new WorkAssignmentInfo();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_WORK_ASSIGNMENT_HEADER);
+            rs = cs.executeQuery();
+            if (rs.next()) {
+                wa.setFileNo(rs.getInt("project_file_no"));
+                wa.setIssuedDate(rs.getDate("issue_date"));
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: WorkAssignmentDataBean:selectWorkAssignmentHeader\n"
+                    + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return wa;
+        
+    }
+    
+    
+    
+    public int createTempWorkAssignment() throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        int result=0;
+        
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(CREATE_TEMP_WORK_ASSIGNMENT);
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            cs.executeUpdate();
+            result = cs.getInt("return_code");
+            
+        } catch (SQLException ex0) {
+            String error = "WorkAssignmentDataBean:createTempWorkAssignment: SQL Error\n" +
+                    "SQLState:"+ ex0.getSQLState() +":"+ex0.getMessage();
+            logger.error(error,ex0);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return result;
+    }
+    
+    public int deleteTempWorkAssignment() throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        int result=0;
+        
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(DELETE_TEMP_WORK_ASSIGNMENT);
+            cs.executeUpdate();
+            
+        } catch (SQLException ex0) {
+            String error = " SQL Error: WorkAssignmentDataBean:deleteTempWorkAssignment:\n" +
+                    "SQLState:"+ ex0.getSQLState() +":" + ex0.getMessage();
+            logger.error(error,ex0);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return result;
+    }
+    
+    public int replaceTempWorkAssignment() throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        int result=0;
+        
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(REPLACE_TEMP_WORK_ASSIGNMENT);
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            cs.executeUpdate();
+            result = cs.getInt("return_code");
+            
+        } catch (SQLException ex0) {
+            String error = "WorkAssignmentDataBean:replaceTempWorkAssignment: SQL Error\n" +
+                    "SQLState:"+ ex0.getSQLState() +":"+ex0.getMessage();
+            logger.error(error,ex0);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return result;
+    }
+    
+    
+    
+    public int writeWorkAssignmentHeader(int uploadCounter, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        
+        int result = 0;
+        
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(WRITE_WORK_ASSIGNMENT_HEADER);
+            cs.setInt("p_counter",uploadCounter);
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            cs.executeUpdate();
+            result =cs.getInt("return_code");
+            
+        } catch (SQLException ex0) {
+            String error = "SQL Error: WorkAssignmentDataBean:writeWorkAssignmentHeader\n" +"SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            logger.error(error,ex0);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return result;
+    }
+    
+    public int insertWorkAssignment(WorkAssignmentInfo wa) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode = 0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(INSERT_WORK_ASSIGNMENT);
+            cs.setString("p_service_category_group",wa.getServiceCategoryGroup());
+            cs.setString("p_file_part",wa.getFilePart());
+            cs.setInt("p_file_no",wa.getFileNo());
+            cs.setString("p_dept_id",wa.getDepartmentId());
+            cs.setString("p_status",wa.getStatus());
+            cs.setString("p_title",wa.getTitle());
+            cs.setString("p_authorized_person",wa.getAuthorizedPerson());
+            cs.setString("p_debarred_contractor",wa.getDebarredContractor());
+            cs.setDate("p_closing_date",wa.getClosingDate());
+            cs.setDate("p_issued_date",wa.getIssuedDate());
+            cs.setString("p_awarded_contractor",wa.getAwardedContractor());
+            cs.setDate("p_awarded_date",wa.getAwardedDate());
+            cs.setDouble("p_awarded_contract_value",wa.getAwardedContractValue());
+            cs.setDouble("p_aggregated_effort",wa.getAggregatedEffort());
+            cs.setDouble("p_total_project_cost",wa.getTotalProjectCost());
+            cs.setString("p_post_rank",wa.getPostRank());
+            cs.setString("p_service_contract_no",wa.getServiceContractNo());
+            cs.setDate("p_planned_start_date",wa.getPlannedStartDate());
+            cs.setDate("p_planned_completion_date",wa.getPlannedCompletionDate());
+            cs.setString("p_contact_phone_number",wa.getContactPhoneNumber());
+            cs.setString("p_internet_mail",wa.getInternetMail());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            result =cs.executeUpdate();
+            returnCode =cs.getInt("return_code");
+            if (returnCode !=1){
+                if (returnCode == -99){
+                    connection.rollback();
+                    String err = "Duplicate keys found! \r\nService Category Group: "+wa.getServiceCategoryGroup() + "; <BR>Department : " + wa.getDepartmentId()+"; \r\nTitle: " + wa.getTitle();
+                    throw new SysException(err);
+                } else if (returnCode == -89){
+                    connection.rollback();
+                    String err = "Unknown B/D found! \r\n Service Category Group: "+wa.getServiceCategoryGroup() + "; <BR>Department : " + wa.getDepartmentId()+"; \r\nTitle: " + wa.getTitle();
+                    throw new SysException(err);
+                }else{
+                    connection.rollback();
+                    String err = "SQL error! Return Error Code = " + returnCode + "<BR>"+
+                            "Service Category Group: "+wa.getServiceCategoryGroup() + "; <BR>"+
+                            "Department : " + wa.getDepartmentId()+"; <BR>"+
+                            "Title: " + wa.getTitle();
+                    throw new SysException(err);
+                }
+            }
+            if (result != 1){
+                connection.rollback();
+                String err = "No record was inserted! <BR>"+
+                        "Service Category Group: "+wa.getServiceCategoryGroup() + "; <BR>"+
+                        "Department : " + wa.getDepartmentId()+"; <BR>"+
+                        "Title: " + wa.getTitle();
+                throw new SysException(err);
+            }
+            connection.commit();
+            return returnCode;
+        } catch (SQLException ex0) {
+            String err = "SQL Error: WorkAssignmentDataBean:insertWorkAssignment:\n" +"SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            logger.error(err,ex0);
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: CeilingRateDataBean:insertWorkAssignment.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    
+    
+    public HashMap getWorkAssignmentForCPAROustanding() throws SysException {
+        
+    	HashMap allWorkAssignmentList = new HashMap();
+        try {
+        	List<String> sqlStrs = new ArrayList<String>(); 
+        	sqlStrs.add(SELECT_CPAR_OUTSTANDING_NO_UPDATE);
+        	sqlStrs.add(SELECT_CPAR_OUTSTANDING_PLANNED_COMPLETION_DATE);
+        	sqlStrs.add(SELECT_CPAR_OUTSTANDING_PLANNED_START_DATE);
+        	
+        	for (String sqlStr: sqlStrs){
+        		CallableStatement cs = null;
+                cs = getCStmt(sqlStr);
+	            rs = cs.executeQuery();
+	            while (rs.next()) { 
+	                WorkAssignmentInfo wa = new WorkAssignmentInfo();
+	                wa.setServiceContractNo(rs.getString("service_contract_no"));
+	                wa.setDepartmentId(rs.getString("department_id"));
+	                wa.setAwardedContractor(rs.getString("awarded_contractor"));
+	                wa.setTitle(rs.getString("work_assignment_title"));
+	                wa.setAuthorizedPerson(rs.getString("authorized_person"));
+	                wa.setPostRank(rs.getString("post_rank"));
+	                wa.setContactPhoneNumber(rs.getString("contact_phone_number"));
+	                wa.setInternetMail(rs.getString("internet_mail"));
+	                //wa.setServiceCategoryGroup(rs.getString("service_category_group"));
+	                //wa.setIssuedDate(rs.getDate("issue_date"));
+	                //wa.setClosingDate(rs.getDate("closing_date"));
+	                //wa.setAuthorizedPerson(rs.getString("authorized_person"));
+	                //wa.setAwardedDate(rs.getDate("awarded_date"));
+	                //wa.setStatus(rs.getString("assignment_status"));
+	                allWorkAssignmentList.put(rs.getString("service_contract_no"), wa);
+	            }
+        	}
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: WorkAssignmentDataBean:getWorkAssignmentForCPAROustanding\n"
+                    + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allWorkAssignmentList;
+        
+    }
+    
+}

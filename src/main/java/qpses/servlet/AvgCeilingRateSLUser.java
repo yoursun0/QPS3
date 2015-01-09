@@ -1,0 +1,255 @@
+package qpses.servlet;
+
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
+import javax.sql.rowset.serial.SerialException;
+
+import java.io.IOException;
+import org.apache.log4j.Logger;
+import org.jpedal.PdfDecoder;
+
+import qpses.business.*;
+import qpses.util.*;
+import qpses.security.*;
+
+import java.sql.Blob;
+import java.sql.SQLException;
+
+public class AvgCeilingRateSLUser extends HttpServlet
+{
+    // Get class name
+    static String MyClassName = AvgCeilingRateSLUser.class.getName();
+    
+    // Set up Log4J
+    static Logger logger = Logger.getLogger(MyClassName);
+    
+    // User web page base URL
+    String UserBaseUrl = "/qpsuser/";
+    
+    public AvgCeilingRateDBUser getAvgCeilingRateDBUser() throws SysException, SerialException, SQLException{
+    	return new AvgCeilingRateDBUser();
+    }
+    
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException
+    { doPost(request, response); }
+    
+    
+    public void doPost(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException
+    {
+        String myName = "[" + MyClassName + "." + "doPost" + "]";
+        logger.debug(myName + " " + "started");
+        
+        String requestAction = null;
+        
+        try
+        {
+            requestAction = request.getParameter("request_action");
+            
+            if (requestAction == null) requestAction = "";
+            
+            logger.debug(myName + " " + "Request Action = " + requestAction);
+            
+            if (requestAction.equals(""))
+            { this.getInfo(request, response); }
+            else if (requestAction.equals("getInfoPdf"))
+            { this.getInfoPdf(request, response); }
+            else if (requestAction.equals("showImagePage"))
+            { this.showImagePage(request, response); }
+            else if (requestAction.equals("getImage"))
+            { this.getFile(request, response, "IMAGE"); }
+            else if (requestAction.equals("getPDF"))
+            { this.getFile(request, response, "PDF"); }
+            else
+            { throw new SysException(myName, "[" + requestAction + "]" + " " + "is not allowed."); }
+        }
+        catch (Exception ex)
+        { throw new ServletException(ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+    }
+    
+    private void getInfoPdf(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException
+    {
+        String myName = "[" + MyClassName + "." + "getInfoPdf" + "]";
+        logger.debug(myName + " " + "started");
+        
+        String url = this.UserBaseUrl + "StaffCategoriesExplanatoryNote.pdf";
+        
+        logger.debug(myName + " " + "Forward to URL: " + url);
+        
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment;filename=\"" + "Explanatory Notes on Staff Categories.pdf" + "\"");
+        response.setHeader("Expires", "0");
+        response.setHeader("Cache-Control", "must-revalidate, post-check=0, pre-check=0");
+        response.setHeader("Pragma", "public");
+        
+        RequestDispatcher requestDispatcher = getServletContext().getRequestDispatcher(url);
+        requestDispatcher.forward(request, response);
+        
+        logger.debug(myName + " " + "ended");
+    }
+    
+    private void getInfo(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException
+    {
+        String myName = "[" + MyClassName + "." + "getInfo" + "]";
+        logger.debug(myName + " " + "started");
+        
+        String url = this.UserBaseUrl + "AvgCeilingRateGetInfo.jsp";
+        
+        try
+        {
+            AvgCeilingRateDBUser anAvgCRDBUser = getAvgCeilingRateDBUser();
+            request.getSession().setAttribute("avgCRInfoEff", anAvgCRDBUser.getAvgCeilingRateEff());
+            
+            logger.debug(myName + " " + "Forward to URL: " + url);
+            
+            RequestDispatcher requestDispatcher = getServletContext().getRequestDispatcher(url);
+            requestDispatcher.forward(request, response);
+        }
+        catch (Exception ex)
+        { throw new ServletException(ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+    }
+    
+    private void createPdfBytesInSession(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException
+    {
+        String myName = "[" + MyClassName + "." + "createPdfBytesInSession" + "]";
+        logger.debug(myName + " " + "started");
+        
+        try
+        {
+            // Get user information
+            SecurityContext secCtx = (SecurityContext)(request.getSession().getAttribute("QPSES_SECURITY_CONTEXT"));
+            
+            if (secCtx == null)
+            {throw new SysException(myName, "Cannot get user information.");}
+            
+            String userId    = secCtx.getUserId();
+            String dpDeptId  = secCtx.getDPDeptId();
+            String soaDeptId = secCtx.getSOADeptId();
+            
+            String effectiveDate = request.getParameter("effective_date");
+            String sc            = request.getParameter("sc");
+            
+            AvgCeilingRateDBUser anAvgCRDBUser = getAvgCeilingRateDBUser();
+            AvgCeilingRateInfo avgCRInfo       = anAvgCRDBUser.getAvgCeilingRate(effectiveDate, sc, userId, dpDeptId, soaDeptId);
+            
+            if (avgCRInfo == null)
+            { throw new SysException(myName, "Cannot find average ceiling rate file [Effective Date = " + effectiveDate + ", Service Category = " + sc + "]"); }
+            
+            // Get file content
+            String fileName  = avgCRInfo.getPDFFileName();
+            Blob blob        = avgCRInfo.getPDFFile();
+            byte[] fileBytes = blob.getBytes(1, (int)blob.length());
+            
+            PdfDecoder decoder = new PdfDecoder();
+            decoder.openPdfArray(fileBytes);
+            int noOfPage = decoder.getPageCount();
+            
+            // Renew number of page in session
+            request.getSession().removeAttribute("QPSES_ACR_RPT_NO_OF_PAGE");
+            request.getSession().setAttribute("QPSES_ACR_RPT_NO_OF_PAGE", noOfPage + "");
+            
+            // Renew file bytes in session
+            request.getSession().removeAttribute("QPSES_ACR_RPT_FILE_BYTES");
+            request.getSession().setAttribute("QPSES_ACR_RPT_FILE_BYTES", fileBytes);
+            
+            // Renew file bytes in session
+            request.getSession().removeAttribute("QPSES_ACR_RPT_FILE_NAME");
+            request.getSession().setAttribute("QPSES_ACR_RPT_FILE_NAME", fileName);
+        }
+        catch(Exception ex)
+        { 
+        	logger.error(ex);
+        	throw new ServletException(ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+    }
+    
+    private void showImagePage(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException
+    {
+        String myName = "[" + MyClassName + "." + "showImagePage" + "]";
+        logger.debug(myName + " " + "started");
+        
+        try
+        {
+            this.createPdfBytesInSession(request, response);
+            
+            String url = this.UserBaseUrl + "AvgCeilingRateShowImage.jsp";
+            logger.debug(myName + " " + "Forward to URL: " + url);
+            
+            RequestDispatcher requestDispatcher = getServletContext().getRequestDispatcher(url);
+            requestDispatcher.forward(request, response);
+        }
+        catch(Exception ex)
+        { 
+        	logger.error(ex);
+        	throw new ServletException(ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+    }
+    
+    private void getFile(HttpServletRequest request, HttpServletResponse response, String outFormat)
+    throws ServletException, IOException
+    {
+        String myName = "[" + MyClassName + "." + "getFile" + "]";
+        logger.debug(myName + " " + "started");
+        
+        assert outFormat.equals("IMAGE") || outFormat.equals("PDF");
+        
+        try
+        {
+            if (request.getSession().getAttribute("QPSES_ACR_RPT_FILE_BYTES") == null)
+                throw new SysException(myName, "Cannot find file bytes.");
+            
+            if (request.getSession().getAttribute("QPSES_ACR_RPT_FILE_NAME") == null)
+                throw new SysException(myName, "Cannot find file name.");
+            
+            byte[] fileBytes = ( byte[])(request.getSession().getAttribute("QPSES_ACR_RPT_FILE_BYTES"));
+            String fileName  = (String)(request.getSession().getAttribute("QPSES_ACR_RPT_FILE_NAME"));
+            
+            // Output PDF file
+            if (outFormat.equals("PDF"))
+            {
+                // Response Setting
+                response.setContentType("application/pdf");
+                response.setHeader("Content-Disposition", "attachment;filename=\"" + fileName + "\"");
+                response.setHeader("Expires", "0");
+                response.setHeader("Cache-Control", "must-revalidate, post-check=0, pre-check=0");
+                response.setHeader("Pragma", "public");
+                //response.setContentLength((int)blob.length());
+                response.setContentLength(fileBytes.length);
+                
+                ServletOutputStream sos = response.getOutputStream();
+                sos.write(fileBytes);
+                sos.flush();
+            }
+            else if (outFormat.equals("IMAGE"))
+            {
+                String pageNo = request.getParameter("page_no");
+                
+                if (pageNo == null) throw new SysException(myName, "Page number is NULL");
+                
+                SysManager.pdfToImage(fileBytes, response, fileName.replaceAll(".pdf", ".jpg"), Integer.parseInt(pageNo));
+            }
+        }
+        catch(Exception ex)
+        { 
+        	logger.error(ex);
+        	throw new ServletException(ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+    }
+}

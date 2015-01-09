@@ -1,0 +1,313 @@
+<%@page contentType="text/html"%>
+<%@page pageEncoding="UTF-8"%>
+<%@ page import="qpses.business.ACLInfo,
+                                qpses.business.ACLDataBean,
+                                qpses.business.DeptInfo,
+                                qpses.business.DeptDataBean,
+                                qpses.util.SysManager,
+                                java.util.HashMap,
+                                java.util.List,
+                                java.util.ArrayList" %>
+<%!private String getValue(String temp){ return (temp == null )? "" : temp;}%>
+<%
+    // initialize variable
+    String searched_user_id = "";
+    String searched_user_group = "";
+    String searched_user_group_name = "";
+    String searched_dept_id = "";
+    int searched_active_ind = -9;
+    String searched_expiry_date = "";
+    boolean searched = false;
+    ACLDataBean aclDB =new ACLDataBean();
+    List allACLList = new ArrayList();
+
+    String order_by = "";
+    String order_dir = "";
+    HashMap orderHash = (HashMap) session.getAttribute("ACL_SEARCH_ORDER");
+    if (orderHash !=null){
+        order_by = (String) orderHash.get("ORDER_BY");
+        order_dir = (String) orderHash.get("ORDER_DIR");
+        session.removeAttribute("ACL_SEARCH_ORDER");
+    } else{
+        order_by = getValue(request.getParameter("OrderBy"));
+        order_dir = getValue(request.getParameter("OrderDir"));
+    }        
+    if (order_by.equals("")) order_by = "Dept";
+    if (order_dir.equals("")) order_dir = "ASC";
+
+
+    ACLInfo searchPara = (ACLInfo) session.getAttribute("ACL_SEARCH_PARAMETER");
+    if (searchPara!=null){
+        searched_user_id = getValue(searchPara.getUserId());
+        searched_user_group = getValue(searchPara.getUserGroup());
+        searched_user_group_name = getValue(searchPara.getUserGroupName());
+        searched_dept_id = getValue(searchPara.getDeptId());
+        searched_active_ind = searchPara.getActiveInd();
+        if (searchPara.getExpiryDate() != null)  searched_expiry_date = SysManager.getStringfromSQLDate(searchPara.getExpiryDate());
+        allACLList = aclDB.searchACL(searchPara,order_by,order_dir);
+        searched = true;
+    }
+    // Get department list
+    DeptDataBean dpDB = new DeptDataBean();
+    List deptList = dpDB.selectDept();
+
+    // get list of expiry date from ACL
+    List expiryDateList = aclDB.selectAssignedExpiryDate();
+    
+    // check and display for message
+    String msg =   getValue((String)  session.getAttribute("ACL_MSG"));
+    if (!msg.equals("")){
+        session.removeAttribute("ACL_MSG");
+        session.removeAttribute("ACL_MSGTYPE");
+    }
+    
+
+%>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title>SOA-QPS3 Quality Professional Services Information System Administration - Privilege Administration</title>        
+        <link rel="STYLESHEET" type="text/css" href="../styles/style.css">
+        <script language="JavaScript" src="../js/aclcheck.js" type="text/javascript"></script>        
+    </head>
+    <body>
+        <%@include file="include/header.jsp"%>
+        <fieldset class="function"> 
+            <table class="function_title"><tr><td>Access Control List Maintenance</td></tr></table>            
+            <form name="form1" method="POST" action="">
+                <table border="0" cellspacing="0" cellpadding="0" width="98%" class="tableborder" align="center">
+                    <tr> 
+                        <td width="20%" class="tabUnselectLeft" onclick="changepage('List')">Access 
+                        Control List</td>
+                        <td width="21%" class="tabUnselectMiddle" onclick="changepage('Add')">Add User </td>
+                        <!-- <td width="17%" class="tabUnselectMiddle" onclick="changepage('Import')">Import 
+                        Users </td> -->
+                        <td width="16%" class="tabSelectedRight">Search 
+                        User </td>
+                        <td width="26%">&nbsp;</td>
+                    </tr>                   
+                </table>       
+                <table width="98%" border="0" cellspacing="0" cellpadding="0" align="center" class="tableborder">
+                    <tr> 
+                        <td class="title1"> Search User</td>
+                    </tr>
+                    <tr> 
+                        <td> <%= (! msg.equals(""))? "<div class=\"errMessage\">"+ msg + "</div>":""%> 
+                    </tr>                                        
+                    <tr> 
+                        <td>
+                            <div align="left">Input searching criteria below: </div>
+                        </td>
+                    </tr>
+                    <tr> 
+                        <td> 
+                        <div align="center"> 
+                            <table  width="98%" cellspacing="1" class="tableBackground">
+                                <tr width="15%"> 
+                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">User 
+                                    ID</td>
+                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                        <input type="text" name="UserId" value="<%=searched_user_id%>" size="30" maxlength="30" />
+                                    </td>
+                                </tr>
+                                <tr> 
+                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Department</td>
+                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                        <select name="DeptId">
+                                            <option value="">All departments</option>
+                                            <%      
+                                                for (int i =0; i<deptList.size(); i++){
+            DeptInfo dept = (DeptInfo) deptList.get(i);
+            out.write("<option ");
+            out.write("value=\""+ dept.getCombinedDeptId()+"\"");
+            if (dept.getCombinedDeptId().equals(searched_dept_id)) out.write(" SELECTED");
+            out.write(">"+dept.getDeptName()+"</option>\n");
+                                                }
+                                            %>
+                                        </select>
+                                    </td>
+                                </tr>
+ <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">User role</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <select name="UserRole">
+                                                            <option value="">Please select user role</option>
+                                                            <option value="U"
+                                                            <% if (searched_user_group.equals("U")) out.write(" SELECTED"); %>
+                                                            >User</option>
+                                                            <option value="M"
+                                                            <% if (searched_user_group.equals("M")) out.write(" SELECTED"); %>
+                                                            >Manager</option>
+                                                            <option value="S"
+                                                            <% if (searched_user_group.equals("S")) out.write(" SELECTED"); %>
+                                                            >System Administrator</option>
+                                                            <option value="SP"
+                                                            <% if (searched_user_group.equals("SP")) out.write(" SELECTED"); %>
+                                                            >System Administrator (P)</option>
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                <tr> 
+                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Locked?</td>
+                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                    <input type="radio" name="ActiveInd" value="-9" <%=((searched_active_ind == -9)?"CHECKED":"")%> />
+                                    All                                     
+                                    <input type="radio" name="ActiveInd" value="0" <%=((searched_active_ind == 0)?"CHECKED":"")%> />
+                                    Yes 
+                                    <input type="radio" name="ActiveInd" value="-1" <%=((searched_active_ind == -1)?"CHECKED":"")%>/>
+                                    No </td>
+                                </tr>
+                                <tr> 
+                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Expiry 
+                                    Date </td>
+                                    <td class="tableVerticalContentAlignLeft1" colspan="2"> 
+                                    <select name="ExpiryDate">
+                                        <option value="">All</option>
+                                        <%      
+                                            for (int i =0; i<expiryDateList.size(); i++){
+            String expiryDate = (String) expiryDateList.get(i);
+            out.write("<option ");
+            out.write("value=\""+ expiryDateList.get(i)+"\"");
+            if (expiryDate.equals(searched_expiry_date)) out.write(" SELECTED");
+            out.write(">"+expiryDate+"</option>\n");
+                                            }
+                                        %>
+                                    </select>
+                                </tr>
+                            </table>
+                        </div>
+                        </td>
+                    </tr>
+                </table>
+                <table border="0" cellpadding="3" align="center">
+                    <tr> 
+                        <td width="50%">                                     
+                            <div align="center"> <a href="#"><img src="../images/btn_search.jpg" width="98" height="42" name="Search" onClick="selectaction(form1,this)" border="0" alt="Search"></a></div>
+                        </td>
+                        <td width="50%">             
+                            <div align="center"> <a href="#"><img src="../images/btn_reset.jpg" width="98" height="42" name="SearchReset" onClick="selectaction(form1,this)" border="0" alt="Reset searching criteria"></a></div>
+                        </td>
+                    </tr>
+                </table>
+                <BR>
+                <% if (searched) {%>
+                <table border="0" cellspacing="0" cellpadding="0" width="98%" class="tableborder" align="center">
+                    <tr class="title1"> 
+                        <td> Search Result </td>
+                    </tr>
+                    <tr> 
+                        <td align="left"> 
+                            <%=allACLList.size()%> records found!<br>                        
+                        </td>
+                    </tr>
+                    <tr> 
+                        <td> 
+                            <div align="center"> 
+                                <%if (! allACLList.isEmpty()){%>
+                                <table width="98%" cellspacing="1" class="tableBackground">
+                                    <tr> 
+                                        <td width="4%" nowrap class="tableHeaderAlignLeft1">&nbsp;</td>
+                                        <td width="41%" nowrap class="tableHeaderAlignLeft1">                                    
+                                            <a href="#" class="table_header" onClick="changeorder(form1,'Dept','<%= ((order_by.equals("Dept") && order_dir.equals("ASC"))?"DESC":"ASC")%>')">Department</a>
+                                            <% if (order_by.equals("Dept") && order_dir.equals("ASC")){%>
+                                            <img src="../images/up_arrow.gif" border = 0>
+                                            <%}%>
+                                            <% if (order_by.equals("Dept") && order_dir.equals("DESC")){%>
+                                            <img src="../images/down_arrow.gif" border = 0>
+                                            <%}%>																						                                        
+                                        </td>                                                                                                                
+                                        <td class="tableHeaderAlignCenter1" width="10%" nowrap>
+                                            <a href="#" class="table_header" onClick="changeorder(form1,'UserId','<%= ((order_by.equals("UserId") && order_dir.equals("ASC"))?"DESC":"ASC")%>')">User ID</a>
+                                            <% if (order_by.equals("UserId") && order_dir.equals("ASC")){%>
+                                            <img src="../images/up_arrow.gif" border = 0>
+                                            <%}%>
+                                            <% if (order_by.equals("UserId") && order_dir.equals("DESC")){%>
+                                            <img src="../images/down_arrow.gif" border = 0>
+                                            <%}%>																						                                        
+                                        </td>      
+                                        <td class="tableHeaderAlignCenter1" width="7%" nowrap>
+                                            <a href="#" class="table_header" onClick="changeorder(form1,'UserRole','<%= ((order_by.equals("UserRole") && order_dir.equals("ASC"))?"DESC":"ASC")%>')">User Role</a>
+                                            <% if (order_by.equals("UserRole") && order_dir.equals("ASC")){%>
+                                            <img src="../images/up_arrow.gif" border = 0>
+                                            <%}%>
+                                            <% if (order_by.equals("UserRole") && order_dir.equals("DESC")){%>
+                                            <img src="../images/down_arrow.gif" border = 0>
+                                            <%}%>																						                                        
+                                        </td>                                                                                                                                                   
+                                        <td class="tableHeaderAlignCenter1" width="12%" nowrap>
+                                            <a href="#" class="table_header" onClick="changeorder(form1,'EffectiveDate','<%= ((order_by.equals("EffectiveDate") && order_dir.equals("ASC"))?"DESC":"ASC")%>')">Effective Date</a>
+                                            <% if (order_by.equals("EffectiveDate") && order_dir.equals("ASC")){%>
+                                            <img src="../images/up_arrow.gif" border = 0>
+                                            <%}%>
+                                            <% if (order_by.equals("EffectiveDate") && order_dir.equals("DESC")){%>
+                                            <img src="../images/down_arrow.gif" border = 0>
+                                            <%}%>																						                                        
+                                        </td>                                                                                                                                                                                             
+                                        <td class="tableHeaderAlignCenter1" width="12%" nowrap>
+                                            <a href="#" class="table_header" onClick="changeorder(form1,'ExpiryDate','<%= ((order_by.equals("ExpiryDate") && order_dir.equals("ASC"))?"DESC":"ASC")%>')">Expiry Date</a>
+                                            <% if (order_by.equals("ExpiryDate") && order_dir.equals("ASC")){%>
+                                            <img src="../images/up_arrow.gif" border = 0>
+                                            <%}%>
+                                            <% if (order_by.equals("ExpiryDate") && order_dir.equals("DESC")){%>
+                                            <img src="../images/down_arrow.gif" border = 0>
+                                            <%}%>																						                                        
+                                        </td>
+                                        <td class="tableHeaderAlignCenter1" width="9%" nowrap>Locked?</td>
+                                        <td class="tableHeaderAlignCenter1" width="18%" nowrap>Action</td>
+                                    </tr>
+                                    <%
+                                        // Display records
+                                        for (int i = 0; i<allACLList.size();i++) {
+                                                    ACLInfo acl = new ACLInfo();
+                                                    acl = (ACLInfo) allACLList.get(i);
+                                                    // initialize variables
+                                                    String user_id = "";
+                                                    String dp_dept_id = "";
+                                                    String soa_dept_id = "";
+                                                    String dept_name= "";
+                                                    String user_role= "";
+                                                    String locked_ind = "";
+                                                    String effective_date ="";
+                                                    String expiry_date ="";
+
+                                                    // get values from vector element
+                                                    user_id = acl.getUserId();
+                                                    dp_dept_id = acl.getDPDeptId();
+                                                    soa_dept_id = acl.getSOADeptId();
+                                                    user_role =  acl.getUserGroup();
+                                                    dept_name =  acl.getDeptName();
+                                                    locked_ind = (acl.getActiveInd()==-1) ? "No": "Yes";
+                                                    if (acl.getEffectiveDate() != null) effective_date = SysManager.getStringfromSQLDate(acl.getEffectiveDate());
+                                                    if (acl.getExpiryDate() != null) expiry_date = SysManager.getStringfromSQLDate(acl.getExpiryDate());
+                                    %>
+                                    <tr> 
+                                        <td nowrap class="tableContentAlignCenter1" width="4%"><%=i+1%></td>
+                                        <td class="tableContentAlignLeft1" width="41%"><%=dept_name%></td>
+                                        <td nowrap class="tableContentAlignLeft1" width="10%"><%=user_id%></td>
+                                        <td class="tableContentAlignCenter1" width="7%"><%=user_role%></td>
+                                        <td class="tableContentAlignCenter1" width="12%"><%=effective_date%></td>
+                                        <td class="tableContentAlignCenter1" width="12%"><%=expiry_date%></td>
+                                        <td class="tableContentAlignCenter1" width="9%"><%=locked_ind%></td>
+                                        <td nowrap class="tableContentAlignCenter1" width="18%"> <a href="#"><img name="Update" src="../images/s_btn_update.jpg" width="63" height="21" alt="Update" border="0" onClick="selectaction(form1,this,'<%=dp_dept_id%>','<%=soa_dept_id%>','<%=user_id%>')"></a> 
+                                            <a href="#"><img name="Delete" src="../images/s_btn_delete.jpg" width="63" height="21" alt="Delete" border="0" onClick="selectaction(form1,this,'<%=dp_dept_id%>','<%=soa_dept_id%>','<%=user_id%>')"></a> 
+                                        </td>
+                                    </tr>
+                                    <%} // End for                                     
+                                    } // End if vector size >0 %>
+                                    </table>
+                            </div>
+                        </td>
+                    </tr>
+                </table>            
+                <%}%>                
+                <BR>
+                <input type="hidden" name="selectedKey1" value="">
+                <input type="hidden" name="selectedKey2" value="">
+                <input type="hidden" name="selectedKey3" value="">               
+                <input type="hidden" name="PostScreen" value="ACLSearch.jsp">                 
+                <input type="hidden" name="OrderBy" value="<%=order_by%>">
+                <input type="hidden" name="OrderDir" value="<%=order_dir%>">                 
+            </form>
+        </fieldset>
+    </body>
+</html>

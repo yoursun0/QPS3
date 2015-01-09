@@ -1,0 +1,298 @@
+/**
+ * ContractorDataBean.java
+ * @author Helic Leung
+ * @version 1.0
+ */
+
+package qpses.business;
+
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Vector;
+import org.apache.log4j.Logger;
+import qpses.security.SecurityContext;
+import qpses.util.SysException;
+import qpses.util.DataBean;
+
+public class ContractorDataBean extends DataBean {
+    
+    
+    // log4j
+    static Logger logger = Logger.getLogger(ContractorDataBean.class.getName());
+    
+    
+    private static final String SELECT_CONTRACTOR =
+            "{Call sp_select_contractor(?,?)}";
+    private static final String SELECT_CONTRACTOR_BY_CATGP =
+            "{Call sp_select_contractor_by_catgp(?)}";
+    private static final String SELECT_CONTRACTOR_BY_KEYS =
+            "{Call sp_select_contractor_by_keys(?)}";
+    private static final String INSERT_CONTRACTOR =
+            "{Call sp_insert_contractor(?,?,?,?,?,?,?,?,?,?,?,?,?,?)}"; // 14 parameters
+    private static final String UPDATE_CONTRACTOR =
+            "{Call sp_update_contractor(?,?,?,?,?,?,?)}"; // 7 parameters
+    private static final String DELETE_CONTRACTOR =
+            "{Call sp_delete_contractor(?,?,?,?,?)}"; // 5 parameters
+    
+    ResultSet rs = null;
+    
+    /**
+     * Constructor for ContractorDataBean
+     */
+    public ContractorDataBean() throws SysException{
+        super("ADMIN");
+    }
+    
+    public Vector<ContractorInfo> selectContractor() throws SysException {
+    	
+        return selectContractor("","");
+        
+    }
+    
+    public Vector<ContractorInfo> selectContractor(String order_by, String order_dir) throws SysException {
+        
+        Vector<ContractorInfo> allContractorVector = new Vector<ContractorInfo>();
+        try {
+            CallableStatement cs = null;            
+            cs = getCStmt(SELECT_CONTRACTOR);
+            cs.setString("p_order_by",order_by);
+            cs.setString("p_order_dir",order_dir);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                ContractorInfo c = new ContractorInfo();
+                c.setContractorId(rs.getString("contractor_id"));
+                c.setContractorName(rs.getString("contractor_name"));
+                c.set1NInd(rs.getInt("1N_indicator"));
+                c.set1JInd(rs.getInt("1J_indicator"));
+                c.set2NInd(rs.getInt("2N_indicator"));
+                c.set2JInd(rs.getInt("2J_indicator"));
+                c.set3NInd(rs.getInt("3N_indicator"));
+                c.set3JInd(rs.getInt("3J_indicator"));
+                c.set4NInd(rs.getInt("4N_indicator"));
+                c.set4JInd(rs.getInt("4J_indicator"));
+                allContractorVector.add(c);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: ContractorDataBean:selectContractor\n"
+                    + ex.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allContractorVector;
+        
+    }
+    
+    public ContractorInfo selectContractorByKeys(String contractorId) throws SysException {
+        
+        ContractorInfo c = new ContractorInfo();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_CONTRACTOR_BY_KEYS);
+            cs.setString("p_contractor_id",contractorId);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                c.setContractorId(rs.getString("contractor_id"));
+                c.setContractorName(rs.getString("contractor_name"));
+                c.set1NInd(rs.getInt("1N_indicator"));
+                c.set1JInd(rs.getInt("1J_indicator"));
+                c.set2NInd(rs.getInt("2N_indicator"));
+                c.set2JInd(rs.getInt("2J_indicator"));
+                c.set3NInd(rs.getInt("3N_indicator"));
+                c.set3JInd(rs.getInt("3J_indicator"));
+                c.set4NInd(rs.getInt("4N_indicator"));
+                c.set4JInd(rs.getInt("4J_indicator"));
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: ContractorDataBean:selectContractorByKeys\n"
+                    + ex.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return c;
+        
+    }
+    
+    public Vector<ContractorInfo> selectContractorByCatgp(String catgp) throws SysException {
+        
+        Vector<ContractorInfo> allContractorVector = new Vector<ContractorInfo>();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_CONTRACTOR_BY_CATGP);
+            cs.setString("p_cat_gp",catgp);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                ContractorInfo c = new ContractorInfo();
+                c.setContractorId(rs.getString("contractor_id"));
+                c.setContractorName(rs.getString("contractor_name"));
+                allContractorVector.add(c);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: ContractorDataBean:selectContractorByCatgp\n"
+                    + ex.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allContractorVector;
+        
+    }
+    
+    public int insertContractor(ContractorInfo c, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(INSERT_CONTRACTOR);
+            // get information from info object
+            cs.setString("p_contractor_id",c.getContractorId());
+            cs.setString("p_contractor_name",c.getContractorName());
+            cs.setInt("p_1J_ind",c.get1JInd());
+            cs.setInt("p_2J_ind",c.get2JInd());
+            cs.setInt("p_3J_ind",c.get3JInd());
+            cs.setInt("p_4J_ind",c.get4JInd());
+            cs.setInt("p_1N_ind",c.get1NInd());
+            cs.setInt("p_2N_ind",c.get2NInd());
+            cs.setInt("p_3N_ind",c.get3NInd());
+            cs.setInt("p_4N_ind",c.get4NInd());
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            
+            //execute
+            result =cs.executeUpdate();
+            returnCode =cs.getInt("return_code");
+            
+            // check execution result
+            String msg1 = "Contractor ID already exist. Contractor ID: "+c.getContractorId() + "; Contractor Name: " + c.getContractorName()+";";
+            String msg2 = "No record was inserted! <BR>"+
+                       "Contractor ID: "+c.getContractorId() + "; Contractor Name: " + c.getContractorName()+";";
+            commitResult(returnCode, result, msg1, msg2);
+            
+            return returnCode;
+        } catch (SQLException ex0) {
+            String err = "SQL Error: ContractorDataBean:insertContractor \n" +"SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: ContractorDataBean:insertContractor.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    public int updateContractor(ContractorInfo c, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode =0;
+        
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(UPDATE_CONTRACTOR);
+            // get information from info object
+            cs.setString("p_contractor_id",c.getContractorId());
+            cs.setString("p_contractor_name",c.getContractorName());
+            /*
+            cs.setInt("p_1J_ind",c.get1JInd());
+            cs.setInt("p_2J_ind",c.get2JInd());
+            cs.setInt("p_3J_ind",c.get3JInd());
+            cs.setInt("p_4J_ind",c.get4JInd());
+            cs.setInt("p_1N_ind",c.get1NInd());
+            cs.setInt("p_2N_ind",c.get2NInd());
+            cs.setInt("p_3N_ind",c.get3NInd());
+            cs.setInt("p_4N_ind",c.get4NInd());
+            */ 
+            cs.setString("p_key1",c.getOrgKey1());
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            
+            // execute
+            result=cs.executeUpdate();
+            returnCode = cs.getInt("return_code");
+            
+         // check execution result
+            String msg1 = "Contractor ID already exist. Contractor ID: "+c.getContractorId() + "; Contractor Name: " + c.getContractorName()+";";
+            String msg2 = "No record was updated! <BR>"+
+                       "Contractor ID: "+c.getContractorId() + "; Contractor Name: " + c.getContractorName()+";";
+            commitResult(returnCode, result, msg1, msg2);
+            return returnCode;
+            
+        } catch (SQLException ex0) {
+            String err = "SQL Error: ContractorDataBean:updateContractor\n" +"SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: ContractorDataBean:updateContractor.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    public int deleteContractor(ContractorInfo c, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(DELETE_CONTRACTOR);
+            // get information from info object
+            cs.setString("p_contractor_id",c.getOrgKey1());
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            
+            // execute
+            result = cs.executeUpdate();
+            returnCode = cs.getInt("return_code");
+            
+            // check execution result
+            String msg1 = "Contractor cannot be deleted. Please ensure it is not used in other tables before deletion!";
+            String msg2 = "No record was deleted! <BR>"+
+                       "Contractor ID: "+c.getContractorId() + "; Contractor Name: " + c.getContractorName()+";";
+            commitResult(returnCode, result, msg1, msg2);
+            
+            return returnCode;
+            
+        } catch (SQLException ex0) {
+            String err = "SQL Error: ContractorDataBean:deleteContractor\n"  +"SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: ContractorDataBean:deleteContractor.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+}

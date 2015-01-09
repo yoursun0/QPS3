@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context path="/QPSIS" reloadable="true">
+  <Resource auth="Container" driverClassName="com.mysql.jdbc.Driver" maxActive="10000" maxIdle="3000" maxWait="6000" name="jdbc/qpsis/user" password="8vCtjZ70" removeAbandoned="true" removeAbandonedTimeout="30000" type="javax.sql.DataSource" url="jdbc:mysql://localhost:3306/qps3?autoReconnect=true" timeBetweenEvictionRunsMillis="100000" minEvictableIdleTimeMillis="600000" username="root"/>
+  <Resource auth="Container" driverClassName="com.mysql.jdbc.Driver" maxActive="10000" maxIdle="3000" maxWait="6000" name="jdbc/qpsis/admin" password="8vCtjZ70" removeAbandoned="true" removeAbandonedTimeout="30000" type="javax.sql.DataSource" url="jdbc:mysql://localhost:3306/qps3?autoReconnect=true" timeBetweenEvictionRunsMillis="100000" minEvictableIdleTimeMillis="600000"  username="root"/>
+</Context>

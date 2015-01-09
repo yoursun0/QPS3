@@ -1,0 +1,135 @@
+/*
+ * WorkAssignmentDataBean.java
+ */
+
+package qpses.business;
+
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.PreparedStatement;
+import java.text.DecimalFormat;
+import java.util.List;
+import java.util.Vector;
+import org.apache.log4j.Logger;
+
+import qpses.security.SecurityContext;
+import qpses.util.SysException;
+import qpses.util.DataBean;
+import qpses.util.SysManager;
+
+public class StatDataBean extends DataBean {
+    
+    
+    // log4j
+    static Logger logger = Logger.getLogger(StatDataBean.class.getName());
+      
+    ResultSet rs = null;
+    
+    /**
+     * Constructor for WorkAssignmentDataBean
+     */
+    public StatDataBean() throws SysException {
+        super("ADMIN");
+    }
+    
+    
+	public String convertDateToSQLString(List<java.sql.Date> dateFilters) throws SysException {
+		 String sqlDateStr = "";
+	        try {
+	        	
+	        	java.sql.Date invitationStartDate = SysManager.getSQLDate("01-Jan-1990");
+	            java.sql.Date invitationEndDate = SysManager.getSQLDate("01-July-2049");
+	            java.sql.Date awardStartDate = SysManager.getSQLDate("01-Jan-1990");
+	            java.sql.Date awardEndDate = SysManager.getSQLDate("01-July-2049");
+	            
+	            if (dateFilters.get(0)!=null) invitationStartDate = dateFilters.get(0);
+	            if (dateFilters.get(1)!=null) invitationEndDate = dateFilters.get(1);
+	            if (dateFilters.get(2)!=null) awardStartDate = dateFilters.get(2);
+	            if (dateFilters.get(3)!=null) awardEndDate = dateFilters.get(3);	            
+	            
+	            sqlDateStr = "issue_date >= '" + invitationStartDate + "' AND issue_date <= '" + invitationEndDate + 
+	            		"' AND ((awarded_date >=  '" + awardStartDate + "' AND awarded_date <=  '" + awardEndDate + "') OR awarded_date IS NULL)";
+
+	        } catch (Exception ex) {
+	            String error = "Date Filter ERROR: StatDataBean:convertDateToSQLString\n" + ex.getMessage();
+	            logger.error(error,ex);
+	            throw new SysException(error);
+	        } finally { super.close();}
+	        
+	        return sqlDateStr;
+	}
+    
+	
+    public String genWorkAssignmentValue(List<java.sql.Date> dateFilters, String sqlFunction, String sqlSumCol,
+    									String assignmentStatus, String categoryGroup) throws SysException {    
+        String resultValueStr = "";
+        String sqlFunctionStr = "";
+        String assignmentStatusStr = "";
+        String categoryGroupStr = "";
+        int sumValue = 0;
+        try {
+        	
+        	// Genereate SQL Function part
+        	if (sqlFunction == "count") {
+        		sqlFunctionStr = "COUNT(*) AS countValue";
+        	} else if (sqlFunction == "sum" && sqlSumCol != "") {
+        		sqlFunctionStr = "SUM(" + sqlSumCol + ") AS sumValue";
+        	} 
+        	
+        	// Genereate SQL WHERE part (assignment_status)
+        	if (assignmentStatus == "n/c"){
+        		assignmentStatusStr = " AND assignment_status in ('n', 'c')";
+        	} else if (assignmentStatus == "w/x") {
+        		assignmentStatusStr = " AND assignment_status in ('w', 'x')";
+        	} else if (assignmentStatus == "n") {
+        		assignmentStatusStr = " AND assignment_status = 'n'";
+        	} else if (assignmentStatus == "c") {
+        		assignmentStatusStr = " AND assignment_status = 'c'";
+        	}
+        	
+        	// Genereate SQL WHERE part (service_category_group)
+        	if (categoryGroup == "Cat1"){
+        		categoryGroupStr = " AND service_category_group = '1'";
+        	} else if (categoryGroup == "Cat2j") {
+        		categoryGroupStr = " AND service_category_group = '2/J'";
+        	} else if (categoryGroup == "Cat2n") {
+        		categoryGroupStr = " AND service_category_group = '2/N'";
+        	} else if (categoryGroup == "Cat3j") {
+        		categoryGroupStr = " AND service_category_group = '3/J'";
+        	} else if (categoryGroup == "Cat3n") {
+        		categoryGroupStr = " AND service_category_group = '3/N'";
+        	} else if (categoryGroup == "Cat4") {
+        		categoryGroupStr = " AND service_category_group = '4'";
+        	}
+        	
+        	String sql = "SELECT " + sqlFunctionStr + " FROM work_assignment WHERE " + convertDateToSQLString(dateFilters) 
+        			+ assignmentStatusStr + categoryGroupStr;
+
+        	PreparedStatement ps = getPreStmt(sql);
+        	rs = ps.executeQuery();
+        	if (rs.next()) { 
+        		if (sqlFunction == "count") {
+        			resultValueStr = rs.getString("countValue"); 
+        		}
+        		if (sqlFunction == "sum") {
+        			sumValue = (int)Math.round(rs.getFloat("sumValue"));
+        			DecimalFormat myFormatter = new DecimalFormat("###,###,###,###,###");
+        			resultValueStr = (String)myFormatter.format(sumValue);
+        		}
+        	}else { 
+            	throw new Exception("Cannot find number of invitations received."); 
+            }
+        } catch (Exception ex) {
+            String error = "DB ERROR: StatDataBean:genWorkAssignmentValue\n" + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally { super.close();}
+        
+        return resultValueStr;
+    }  
+        
+ 
+}

@@ -1,0 +1,230 @@
+<%@page contentType="text/html"%>
+<%@page pageEncoding="UTF-8"%>
+<%@ page import="qpses.business.ACLInfo,
+                                qpses.business.ACLDataBean,
+                                qpses.business.DeptInfo,
+                                qpses.business.DeptDataBean,
+                                qpses.util.SysManager, 
+                                java.util.List"%>
+<%
+
+    // initialize variable
+    String user_id = "";
+    String dept_id = "";
+    String effective_date ="";
+    String expiry_date ="";
+    String user_role = "";
+    String user_role_name = "";
+    String first_name = "";
+    String last_name = "";
+    String email = "";
+    String password = "";
+    int email_ind = 0;
+
+    ACLInfo acl = new ACLInfo();
+
+    // check  for message and get last input from session variables
+    String msg =   getValue((String)  session.getAttribute("ACL_MSG"));
+    String msgtype =   getValue((String)  session.getAttribute("ACL_MSGTYPE"));
+
+    if (!msg.equals("")){
+        session.removeAttribute("ACL_MSG");
+        session.removeAttribute("ACL_MSGTYPE");
+    }
+
+    acl = (ACLInfo) session.getAttribute("ACL_DATA");
+    if (acl!=null){
+        user_id = acl.getUserId();
+        dept_id = acl.getDeptId();
+        user_role = acl.getUserGroup();
+        user_role_name = acl.getUserGroupName();
+        first_name = acl.getFirstName();
+        last_name = acl.getLastName();
+        email = acl.getEmail();
+        email_ind = acl.getEmailInd();
+
+        if (acl.getEffectiveDate()!=null) effective_date =  SysManager.getStringfromSQLDate(acl.getEffectiveDate());
+        if (acl.getExpiryDate()!=null) expiry_date =  SysManager.getStringfromSQLDate(acl.getExpiryDate());
+
+        session.removeAttribute("ACL_DATA");
+    }
+
+    // Get department list
+    DeptDataBean dpDB = new DeptDataBean();
+    List deptList = dpDB.selectDept();
+
+    /* Get list of expiry date from end date of each assessment period
+    ACLDataBean aclDB = new ACLDataBean();
+    List expiryDateList = aclDB.selectExpiryDate(); */
+
+%>
+<%!private String getValue(String temp){ return (temp == null )? "" : temp;}%>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title>SOA-QPS3 Quality Professional Services Information System Administration - Add User</title>
+        <link rel="STYLESHEET" type="text/css" href="../styles/style.css">
+        <link rel="STYLESHEET" type="text/css" href="../styles/calendar.css">
+        <script language="JavaScript" src="../js/simplecalendar.js" type="text/javascript"></script>                        
+        <script language="JavaScript" src="../js/aclcheck.js" type="text/javascript"></script>                         
+    </head>
+    <body>
+        <%@include file="include/header.jsp"%>
+        <fieldset class="function"> 
+            <table class="function_title"><tr><td>Access Control List Maintenance</td></tr></table>            		        
+            <form name="form1" method="POST" action="">
+                <table border="0" cellspacing="0" cellpadding="0" width="98%" class="tableborder" align="center">
+                    <tr> 
+                        <td width="20%" class="tabUnselectLeft" onclick="changepage('List')">Access 
+                        Control List</td>
+                        <td width="21%" class="tabSelectedMiddle">Add User </td>
+                        <!-- <td width="17%" class="tabUnselectMiddle" onclick="changepage('Import')">Import 
+                        Users </td> -->
+                        <td width="16%" class="tabUnselectRight" onclick="changepage('Search')">Search 
+                        User </td>
+                        <td width="26%">&nbsp;</td>
+                    </tr>                    
+                </table>       
+                <table border="0" cellspacing="0" cellpadding="0" width="98%" class="tableborder" align="center">
+                    <td class="title1"> 
+                        <div align="left">Add User</div>
+                    </td>
+                    </tr>
+                    <tr> 
+                    
+                        <td> <%= (! msg.equals(""))? "<div class=\"errMessage\">"+ msg + "</div>":""%> 
+                            <table width="100%" border="0" cellspacing="0" cellpadding="5">
+                                <tr> 
+                                    <td> 
+                                        <div align="center"> 
+                                            <table  width="98%" cellspacing="1" class="tableBackground">
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">User 
+                                                    ID</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <input type="text" name="UserId" value="<%=user_id%>" size="30" maxlength="30" />
+                                                    </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">First 
+                                                    Name</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <input type="text" name="FirstName" value="<%=first_name%>" size="30" maxlength="30" />
+                                                    </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Last 
+                                                    Name</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <input type="text" name="LastName" value="<%=last_name%>" size="30" maxlength="30" />
+                                                    </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Password</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <input type="password" name="Password" value="" size="30" maxlength="30" />
+                                                    </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Confirm Password</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <input type="password" name="ConfirmPassword" value="" size="30" maxlength="30" />
+                                                    </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Email Address</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <input type="text" name="Email" value="<%=email%>" size="30" maxlength="30" />
+                                                    </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Bureau/Department</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <select name="DeptId">
+                                                            <option value="">Please select Bureau/Department</option>
+                                                            <%      
+                                                                for (int i =0; i<deptList.size(); i++){
+            DeptInfo dept = (DeptInfo) deptList.get(i);
+            out.write("<option ");
+            out.write("value=\""+ dept.getCombinedDeptId()+"\"");
+            if (dept.getCombinedDeptId().equals(dept_id)) out.write(" SELECTED");
+            out.write(">"+dept.getDeptName()+"</option>\n");
+                                                                }
+                                                            %>
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">User role</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <select name="UserRole">
+                                                            <!-- <option value="">Please select user role</option> -->
+                                                            <option value="U"
+                                                            <% if (user_role.equals("U")) out.write(" SELECTED"); %>
+                                                            >User</option>
+                                                            <option value="M"
+                                                            <% if (user_role.equals("M")) out.write(" SELECTED"); %>
+                                                            >Manager</option>
+                                                            <option value="S"
+                                                            <% if (user_role.equals("S")) out.write(" SELECTED"); %>
+                                                            >System Administrator</option>
+                                                            <option value="SP"
+                                                            <% if (user_role.equals("SP")) out.write(" SELECTED"); %>
+                                                            >System Administrator (P)</option>
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Receive System Alert Email?</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%">
+                                        				<input type="radio" name="EmailInd" value="-1" <%= ((email_ind == -1)?"CHECKED":"")%>/>
+                                        				Yes 
+                                        				<input type="radio" name="EmailInd" value="0" <%= ((email_ind == 0)?"CHECKED":"")%> />
+                                        				No </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="19%">Effective 
+                                                    Date</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="81%"> 
+                                                    <input type="text" name="EffectiveDate" value="<%=effective_date%>" class="inputText" size="10"  readonly/>
+                                                    <a href="javascript: void(0);" onMouseOver="if (timeoutId) clearTimeout(timeoutId);window.status='Show Calendar';return true;"  
+                                                    onMouseOut="if (timeoutDelay) calendarTimeout();window.status='';"   
+                                                    onClick="g_Calendar.show(event,'form1.EffectiveDate',true, 'dd-mmm-yyyy');return false"> 
+                                                    <img src="../images/calendar.gif" name="imgCalendar" width="34" height="21" border="0" alt=""></a> 
+                                                    (dd-MMM-yyyy) </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="19%">Expiry 
+                                                    Date </td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="81%"> 
+                                                    <input type="text" name="ExpiryDate" value="<%=expiry_date%>" class="inputText" size="10"  readonly/>
+                                                    <a href="javascript: void(0);" onMouseOver="if (timeoutId) clearTimeout(timeoutId);window.status='Show Calendar';return true;"  
+                                                    onMouseOut="if (timeoutDelay) calendarTimeout();window.status='';"   
+                                                    onClick="g_Calendar.show(event,'form1.ExpiryDate',true, 'dd-mmm-yyyy');return false"> 
+                                                    <img src="../images/calendar.gif" name="imgCalendar" width="34" height="21" border="0" alt=""></a> 
+                                                    (dd-MMM-yyyy) </td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                            <div align="center"></div>
+                            <table border="0" cellpadding="3" align="center">
+                                <tr> 
+                                    <td width="50%">                                        
+                                        <div align="center"><a href="#"> <img src="../images/btn_add.jpg" width="98" height="42" name="ConfirmAdd" onclick="selectaction(form1,this)" border="0" alt="Add"></a></div>
+                                    </td>
+                                    <td width="50%">                                        
+                                        <div align="center"><a href="#"><img src="../images/btn_cancel.jpg" width="98" height="42" name="Cancel" onclick="selectaction(form1,this)" border="0" alt="Cancel"></a></div>
+                                    </td>
+                                </tr>
+                            </table>    
+                        </td>
+                    </tr>
+                </table>
+                <input type="hidden" name="PostScreen" value="ACLList.jsp">                  
+            </form>                
+        </fieldset> 		    			      		
+    </body>
+</html>

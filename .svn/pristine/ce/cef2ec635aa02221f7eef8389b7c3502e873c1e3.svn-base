@@ -1,0 +1,87 @@
+<%@page contentType="text/html"%>
+<%@page pageEncoding="UTF-8"%>
+<%@ page import="qpses.business.ACLInfo,
+                                qpses.business.ACLDataBean,
+                                qpses.security.UserStatus,
+                                java.util.Vector,qpses.util.SysManager"%>
+<%
+    // check  for message and get last input from session variables
+    String msg =   getValue((String)  session.getAttribute("ACL_MSG"));
+    String msgtype =   getValue((String)  session.getAttribute("ACL_MSGTYPE"));
+
+    if (!msg.equals("")){
+        session.removeAttribute("ACL_MSG");
+        session.removeAttribute("ACL_MSGTYPE");
+    }
+
+%>
+<%!private String getValue(String temp){ return (temp == null )? "" : temp;}%>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title>SOA-QPS3 Quality Professional Services Information System - Change Password</title>
+        <link rel="STYLESHEET" type="text/css" href="../styles/style.css">                  
+        <script language="JavaScript" src="../js/changePassword.js" type="text/javascript"></script>                               
+    </head>
+    <body>
+    	<% 
+       		UserStatus uStatus = new UserStatus();
+        	uStatus            = (UserStatus) session.getAttribute("QPSES_USER_STATUS");
+        	if (!uStatus.isForgotPassword()){ %>
+        <%@include file="include/header.jsp"%>
+        <%  }else{ %>
+        <%@include file="include/headerOnly.jsp"%>
+       	<%  } %>
+        <fieldset class="function"> 
+            <table class="function_title"><tr><td>Change Password</td></tr></table>            		        
+            <form name="form1" method="POST" action="">            
+                <table border="0" cellspacing="0" cellpadding="0" width="98%" class="tableNoBorder" align="center">
+                    <tr>
+                        <td> 
+                            <br />
+                        </td>
+                    </tr>
+                    <tr> 
+                        <td> <%= (! msg.equals(""))? "<div class=\"errMessage\">"+ msg + "</div><br>":""%> 
+                        </td>
+                    </tr>
+                    
+                    <% if (! msgtype.equals("MSG")){ %>
+                    <tr><td><p>The password should contain alphabetic and numeric characters, with minimum length of 6 characters.</p><br /></td></tr>
+                    <tr> 
+                        <td> 
+                            <div align="center"> 
+                                <table  width="98%" cellspacing="1" class="tableBackground">
+                                				<tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Old Password</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <input type="password" name="OldPassword" value="" size="30" maxlength="30" />
+                                                    </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">New Password</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <input type="password" name="Password" value="" size="30" maxlength="30" />
+                                                    </td>
+                                                </tr>
+                                                <tr> 
+                                                    <td class="tableVerticalHeaderAlignLeft1" width="25%">Confirm Password</td>
+                                                    <td class="tableVerticalContentAlignLeft1" width="75%"> 
+                                                        <input type="password" name="ConfirmPassword" value="" size="30" maxlength="30" />
+                                                    </td>
+                                                </tr>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    <% } %>
+                </table>
+                <% if (! msgtype.equals("MSG")){ %>
+                <div align="center"><input type="image" src="../images/btn_update.jpg" width="98" height="42" name="ConfirmUpdate" onClick="selectaction(form1,this)" border="0" alt="Update" /></div>
+            	<% }else{ %>
+            	<div align="center"><input type="image" src="../images/btn_OK.jpg" width="98" height="42" name="Cancel" onClick="selectaction(form1,this)" border="0" alt="OK" /></div>
+            	<% } %>
+            </form>    
+        </fieldset> 
+    </body>
+</html>

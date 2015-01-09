@@ -1,0 +1,77 @@
+function validateWA(f) {
+
+       // regular expresssion for checking of empty string
+      reEmpty = new RegExp("[a-zA-Z.0-9]+");
+
+      // check for empty
+
+         if (f.UploadFileName.value.search(reEmpty) < 0){
+            alert("Please input the upload file name!");
+            f.UploadFileName.select();
+            f.UploadFileName.focus();
+            return false;
+        }
+
+/*
+         if (f.UploadFileName.value.search(rePDF) < 0){
+            alert("Invalid file!");
+            f.UploadFileName.select();
+            f.UploadFileName.focus();
+            return false;
+        } 
+*/
+        return true;
+}
+
+function changepage(location){
+    if (location=="List"){
+        window.location = "WorkAssignmentList.jsp";
+        return;
+    }
+    if (location=="Import"){
+        window.location = "WorkAssignmentUpload.jsp";
+        return;
+    }
+    if (location=="Search"){
+        window.location = "WorkAssignmentSearch.jsp";
+        return;
+    }
+}
+
+function selectaction(f,obj){
+    fsubmit=false;    
+    if (obj.name =="Cancel"){
+        f.action="WorkAssignmentList.jsp";
+        fsubmit=true;
+    }
+    if (obj.name  =="Import"){
+        f.action="WorkAssignmentUpload.jsp";
+        fsubmit=true;
+    }
+    if (obj.name  =="ConfirmImport"){
+        f.action="WorkAssignmentUpload.servlet";
+        fsubmit = validateWA(f);
+    }
+    if (obj.name  =="Search"){
+        f.action="WorkAssignmentSearch.servlet";
+        fsubmit = true;
+    }
+    if (obj.name  =="SearchReset"){
+        f.action="WorkAssignmentSearchReset.servlet";
+        fsubmit=true;
+    }
+
+    if (fsubmit) f.submit();
+    return;
+}
+
+function changeorder(f,order,odir){    
+   
+   // f.action=f.name;
+    f.OrderBy.value =order;
+    f.OrderDir.value =odir;
+    f.submit();
+    return;
+}
+
+

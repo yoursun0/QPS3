@@ -1,0 +1,54 @@
+package qpses.servlet;
+
+import static org.junit.Assert.*;
+
+import org.junit.*;
+import org.springframework.mock.web.*;
+
+import qpses.util.SysException;
+
+import java.io.IOException;
+import java.sql.Date;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+public class StaffRateValidationSLUserTest {
+	
+	private MockHttpServletRequest request;
+	private MockHttpServletResponse response;
+	private StaffRateValidationSLUser servlet;
+	
+	@Before
+    public void setUp() {
+		request = new MockHttpServletRequest();
+		response = new MockHttpServletResponse();
+		servlet = new StaffRateValidationSLUser();
+		request.setContextPath("/QPSIS");
+    }
+
+    @After
+    public void tearDown() {
+    	request = null;
+    	response = null;
+    	servlet = null;
+    }
+   
+    /** empty request **/
+    @Test(expected=javax.servlet.ServletException.class)
+    public void testEmpty() throws ServletException, IOException {   
+    	servlet.doGet(request, response);
+    }
+    
+    /** Not yet login **/
+    @Test(expected=javax.servlet.ServletException.class)
+    public void testNotLogin() throws ServletException, IOException { 
+    	request.setServletPath("/qpsuser/StaffRateValidationSLUser");
+    	servlet.doGet(request, response);
+    }
+
+}

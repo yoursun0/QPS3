@@ -1,0 +1,498 @@
+package qpses.business;
+
+import java.io.Serializable;
+import java.sql.Blob;
+import java.sql.Date;
+
+public class WorkAssignmentInfo implements Serializable {
+	
+	private static final long serialVersionUID = 8992702856778115710L;
+	private String serviceCategoryGroup;
+        private String filePart;
+        private int fileNo;
+        private String departmentId;
+        private String departmentName;
+        private String title;
+        private String status;
+        private String debarredContractor;
+        private Date issuedDate;
+        private Date closingDate;
+        private String authorizedPerson;
+        private Blob excelFile;
+        private String excelFileName;
+        private String fileContentType;
+        private String awardedContractor;
+        private Date awardedDate;
+        
+        /** QPS3: Add 3 fields Awarded Contract Value, Aggregated Effort and Total Project Cost for CPAR **/
+        
+        private double awardedContractValue;
+        private double aggregatedEffort;
+        private double totalProjectCost;
+
+        /** QPS3 Timebox2: Add 2 fields Post/Rank and Service Contract Ref. No **/
+        private String postRank;
+        private String serviceContractNo;
+        
+		private long excelFileSize;        
+        private String orgKey1;
+        private String orgKey2;
+        private int orgKey3;
+        private String orgKey4;
+        
+        /** QPS3 Timebox2: Add 2 fields Planned Start Date and Planned Completion Date  **/
+        private Date plannedStartDate;
+        private Date plannedCompletionDate;
+        
+	
+        public void setDepartmentName(String departmentName)
+        { this.departmentName = departmentName; }
+        
+         public String getDepartmentName()
+        { return this.departmentName; }       
+        
+        
+        
+	/**
+     * Constructor for WorkAssignmentInfo.
+     */
+	public WorkAssignmentInfo() {
+		super();
+	}
+
+        /**
+	 * Returns the original Key 1 (Service Category/Group).
+	 * @return String
+	 */
+	public String getOrgKey1() {
+		return orgKey1;
+	}
+        
+        /**
+	 * Returns the original Key 2 (Project File Part No).
+	 * @return String
+	 */
+	public String getOrgKey2() {
+		return orgKey2;
+	}
+        
+        /**
+	 * Returns the original Key 3 (Project File No).
+	 * @return int
+	 */
+	public int getOrgKey3() {
+		return orgKey3;
+	}
+        
+        /**
+	 * Returns the original Key 4 (Department ID).
+	 * @return String
+	 */
+	public String getOrgKey4() {
+		return orgKey4;
+	}
+        
+	
+	/**
+	 * Returns the service category.
+	 * @return String
+	 */
+	public String getServiceCategoryGroup() {
+		return serviceCategoryGroup;
+	}
+        
+        /**
+	 * Returns the project file part no
+	 * @return String
+	 */
+	public String getFilePart() {
+		return filePart;
+	}        
+
+        /**
+	 * Returns the project file no
+	 * @return int
+	 */
+	public int getFileNo() {
+		return fileNo;
+	}        
+        
+        /**
+	 * Returns the department id
+	 * @return String
+	 */
+	public String getDepartmentId() {
+		return departmentId;
+	}        
+                
+        /**
+	 * Returns the work assignment title
+	 * @return String
+	 */
+	public String getTitle() {
+		return title;
+	}        
+                       
+        /**
+	 * Returns the Invitation Issued Date.
+	 * @return Date
+	 */
+	public Date getIssuedDate() {
+		return issuedDate;
+	}
+        
+         /**
+	 * Returns the Invitation closing Date / proposal submission deadline.
+	 * @return Date
+	 */
+	public Date getClosingDate() {
+		return closingDate;
+	}
+
+        /**
+	 * Returns the status.
+	 * @return String
+	 */
+	public String getStatus() {
+		return status;
+	}
+
+        /**
+	 * Returns the debarred contractors.
+	 * @return String
+	 */
+	public String getDebarredContractor() {
+		return debarredContractor;
+	}
+
+        /**
+	 * Returns the authorized person name
+	 * @return String
+	 */
+	public String getAuthorizedPerson() {
+		return authorizedPerson;
+	}
+        
+        
+	/**
+	 * Returns the excel file name.
+	 * @return String
+	 */
+	public String getExcelFileName() {
+		return excelFileName;
+	}
+
+	/**
+	 * Returns the excel file.
+	 * @return Blob
+	 */
+	public Blob getExcelFile() {
+		return excelFile;
+	}
+
+	/**
+	 * Returns the excel File Content Type.
+	 * @return String
+	 */
+	public String getFileContentType() {
+		return fileContentType;
+	}
+
+	/**
+	 * Returns the excel file size.
+	 * @return long
+	 */
+	public long getExcelFileSize() {
+		return excelFileSize;
+	}
+        
+        /**
+	 * Returns the awarded contractor
+	 * @return String
+	 */
+	public String getAwardedContractor() {
+		return awardedContractor;
+	}
+        
+        /**
+	 * Returns the Awarded Date.
+	 * @return Date
+	 */
+	public Date getAwardedDate() {
+		return awardedDate;
+	}
+        
+        /**
+	 * Sets the original key 1 (Service Category)
+	 * @param original Service Category - The original Service Category to set
+	 */
+	public void setOrgKey1(String orgKey1) {
+                this.orgKey1 = orgKey1;		
+	}
+        
+        /**
+	 * Sets the original key 2 (project file part no)
+	 * @param original file part no  - The original file part no to set
+	 */
+	public void setOrgKey2(String orgKey2) {
+                this.orgKey2 = orgKey2;		
+	}
+        
+        /**
+	 * Sets the original key 3 (project file no)
+	 * @param original project file no - The original project file no to set
+	 */
+	public void setOrgKey3(int orgKey3) {
+                this.orgKey3 = orgKey3;		
+	}
+        
+        /**
+	 * Sets the original key 4 (Department id)
+	 * @param original Department ID - The original Department ID to set
+	 */
+	public void setOrgKey4(String orgKey4) {
+                this.orgKey4 = orgKey4;		
+	}
+        
+	
+
+	/**
+	 * Sets the service category.
+	 * @param serviceCategory - The Service Category to set
+	 */
+	public void setServiceCategoryGroup(String serviceCategoryGroup) {
+		this.serviceCategoryGroup = serviceCategoryGroup;
+	}
+
+        /**
+	 * Sets the project file part no
+	 * @param filePart - The project file part no to set
+	 */
+	public void setFilePart(String filePart) {
+		this.filePart = filePart;
+	}
+
+        
+        /**
+	 * Sets the project file no
+	 * @param fileNo - The project file no to set
+	 */
+	public void setFileNo(int fileNo) {
+		this.fileNo = fileNo;
+	}
+        
+         /**
+	 * Sets the Department ID
+	 * @param departmentId - The Department ID to set
+	 */
+	public void setDepartmentId(String departmentId) {
+		this.departmentId = departmentId;
+	}
+        
+        /**
+	 * Sets the status
+	 * @param status - The status to set
+	 */
+	public void setStatus(String status) {
+		this.status = status;
+	}
+        
+        /**
+	 * Sets the title
+	 * @param title - The title to set
+	 */
+	public void setTitle(String title) {
+		this.title = title;
+	}
+        
+        /**
+	 * Sets the Invitation Issued Date.
+	 * @param issuedDate - The Invitation Issued Date to set
+	 */
+	public void setIssuedDate(Date issuedDate) {
+                this.issuedDate = issuedDate;		
+	}
+
+        /**
+	 * Sets the Invitation Closing Date.
+	 * @param closingDate - The Invitation Closing Date to set
+	 */
+	public void setClosingDate(Date closingDate) {
+                this.closingDate = closingDate;		
+	}
+        
+        /**
+	 * Sets the debarred contractors
+	 * @param debarredContractor - The debarred contractors to set
+	 */
+	public void setDebarredContractor(String debarredContractor) {
+		this.debarredContractor = debarredContractor;
+	}
+        
+        /**
+	 * Sets the authorized person name
+	 * @param authorizedPerson - The authorized person to set
+	 */
+	public void setAuthorizedPerson(String authorizedPerson) {
+		this.authorizedPerson = authorizedPerson;
+	}
+       
+ 	/**
+	 * Sets the file name.
+	 * @param excelFileName - The excel file name to set
+	 */
+	public void setExcelFileName(String excelFileName) {
+		this.excelFileName = excelFileName;
+	}
+
+	/**
+	 * Sets the excel file.
+	 * @param excelFile - The excel file to set
+	 */
+	public void setExcelFile(Blob excelFile) {
+		this.excelFile = excelFile;
+	}
+
+	/**
+	 * Sets the excel File Content Type.
+	 * @param fileContentType - The file content type to set
+	 */
+	public void setFileContentType(String fileContentType) {
+		this.fileContentType = fileContentType;
+	}
+
+	/**
+	 * Sets the excel file size.
+	 * @param excelFileSize - The excel file size to set
+	 */
+	public void setExcelFileSize(long excelFileSize) {
+		this.excelFileSize = excelFileSize;
+	}
+
+        /**
+	 * Sets the awarded contractor.
+	 * @param awardedContractor - The name of awarded contractor to set
+	 */
+	public void setAwardedContractor(String awardedContractor) {
+		this.awardedContractor = awardedContractor;
+	}
+        
+         /**
+	 * Sets the Awarded Date.
+	 * @param issuedDate - The Invitation Issued Date to set
+	 */
+	public void setAwardedDate(Date awardedDate) {
+                this.awardedDate = awardedDate;		
+	}
+
+	/**
+	 * Returns the Awarded Contract Value.
+	 * @return double
+	 */
+	
+	public double getAwardedContractValue() {
+		return (awardedContractValue == 0.0)?0.0:Math.round(awardedContractValue*100.0)/100.0;
+	}
+
+    /**
+     * Sets the Awarded Contract Value.
+     * @param awardedContractValue - The Awarded Contract Value to set
+     */
+	public void setAwardedContractValue(double awardedContractValue) {
+		this.awardedContractValue = awardedContractValue;
+	}
+
+	/**
+	 * Returns the Aggregated Effort.
+	 * @return double
+	 */
+	
+	public double getAggregatedEffort() {
+		return (aggregatedEffort == 0.0)?0.0:Math.round(aggregatedEffort*100.0)/100.0;
+	}
+	
+    /**
+     * Sets the Aggregated Effort.
+     * @param aggregatedEffort - The Aggregated Effort to set
+     */
+	
+	public void setAggregatedEffort(double aggregatedEffort) {
+		this.aggregatedEffort = aggregatedEffort;
+	}
+
+	/**
+	 * Returns the Total Project Cost.
+	 * @return double
+	 */
+	
+	public double getTotalProjectCost() {
+		return (totalProjectCost == 0.0)?0.0:Math.round(totalProjectCost*100.0)/100.0;
+	}
+	
+    /**
+     * Sets the Total Project Cost.
+     * @param totalProjectCost - The Total Project Cost to set
+     */
+	
+	public void setTotalProjectCost(double totalProjectCost) {
+		this.totalProjectCost = totalProjectCost;
+	}
+
+	/**
+	 * @return the postRank
+	 */
+	public String getPostRank() {
+		return postRank;
+	}
+
+	/**
+	 * @param postRank the postRank to set
+	 */
+	public void setPostRank(String postRank) {
+		this.postRank = postRank;
+	}
+
+	/**
+	 * @return the serviceContractorNo
+	 */
+	public String getServiceContractNo() {
+		return serviceContractNo;
+	}
+
+	/**
+	 * @param serviceContractorNo the serviceContractorNo to set
+	 */
+	public void setServiceContractNo(String serviceContractNo) {
+		this.serviceContractNo = serviceContractNo;
+	}
+
+	/**
+	 * @return the plannedStartDate
+	 */
+	public Date getPlannedStartDate() {
+		return plannedStartDate;
+	}
+
+	/**
+	 * @param plannedStartDate the plannedStartDate to set
+	 */
+	public void setPlannedStartDate(Date plannedStartDate) {
+		this.plannedStartDate = plannedStartDate;
+	}
+
+	/**
+	 * @return the plannedCompletionDate
+	 */
+	public Date getPlannedCompletionDate() {
+		return plannedCompletionDate;
+	}
+
+	/**
+	 * @param plannedCompletionDate the plannedCompletionDate to set
+	 */
+	public void setPlannedCompletionDate(Date plannedCompletionDate) {
+		this.plannedCompletionDate = plannedCompletionDate;
+	}
+	
+	
+}

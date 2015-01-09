@@ -1,0 +1,313 @@
+/*
+ * AdminCPSServlet.java
+ *
+ * Created on 8th July, 2013
+ */
+
+package qpses.servlet;
+
+import java.io.*;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.sql.Date;
+
+import javax.servlet.*;
+import javax.servlet.http.*;
+
+import org.apache.log4j.Logger;
+
+import qpses.business.ContractorDataBean;
+import qpses.business.ContractorInfo;
+import qpses.business.CPSDataBean;
+import qpses.business.CPSInfo;
+import qpses.business.LogDataBean;
+import qpses.security.SecurityContext;
+import qpses.util.Constant;
+import qpses.util.SysException;
+import qpses.util.SysManager;
+import qpses.util.MSExcelHelper;
+
+@SuppressWarnings("serial")
+public class AdminCPSServlet extends HttpServlet {
+    
+    // log4j
+    static Logger logger = Logger.getLogger(AdminCPSServlet.class.getName());
+    
+    // Get class name
+    static String MyClassName = AdminCPSServlet.class.getName();
+    
+    private static final int BYTES_DOWNLOAD = 1024;
+
+    private static String postScreen = null;
+    private static String requestAction = null;
+    
+    public void doPost(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+    	String myName = "[" + MyClassName + "." + "doPost" + "]";
+        logger.debug(myName + " " + "started");
+        
+        String requestAction = "";
+        
+        try
+        {
+        	requestAction = request.getServletPath();
+            
+            if (requestAction == null) requestAction = "";
+            
+            logger.debug(myName + " " + "Request Action = " + requestAction);
+
+	        if (requestAction.equals("/qpsadmin/CPSSearch.servlet")) {
+	            performCPSSearch(request, response);
+	        } else if (requestAction.equals("/qpsadmin/CPSSearchReset.servlet")) {
+	            performCPSSearchReset(request, response);
+	        } else if (requestAction.equals("/qpsadmin/CPSDownloadReport.servlet")) {
+	            performCPSDownloadReport(request, response);
+	        } else { 
+	        	throw new SysException(myName, "[" + requestAction + "]" + " " + "is not allowed."); }
+	        
+        }
+        catch (Exception ex)
+        { 
+        	String err = myName+ex.getMessage();
+        	logger.error(err,ex);
+        	throw new ServletException(err); 
+        }
+        
+        logger.debug(myName + " " + "ended");
+    }
+    
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        doPost(request, response);
+    }
+     
+    private void performCPSSearch(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException {
+        
+    	String myName = "[" + MyClassName + "." + "performCPSSearch" + "]";
+		logger.debug(myName + " " + "started");
+    	
+        HashMap CPSHashMap = new HashMap();
+                
+        try {        	
+        	String cutOffDateStr = request.getParameter("CutOffDate");
+            Date cutOffDate = ("".equals(cutOffDateStr))? null:SysManager.getSQLDate(cutOffDateStr);
+            
+            List<String> cat = new ArrayList();
+            cat.add("1");
+            cat.add("2/N");
+            cat.add("2/J");
+            cat.add("3/N");
+            cat.add("3/J");
+            cat.add("4");
+            
+            for (int i = 0; i < cat.size(); i++ ){
+            	CPSHashMap.put("CPS"+cat.get(i), getCPSContent(cat.get(i), cutOffDateStr));
+            }
+            
+            CPSHashMap.put("CUTOFFDATE",cutOffDate);
+            request.getSession().setAttribute("CPS_PARAMETER",CPSHashMap);
+            request.getSession().setAttribute("CPS_REPORT_PARAMETER",CPSHashMap);
+            
+    		SecurityContext secCtx = (SecurityContext)(request.getSession().getAttribute("QPSES_SECURITY_CONTEXT"));
+    		LogDataBean logDB = new LogDataBean();
+    		logDB.insertAdminLog(secCtx.getUserId(), secCtx.getDPDeptId(), secCtx.getSOADeptId(), "generate_cps", "GENERATECPS", cutOffDateStr, "Generate CPS Scores");
+            
+            postScreen = "CPSGenerate.jsp";
+            response.sendRedirect(postScreen);
+            
+        }catch(Exception ex){
+        	String err = "Servlet Error: AdminCPSServlet:performCPSSearch\n" + ex.toString();
+        	logger.error(err,ex);
+            throw new ServletException(err);
+        }
+        
+        logger.debug(myName + " " + "ended");
+        return;
+    }
+    
+    private void performCPSSearchReset(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException {
+        
+    	String myName = "[" + MyClassName + "." + "performCPSSearchReset" + "]";
+		logger.debug(myName + " " + "started");
+    	
+        try{
+            request.getSession().removeAttribute("CPS_PARAMETER");
+            request.getSession().removeAttribute("CPS_REPORT_PARAMETER");
+            postScreen = request.getHeader("referer");
+            response.sendRedirect(postScreen);
+        }catch(Exception ex){
+        	logger.error(ex);
+            throw new ServletException("Servlet Error:  AdminCPSServlet:performCPSSearchReset\n" + ex.toString());
+        }
+        
+        logger.debug(myName + " " + "ended");
+        return;
+    }
+    
+    private void performCPSDownloadReport(HttpServletRequest request, HttpServletResponse response) 
+			throws ServletException {
+
+		String myName = "[" + MyClassName + "." + "performCPSDownloadReport" + "]";
+		logger.debug(myName + " " + "started");
+
+		try {
+			String currentDateStr = SysManager.getCurDateTimeStr("dd-MMM-yyyy");
+			String title = "SOA-QPS3 Contractor Performance Score calculated as of ";
+			String generateReportDate = "Report Generation Date: " + currentDateStr;
+
+			HashMap searchParaHashMap = (HashMap) request.getSession().getAttribute("CPS_REPORT_PARAMETER");
+
+			LinkedList<CPSInfo> cpsCats = new LinkedList<CPSInfo>();
+
+			if (searchParaHashMap != null) {
+
+				Date cutOffDate = (Date) searchParaHashMap.get("CUTOFFDATE");
+				if (cutOffDate == null) {
+					title = title + currentDateStr;
+				} else {
+					title = title + SysManager.getStringfromSQLDate(cutOffDate);
+				}
+
+				cpsCats.add((CPSInfo) searchParaHashMap.get("CPS1"));
+				cpsCats.add((CPSInfo) searchParaHashMap.get("CPS2/N"));
+				cpsCats.add((CPSInfo) searchParaHashMap.get("CPS2/J"));
+				cpsCats.add((CPSInfo) searchParaHashMap.get("CPS3/N"));
+				cpsCats.add((CPSInfo) searchParaHashMap.get("CPS3/J"));
+				cpsCats.add((CPSInfo) searchParaHashMap.get("CPS4"));
+
+			}
+
+			URL getDirectoryPath = Thread.currentThread().getContextClassLoader().getResource("");
+			String directoryPath = "/" + getDirectoryPath.toString().replace("file:/", "") + "qpses/util/";
+			String serverInputFilePath = directoryPath + Constant.CPS_TEMPLATE_NAME;
+			String serverOutputFilePath = directoryPath + "ExportGenerateCPS.xls";
+			String serverOutputFileRelativePath = "/WEB-INF/classes/qpses/util/ExportGenerateCPS.xls";
+			String clientOutputFileName = "GenerateCPS.xls";
+
+			MSExcelHelper msxlsHelper = new MSExcelHelper(serverInputFilePath, serverOutputFilePath);
+
+			msxlsHelper.setExcelValue(1, 2, 2, title, 0);
+			msxlsHelper.setExcelValue(1, 3, 2, generateReportDate, 0);
+
+			for (CPSInfo cat : cpsCats) {
+				String catGroup = cat.getServiceCategoryGroup();
+				int startRow = 0;
+
+				if ("1".equals(catGroup)) {
+					startRow = Constant.CPS_EXCEL_CAT_1_START_ROW;
+				} else if ("2/N".equals(catGroup)) {
+					startRow = Constant.CPS_EXCEL_CAT_2N_START_ROW;
+				} else if ("2/J".equals(catGroup)) {
+					startRow = Constant.CPS_EXCEL_CAT_2J_START_ROW;
+				} else if ("3/N".equals(catGroup)) {
+					startRow = Constant.CPS_EXCEL_CAT_3N_START_ROW;
+				} else if ("3/J".equals(catGroup)) {
+					startRow = Constant.CPS_EXCEL_CAT_3J_START_ROW;
+				} else if ("4".equals(catGroup)) {
+					startRow = Constant.CPS_EXCEL_CAT_4_START_ROW;
+				}
+
+				for (int i = 0; i < cat.getContractorIds().size(); i++) {
+					msxlsHelper.setExcelValue(1, startRow + i, Constant.CPS_EXCEL_CONTRACTOR_ID_COLUMN, cat.getContractorIds().get(i), 0);
+					msxlsHelper.setExcelValue(1, startRow + i, Constant.CPS_EXCEL_CONTRACTOR_NAME_COLUMN, cat.getContractorNames().get(i), 0);
+					msxlsHelper.setExcelValue(1, startRow + i, Constant.CPS_EXCEL_SCORE_COLUMN, cat.getScores().get(i), 0);
+				}
+
+			}
+
+			msxlsHelper.process();
+			// System.out.println(msxlsHelper.getHtmlText());
+
+			response.setContentType("application/vnd.ms-excel");
+			response.setHeader("Content-Disposition", "attachment;filename=\""+ clientOutputFileName + "\"");
+			ServletContext ctx = getServletContext();
+			InputStream is = ctx.getResourceAsStream(serverOutputFileRelativePath);
+
+			try {
+
+				logger.debug("Start Download...");
+				int read = 0;
+				byte[] bytes = new byte[BYTES_DOWNLOAD];
+				OutputStream os = response.getOutputStream();
+
+				while ((read = is.read(bytes)) != -1) {
+					os.write(bytes, 0, read);
+				}
+				os.flush();
+				os.close();
+				logger.debug("Download End.");
+			} catch (Exception ex) {
+				logger.error(ex);
+				throw new ServletException("Servlet Error:  AdminCPSServlet:performCPSDownloadReport \nDownload Error\n" + ex.toString());
+			}
+
+			// Clear Memory and delete output file
+			msxlsHelper.close();
+			// postScreen = request.getHeader("referer");
+			// response.sendRedirect(postScreen);
+		} catch (Exception ex) {
+			logger.error(ex);
+			throw new ServletException("Servlet Error:  AdminCPSServlet:performCPSDownloadReport\n" + ex.toString());
+		}
+
+		logger.debug(myName + " " + "ended");
+		return;
+	}
+    
+    
+    private CPSInfo getCPSContent(String cat, String cutOffDateStr) throws ServletException{
+    	
+    	String myName = "[" + MyClassName + "." + "getCPSContent" + "]";
+		logger.debug(myName + " " + "started");
+		
+    	CPSInfo cps = new CPSInfo();
+    	Date cutOffDate = null;
+    	
+    	List<String> contractorIds = new ArrayList<String>();
+    	List<String> contractorNames = new ArrayList<String>();
+    	List<String> contractorScores = new ArrayList<String>();
+    	  
+    	try {
+    		
+    		if ( "".equals(cutOffDateStr)){
+            	cutOffDate = SysManager.getSQLDate(SysManager.getCurDateTimeStr("dd-MMM-yyyy"));
+            } else {
+            	cutOffDate = SysManager.getSQLDate(cutOffDateStr);
+            }
+    		
+			CPSDataBean cpsDB = new CPSDataBean();
+			ContractorDataBean contractorDB = new ContractorDataBean();
+			List<ContractorInfo> cpsContractors= contractorDB.selectContractorByCatgp(cat);
+			
+			String cpsAverageScore = cpsDB.genCPSAverageScorePerCat(cat, cutOffDate);
+			
+			for (ContractorInfo contractor : cpsContractors){
+				String contractorId = contractor.getContractorId();
+				String contractorName = contractor.getContractorName();
+				String score = cpsDB.genCPSScore(contractorId, cat, cutOffDate, cpsAverageScore);
+				contractorIds.add(contractorId);
+				contractorNames.add(contractorName);
+				contractorScores.add(score);
+			}
+			
+			cps.setServiceCategoryGroup(cat);
+			cps.setContractorIds(contractorIds);
+			cps.setContractorNames(contractorNames);
+			cps.setScores(contractorScores);
+			
+		} catch(Exception ex){
+        	logger.error(ex);
+            throw new ServletException("Servlet Error: AdminCPSServlet:getCPSContent\n" + ex.toString());
+		}
+    	
+    	logger.debug(myName + " " + "ended");
+		return cps;
+    	
+    }
+    
+}

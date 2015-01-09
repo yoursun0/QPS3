@@ -1,0 +1,181 @@
+package qpses.security;
+
+/**
+ * SecurityServletTest.java
+ * @author Helic Leung
+ * @version 1.0
+ */
+
+import static org.easymock.EasyMock.*;
+import static org.junit.Assert.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.easymock.EasyMock;
+import org.easymock.IAnswer;
+import org.easymock.IMocksControl;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
+import qpses.util.Constant;
+import qpses.util.SysException;
+import qpses.util.SysManager;
+
+class TestLoginForSecurityServlet extends SecurityServlet {
+
+	protected SecurityDataBean secDB; 
+	protected SecurityContext secCtx;
+	protected UserStatus uStatus;
+	protected List pvgList;
+	
+	@Override
+	public String getInitParameter(String str){
+		return "qpsuser/SystemNotices.jsp";
+	}
+	
+    @Override
+	public SecurityDataBean getSecurityDataBean() throws SysException{
+    	try {
+    		// Pass a Mock DataBean
+    		secDB = createMock(SecurityDataBean.class);
+    		secCtx = new SecurityContext();
+    		uStatus = new UserStatus();
+    		uStatus.activeInd = -1;
+    		uStatus.passwordInd = -1;
+    		uStatus.expiryDate = SysManager.getSQLDate(Constant.QPSIS_EXPIRY_DATE);
+    		secCtx.userGroup = "U";
+    		
+    		pvgList = new ArrayList();
+    		pvgList.add("user");
+    		
+    		expect(secDB.selectSecCTX("henry.ogcio")).andReturn(secCtx);
+    		expect(secDB.getUserStatus(secCtx,"password1")).andReturn(uStatus);
+    		secDB.writeAccessLog(uStatus,secCtx);
+    		secDB.updateLastAccessAttempt(secCtx);
+            secDB.resetFailureCount(secCtx,"Login");
+            expect(secDB.createAccessPrivileges(secCtx)).andReturn(pvgList);
+            expect(secDB.getAccessibleFunction("U")).andReturn("Login");
+            
+			replay(secDB);
+
+		} catch (SecurityException e) {
+			throw new SysException(e.getMessage());
+		}
+        return secDB;
+    }
+}
+
+class TestLogoutForSecurityServlet extends SecurityServlet {
+
+	private SecurityDataBean secDB; 
+	
+    @Override
+	public SecurityDataBean getSecurityDataBean() throws SysException{
+    	try {
+    		// Pass a Mock DataBean
+    		secDB = createMock(SecurityDataBean.class);
+    		secDB.updateSystemOut(isA(SecurityContext.class));
+			replay(secDB);
+		} catch (SecurityException e) {
+			throw new SysException(e.getMessage());
+		}
+        return secDB;
+    }
+}
+
+public class SecurityServletTest {
+
+    private SecurityServlet servlet;
+    private IMocksControl control;
+    private HttpServletRequest request;
+    private HttpServletResponse response;
+    private RequestDispatcher dispatcher;
+    private SecurityDataBean secDB;
+    private SecurityContext secCtx;
+    private HttpSession session;
+    private UserStatus uStatus;
+
+    @Before
+    public void setup() {
+    	control = createControl();
+        request = control.createMock(HttpServletRequest.class);
+        response = control.createMock(HttpServletResponse.class);
+        dispatcher = control.createMock(RequestDispatcher.class);
+        secDB = control.createMock(SecurityDataBean.class);
+        session = control.createMock(HttpSession.class);
+        uStatus = new UserStatus();
+        secCtx = new SecurityContext();
+    }
+
+    @After
+    public void tearDown() {
+    	servlet = null;
+    	control = null;
+    	request = null;
+    	response = null;
+    	dispatcher = null; 
+    	secDB = null;
+    	secCtx = null;
+    	session = null;
+    }
+    
+    @Test
+    public void testLogoutSuccess() throws Throwable {
+    	
+    	servlet = new TestLogoutForSecurityServlet();
+        expect(request.getServletPath()).andReturn(SecurityServlet.UserBaseUrl + "/SystemOut.servlet");
+        expect(request.getSession()).andReturn(session).times(5);
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx);
+        // expect(request.getRequestDispatcher("../logout.jsp")).andReturn(dispatcher);
+        response.sendRedirect("../logout.jsp");
+        session.removeAttribute(isA(String.class));
+        expectLastCall().times(2);
+        session.setAttribute(isA(String.class),isA(String.class));
+        session.invalidate();
+        control.replay();
+    	
+        servlet.doPost(request, response);
+        verify(secDB);
+    }
+    
+    @Test(expected=javax.servlet.ServletException.class)
+    public void testLogoutFail() throws Throwable {
+    	
+    	servlet = new SecurityServlet();
+        expect(request.getServletPath()).andReturn(SecurityServlet.AdminBaseUrl + "/SystemOut.servlet");
+        expect(request.getSession()).andReturn(session).times(5);
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx);
+        control.replay();
+    	
+        servlet.doPost(request, response);
+        verify(secDB);
+    }
+    
+    @Test
+    public void testLoginSuccess() throws Throwable {
+    	
+    	servlet = new TestLoginForSecurityServlet();
+        expect(request.getServletPath()).andReturn("/QPSESEntry");
+        expect(request.getParameter("UserId")).andReturn("henry.ogcio").times(2);
+        expect(request.getParameter("Password")).andReturn("password1").times(2);
+        expect(request.getSession()).andReturn(session).times(1,10);
+        expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx).times(1,10);
+        session.removeAttribute(isA(String.class));
+        expectLastCall().times(1,10);
+        session.setAttribute(contains("QPSES_SECURITY_CONTEXT"), isA(SecurityContext.class));
+        session.setAttribute(contains("QPSES_USER_STATUS"), isA(UserStatus.class));
+        response.sendRedirect("qpsuser/SystemNotices.jsp");
+        control.replay();
+    	
+        servlet.doPost(request, response);
+        verify(secDB);
+    }
+    
+}

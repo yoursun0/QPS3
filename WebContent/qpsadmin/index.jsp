@@ -1,0 +1,137 @@
+<%@page contentType="text/html"%>
+<%@page pageEncoding="UTF-8"%>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <link rel="STYLESHEET" type="text/css" href="../styles/style.css">
+        <script language="JavaScript" src="../js/nw.js" type="text/javascript"></script>          
+        <title>SOA-QPS3 Quality Professional Services Information System Administration</title>                                      
+    </head>
+    <body class="defaultfont">
+        <%@include file="include/header.jsp"%>
+        <fieldset class="function"> 
+            <table class="function_title">
+                <tr> 
+                    <td>Main Menu</td>
+                </tr>
+            </table>
+            
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr> 
+    <td>&nbsp;</td>
+  </tr>
+  <% if (secCtx.isPrivilegedFunction("WAMAINT") ||
+                            secCtx.isPrivilegedFunction("ACRMAINT") ||
+                            secCtx.isPrivilegedFunction("CRMAINT") ||
+                            secCtx.isPrivilegedFunction("QSMAINT")
+                            ){ %>
+  <tr> 
+    <td> <fieldset class="sub_function"> <legend class="function">Data Maintenance</legend> 
+      <ul>
+        <% if (secCtx.isPrivilegedFunction("WAMAINT")){ %>
+        <li><a class="header_menu" href="WorkAssignmentList.jsp">Work Assignment</a></li>
+        <%}%>
+        <% if (secCtx.isPrivilegedFunction("ACRMAINT")){ %>
+        <li><a class="header_menu" href="AvgCeilingRateList.jsp">Average Ceiling 
+          Rate</a></li>
+        <%}%>
+        <% if (secCtx.isPrivilegedFunction("CRMAINT")){ %>
+        <li><a class="header_menu" href="CeilingRateList.jsp">Ceiling Rate</a></li>
+        <%}%>
+        <% if (secCtx.isPrivilegedFunction("QSMAINT")){ %>
+        <li><a class="header_menu" href="CPSList.jsp">Contractor Performance Score</a></li>
+        <%}%>
+        <% if (secCtx.isPrivilegedFunction("DEBAR")){ %>
+        <li><a class="header_menu" href="DebarList.jsp">Contractor Debarment</a></li>
+        <%}%>
+      </ul>
+      </fieldset> </td>
+  </tr>
+  <%}%>
+  
+  <% if (secCtx.isPrivilegedFunction("ACPAR")){ %>
+  <tr> 
+    <td> <fieldset class="sub_function"> <legend class="function">CPAR Maintenance</legend> 
+      <ul>
+        <li><a class="header_menu" href="CPARAdmin">Update CPAR</a></li>
+        <li><a class="header_menu" href="CPSGenerate.jsp">Generate CPS</a></li>
+        <li><a class="header_menu" href="CPAROutstandingList.servlet">CPARs Outstanding List</a></li>
+        <li><a class="header_menu" href="CPARRecordDownload.jsp">Search CPARs</a></li>
+      </ul>
+      </fieldset> </td>
+  </tr>
+  <%}%>
+  
+  <% if (secCtx.isPrivilegedFunction("STAT")){ %>
+  <tr> 
+    <td> <fieldset class="sub_function"> <legend class="function">Statistics Report</legend> 
+      <ul>
+        <li><a class="header_menu" href="StatSearch.servlet">View Key Statistics Reports</a></li>
+      </ul>
+      </fieldset> </td>
+  </tr>
+  <%}%>
+  
+  <% if (secCtx.isPrivilegedFunction("ACLMAINT")){ %>
+  <tr> 
+    <td><fieldset class="sub_function"> <legend class="function">Access Control</legend> 
+      <ul>
+        <li><a class="header_menu" href="ACLList.jsp">Access Control List Maintenance</a></li>
+        <li><a class="header_menu" href="ACLUnlockUser.jsp">Unlock Users</a></li>
+        <li><a class="header_menu" href="ACLEnableUser.jsp">Enable Users</a></li>
+      </ul>
+      </fieldset> </td>
+  </tr>
+    <%}%>
+  <tr>
+    <td><fieldset class="sub_function"> <legend class="function">Logs</legend> 
+      <ul>
+        <li><a class="header_menu" href="ACLogEnquiry.jsp">Access 
+          Log</a></li>
+        <li><a class="header_menu" href="UserLogEnquiry.jsp">User 
+          Activities Log </a></li>
+        <li><a class="header_menu" href="SRVLogEnquiry.jsp">Staff 
+          Rate Validation Log</a></li>
+        <li><a class="header_menu" href="AdminLogEnquiry.jsp">Administrator 
+          Activities Log</a></li>
+      </ul>
+      </fieldset></td>
+  </tr>  
+  <% if (secCtx.isPrivilegedFunction("REPORT")){ %>
+  <tr> 
+    <td> <fieldset class="sub_function"> <legend class="function">Reports</legend> 
+      <ul>
+        <li><a class="header_menu" href="javascript:new_window('InactiveUsersReport.servlet')">Inactive 
+          Users</a></li>
+        <li><a class="header_menu" href="javascript:new_window('ReportSLAdmin.getExcessWaAccess')">Excessive 
+          Work Assignment access</a></li>
+        <li><a class="header_menu" href="javascript:new_window('ReportSLAdmin.getWaAccessMTOneUser')">Work 
+          Assignment accessed by more than 1 users</a></li>
+      </ul>
+      </fieldset> </td>
+  </tr>
+  <%}%>
+  <% if (secCtx.isPrivilegedFunction("SYSCMAINT")){ %>
+  <tr> 
+    <td> <fieldset class="sub_function"> <legend class="function">System Code 
+      Maintenance</legend> 
+      <ul>
+        <li><a class="header_menu" href="ContractorList.jsp">Contractor</a></li>
+        <li><a class="header_menu" href="DeptList.jsp">Department Code</a></li>
+      </ul>
+      </fieldset> </td>
+  </tr>
+  <%}%>
+    <% if (secCtx.isPrivilegedFunction("SWITCHUSER")){ %>
+  <tr> 
+    <td> 
+      <ul>
+        <li><a class="header_menu" href="SwitchUser.jsp">Switch to User Interface</a></li>
+      </ul>
+    </td>
+  </tr>
+  <%}%>
+</table>
+        </fieldset> 
+    </body>
+</html>

@@ -1,0 +1,49 @@
+USE QPSIS;
+
+DROP PROCEDURE IF EXISTS `sp_select_cps_score`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_select_cps_score`(
+ IN p_service_category_group varchar(3),
+ IN p_contractor_id varchar(20),
+ IN p_end_date Date)
+BEGIN
+   SELECT score from cpar 
+	JOIN work_assignment as wa
+		On cpar.service_category_group = wa.service_category_group 
+			AND cpar.project_file_part = wa.project_file_part
+			AND cpar.project_file_no = wa.project_file_no
+			AND cpar.department_id = wa.department_id
+			AND wa.service_category_group = p_service_category_group
+			AND wa.awarded_contractor = p_contractor_id
+	WHERE finalized = "r" 
+		AND end_date <= p_end_date ;
+
+END $$
+
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS `sp_count_cps_per_cat`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_count_cps_per_cat`(
+ IN p_service_category_group varchar(3),
+ IN p_end_date Date)
+BEGIN
+   SELECT score FROM cpar 
+	JOIN work_assignment as wa
+		On cpar.service_category_group = wa.service_category_group 
+			AND cpar.project_file_part = wa.project_file_part
+			AND cpar.project_file_no = wa.project_file_no
+			AND cpar.department_id = wa.department_id
+			AND wa.service_category_group = p_service_category_group
+	WHERE finalized = "r" 
+		AND end_date <= p_end_date ;
+
+END $$
+
+DELIMITER ;
+
+
+COMMIT;
+

@@ -1,0 +1,291 @@
+/*
+ * DeptDataBean.java
+ */
+
+package qpses.business;
+
+
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Vector;
+import org.apache.log4j.Logger;
+import qpses.security.SecurityContext;
+import qpses.util.SysException;
+import qpses.util.DataBean;
+
+
+public class DeptDataBean extends DataBean {
+    
+    
+    // log4j
+    static Logger logger = Logger.getLogger(DeptDataBean.class.getName());
+    
+    private static final String SEARCH_DEPT =
+            "{Call sp_search_dept(?,?,?,?,?)}";  // 3 parameters
+    private static final String SELECT_DEPT =
+            "{Call sp_select_dept(?,?)}";
+    private static final String SELECT_DEPT_BY_KEYS =
+            "{Call sp_select_dept_by_keys(?,?)}";
+    private static final String INSERT_DEPARTMENT =
+            "{Call sp_insert_department(?,?,?,?,?,?,?)}"; // 7 parameters
+    private static final String UPDATE_DEPARTMENT  =
+            "{Call sp_update_department(?,?,?,?,?,?,?,?,?)}"; // 9 parameters
+    private static final String DELETE_DEPARTMENT  =
+            "{Call sp_delete_department(?,?,?,?,?,?)}"; // 6 parameters
+    
+    
+    
+    ResultSet rs = null;
+    
+    /**
+     * Constructor for DeptDataBean
+     */
+    public DeptDataBean() throws SysException {
+        super("ADMIN");
+    }
+    
+    
+    public Vector<DeptInfo> selectDept() throws SysException {
+    	
+        return selectDept("","");
+        
+    }
+    
+    public Vector<DeptInfo> selectDept(String order_by, String order_dir) throws SysException {
+        
+        Vector<DeptInfo> allDeptVector = new Vector<DeptInfo>();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_DEPT);
+            cs.setString("p_order_by",order_by);
+            cs.setString("p_order_dir",order_dir);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                DeptInfo dept = new DeptInfo();
+                dept.setDPDeptId(rs.getString("dp_department_id"));
+                dept.setSOADeptId(rs.getString("soa_department_id"));
+                dept.setDeptName(rs.getString("bd_name"));
+                allDeptVector.add(dept);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: DeptDataBean:selectDept\n"
+                    + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allDeptVector;
+        
+    }
+    
+    public DeptInfo selectDeptByKeys(String dp_id, String soa_id) throws SysException {
+        
+        DeptInfo dept = new DeptInfo();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_DEPT_BY_KEYS);
+            cs.setString("p_dp_id",dp_id);
+            cs.setString("p_soa_id",soa_id);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                dept.setDPDeptId(rs.getString("dp_department_id"));
+                dept.setSOADeptId(rs.getString("soa_department_id"));
+                dept.setDeptName(rs.getString("bd_name"));
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: DeptDataBean:selectDeptByKeys\n"
+                    + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return dept;
+        
+    }
+    
+    public Vector<DeptInfo> searchDept(DeptInfo searchDept,String order_by, String order_dir) throws SysException {
+        
+        Vector<DeptInfo> DeptVector = new Vector<DeptInfo>();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SEARCH_DEPT);
+            
+            cs.setString("p_dp_dept_id",searchDept.getDPDeptId());
+            cs.setString("p_soa_dept_id",searchDept.getSOADeptId());
+            cs.setString("p_dept_name",searchDept.getDeptName());
+            cs.setString("p_order_by",order_by);
+            cs.setString("p_order_dir",order_dir);            
+            // execute
+            rs = cs.executeQuery();
+            
+            // get data and put into Vector
+            while (rs.next()) {
+                DeptInfo dept = new DeptInfo();
+                dept.setDPDeptId(rs.getString("dp_department_id"));
+                dept.setSOADeptId(rs.getString("soa_department_id"));
+                dept.setDeptName(rs.getString("bd_name"));
+                DeptVector.add(dept);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: DeptDataBean:searchDept\n"
+                    + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return DeptVector;
+        
+    }
+    
+    public int insertDept(DeptInfo dept, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(INSERT_DEPARTMENT);
+            // get information from info object
+            cs.setString("p_dp_dept_id",dept.getDPDeptId());
+            cs.setString("p_soa_dept_id",dept.getSOADeptId());
+            cs.setString("p_dept_name",dept.getDeptName());
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_admin_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_admin_soa_dept_id",secCtx.getSOADeptId());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            
+            //execute
+            result =cs.executeUpdate();
+            returnCode =cs.getInt("return_code");
+            
+            // check execution result
+            String msg1 = "DP Dept ID: "+dept.getDPDeptId() + "; SOA-QPS Dept ID: "+dept.getSOADeptId() + "; Department Name: " + dept.getDeptName()+";";
+            String msg2 = "No record was inserted! <BR>"+
+                    		"DP Dept ID: "+dept.getDPDeptId() + "; SOA-QPS Dept ID: "+dept.getSOADeptId() + "; Department Name: " + dept.getDeptName()+";";
+            commitResult(returnCode, result, msg1, msg2);
+            
+            return returnCode;
+        } catch (SQLException ex0) {
+            String err = "SQL Error: DeptDataBean:insertDept \n" +"SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            logger.error(err,ex0);
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: DeptDataBean:insertDept.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    public int updateDept(DeptInfo dept, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode =0;
+        
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(UPDATE_DEPARTMENT);
+            // get information from info object
+            cs.setString("p_dp_dept_id",dept.getDPDeptId());
+            cs.setString("p_soa_dept_id",dept.getSOADeptId());
+            cs.setString("p_dept_name",dept.getDeptName());
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_admin_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_admin_soa_dept_id",secCtx.getSOADeptId());
+            cs.setString("p_key1",dept.getOrgKey1());
+            cs.setString("p_key2",dept.getOrgKey2());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            
+            // execute
+            result=cs.executeUpdate();
+            returnCode = cs.getInt("return_code");
+            
+            // check execution result
+            String msg1 = "DP Dept ID: "+dept.getDPDeptId() + "; SOA-QPS Dept ID: "+dept.getSOADeptId() + "; Department Name: " + dept.getDeptName()+";";
+            String msg2 = "No record was updated! <BR>"+
+                    		"DP Dept ID: "+dept.getDPDeptId() + "; SOA-QPS Dept ID: "+dept.getSOADeptId() + "; Department Name: " + dept.getDeptName()+";";
+            commitResult(returnCode, result, msg1, msg2);
+            
+            return returnCode;
+            
+        } catch (SQLException ex0) {
+            String err = "SQL Error: DeptDataBean:updateDept\n" +"SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            logger.error(err,ex0);
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: DeptDataBean:updateDept.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    public int deleteDept(DeptInfo dept, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(DELETE_DEPARTMENT);
+            // get information from info object
+            cs.setString("p_dp_dept_id",dept.getOrgKey1());
+            cs.setString("p_soa_dept_id",dept.getOrgKey2());
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_admin_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_admin_soa_dept_id",secCtx.getSOADeptId());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            
+            // execute
+            result = cs.executeUpdate();
+            returnCode = cs.getInt("return_code");
+            
+            // check execution result
+            String msg1 = "DP Dept ID: "+dept.getDPDeptId() + "; SOA-QPS Dept ID: "+dept.getSOADeptId() + "; Department Name: " + dept.getDeptName()+";";
+            String msg2 = "No record was deleted! <BR>"+
+                    		"DP Dept ID: "+dept.getDPDeptId() + "; SOA-QPS Dept ID: "+dept.getSOADeptId() + "; Department Name: " + dept.getDeptName()+";";
+            commitResult(returnCode, result, msg1, msg2);
+            
+            return returnCode;
+            
+        } catch (SQLException ex0) {
+            String err = "SQL Error: DeptDataBean:deleteDept\n"  +"SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            logger.error(err,ex0);
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: DeptDataBean:deleteDept.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    
+}

@@ -1,0 +1,834 @@
+/*
+ * ACLDataBean.java
+ */
+
+package qpses.business;
+
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Vector;
+import org.apache.log4j.Logger;
+import qpses.security.SecurityContext;
+import qpses.util.DataBean;
+import qpses.util.SysException;
+import qpses.util.SysManager;
+
+public class ACLDataBean extends DataBean {
+    
+    
+    // log4j
+    static Logger logger = Logger.getLogger(ACLDataBean.class.getName());
+    
+    private static final String SEARCH_ACL =
+            "{Call sp_search_acl(?,?,?,?,?,?,?,?)}";  // 8 parameters
+    private static final String SELECT_ACL =
+            "{Call sp_select_acl(?,?)}";
+    private static final String SELECT_ACL_BY_KEYS =
+            "{Call sp_select_acl_by_keys(?,?,?,?)}";
+    private static final String SELECT_INACTIVE_USERS =
+            "{Call sp_select_inactive_users()}";
+    private static final String SELECT_LOCKED_USERS =
+            "{Call sp_select_locked_users(?,?)}";
+    private static final String SELECT_EXPIRY_DATE =
+            "{Call sp_select_expiry_date()}";
+    private static final String SELECT_ASSIGNED_EXPIRY_DATE =
+            "{Call sp_select_assigned_expiry_date()}";
+    private static final String INSERT_ACL =
+            "{Call sp_insert_acl(?,?,?,?,?,?,?,?,?,?,?,?,?,?)}"; // 14 parameters
+    private static final String UPDATE_ACL =
+            "{Call sp_update_acl(?,?,?,?,?,?,?,?,?,?,?)}"; // 11 parameters
+    private static final String DELETE_ACL =
+            "{Call sp_delete_acl(?,?,?,?,?,?,?)}";
+    private static final String UNLOCK_USER =
+            "{Call sp_unlock_user(?,?,?,?,?,?,?)}";
+    private static final String CREATE_TEMP_ACL =
+            "{Call sp_create_temp_acl(?)}";
+    private static final String REPLACE_ACL =
+            "{Call sp_replace_acl(?,?,?,?,?,?,?,?,?)}"; // 9 parameters
+    private static final String REPLACE_TEMP_ACL =
+            "{Call sp_replace_temp_acl(?)}";
+    private static final String DELETE_TEMP_ACL =
+            "{Call sp_delete_temp_acl()}";
+    private static final String WRITE_AUDIT_TRAIL =
+            "{Call sp_write_acl_audit_trail(?,?,?,?,?,?)}";
+    private static final String INSERT_UNLOCK_LOG =
+            "{Call sp_insert_unlock_log(?,?,?,?,?)}";
+    
+    
+    ResultSet rs = null;
+    
+    /**
+     * Constructor for ACLDataBean
+     */
+    public ACLDataBean() throws SysException{
+        super("ADMIN");
+    }
+    
+    public Vector selectInactiveUsers() throws SysException {
+        Vector inactiveUsers = new Vector();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_INACTIVE_USERS);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                ACLInfo acl = new ACLInfo();
+                acl.setUserId(rs.getString("user_id"));
+                acl.setUserGroup(rs.getString("user_group"));
+                acl.setDPDeptId(rs.getString("dp_department_id"));
+                acl.setSOADeptId(rs.getString("soa_department_id"));
+                acl.setDeptName(rs.getString("bd_name"));
+                acl.setActiveInd(rs.getInt("active_indicator"));
+                acl.setEffectiveDate(rs.getDate("effective_date"));
+                acl.setExpiryDate(rs.getDate("expiry_date"));
+                inactiveUsers.add(acl);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: ACLDataBean:selectInactiveUsers\n"
+                    + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return inactiveUsers;
+        
+    }
+    
+    public Vector selectLockedUsers(String order_by, String order_dir) throws SysException {
+        Vector lockedUsers = new Vector();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_LOCKED_USERS);
+            cs.setString("p_order_by",order_by);
+            cs.setString("p_order_dir",order_dir);                                    
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                ACLInfo acl = new ACLInfo();
+                acl.setUserId(rs.getString("user_id"));
+                acl.setUserGroup(rs.getString("user_group"));
+                acl.setDPDeptId(rs.getString("dp_department_id"));
+                acl.setSOADeptId(rs.getString("soa_department_id"));
+                acl.setDeptName(rs.getString("bd_name"));
+                acl.setActiveInd(rs.getInt("active_indicator"));
+                acl.setEffectiveDate(rs.getDate("effective_date"));
+                acl.setExpiryDate(rs.getDate("expiry_date"));
+                acl.setLastUpdatedDate(rs.getTimestamp("last_updated_datetime").toString());
+                lockedUsers.add(acl);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: ACLDataBean:selectLockedUsers\n"
+                    + ex.getMessage();
+            logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return lockedUsers;
+        
+    }
+    
+    public ACLInfo selectACLByKeys(String dpDeptId, String soaDeptId, String userId, String orderBy) throws SysException {
+        
+        ACLInfo acl = new ACLInfo();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_ACL_BY_KEYS);
+            cs.setString("p_dp_dept_id",dpDeptId);
+            cs.setString("p_soa_dept_id",soaDeptId);
+            cs.setString("p_user_id",userId);
+            cs.setString("p_order_by",orderBy);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                acl.setUserId(rs.getString("user_id"));
+                acl.setDPDeptId(rs.getString("dp_department_id"));
+                acl.setSOADeptId(rs.getString("soa_department_id"));
+                acl.setDeptName(rs.getString("bd_name"));
+                acl.setActiveInd(rs.getInt("active_indicator"));
+                acl.setAccessFailureCount(rs.getInt("access_failure_count"));
+                acl.setCreatedDate(rs.getTimestamp("created_datetime").toString());
+                acl.setLastUpdatedDate(rs.getTimestamp("last_updated_datetime").toString());
+                acl.setLastUpdatedBy(rs.getString("last_updated_by_user"));
+                acl.setEffectiveDate(rs.getDate("effective_date"));
+                acl.setExpiryDate(rs.getDate("expiry_date"));
+            }
+        } catch (Exception ex) {
+        	String error =
+        			"DB ERROR: ACLDataBean:selectACLByKeys\n"
+                    + ex.getMessage();
+        	logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return acl;
+        
+    }
+    
+    public ACLInfo selectACLByKeys(String dpDeptId, String soaDeptId, String userId) throws SysException {
+        
+        ACLInfo acl = new ACLInfo();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_ACL_BY_KEYS);
+            cs.setString("p_dp_dept_id",dpDeptId);
+            cs.setString("p_soa_dept_id",soaDeptId);
+            cs.setString("p_user_id",userId);
+            cs.setString("p_order_by","");
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                acl.setUserId(rs.getString("user_id"));
+                acl.setFirstName(rs.getString("firstname"));
+                acl.setLastName(rs.getString("lastname"));
+                acl.setUserGroup(rs.getString("user_group"));
+                acl.setEmail(rs.getString("email"));
+                acl.setDPDeptId(rs.getString("dp_department_id"));
+                acl.setSOADeptId(rs.getString("soa_department_id"));
+                acl.setDeptName(rs.getString("bd_name"));
+                acl.setActiveInd(rs.getInt("active_indicator"));
+                acl.setAccessFailureCount(rs.getInt("access_failure_count"));
+                acl.setCreatedDate(rs.getTimestamp("created_datetime").toString());
+                acl.setLastUpdatedDate(rs.getTimestamp("last_updated_datetime").toString());
+                acl.setLastUpdatedBy(rs.getString("last_updated_by_user"));
+                acl.setEffectiveDate(rs.getDate("effective_date"));
+                acl.setExpiryDate(rs.getDate("expiry_date"));
+            }
+        } catch (Exception ex) {
+        	String error =
+        			"DB ERROR: ACLDataBean:selectACLByKeys\n"
+                    + ex.getMessage();
+        	logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return acl;
+        
+    }
+    
+    public Vector searchACL(ACLInfo searchACL,String order_by, String order_dir) throws SysException {
+        Vector ACLVector = new Vector();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SEARCH_ACL);
+            cs.setString("p_user_id",searchACL.getUserId());
+            cs.setString("p_soa_dept_id",searchACL.getSOADeptId());
+            cs.setString("p_dp_dept_id",searchACL.getDPDeptId());
+            cs.setString("p_user_group",searchACL.getUserGroup());
+            cs.setInt("p_active_ind",searchACL.getActiveInd());
+            cs.setDate("p_expiry_date",searchACL.getExpiryDate());
+            cs.setString("p_order_by",order_by);
+            cs.setString("p_order_dir",order_dir);                        
+            // execute
+            rs = cs.executeQuery();
+            
+            // get data and put into Vector
+            while (rs.next()) {
+                ACLInfo acl = new ACLInfo();
+                acl.setUserId(rs.getString("user_id"));
+                acl.setUserGroup(rs.getString("user_group"));
+                acl.setDPDeptId(rs.getString("dp_department_id"));
+                acl.setSOADeptId(rs.getString("soa_department_id"));
+                acl.setDeptName(rs.getString("bd_name"));
+                acl.setActiveInd(rs.getInt("active_indicator"));
+                acl.setAccessFailureCount(rs.getInt("access_failure_count"));
+                acl.setCreatedDate(rs.getTimestamp("created_datetime").toString());
+                acl.setLastUpdatedDate(rs.getTimestamp("last_updated_datetime").toString());
+                acl.setLastUpdatedBy(rs.getString("last_updated_by_user"));
+                acl.setExpiryDate(rs.getDate("expiry_date"));
+                acl.setEffectiveDate(rs.getDate("effective_date"));
+                ACLVector.add(acl);
+            }
+        } catch (Exception ex) {
+        	String error =
+        			"DB ERROR: ACLDataBean:searchACL\n"
+                    + ex.getMessage();
+        	logger.error(error,ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return ACLVector;
+        
+    }
+    
+    public Vector selectACL(String order_by, String order_dir) throws SysException {
+        
+        Vector allACLVector = new Vector();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_ACL);
+            cs.setString("p_order_by",order_by);
+            cs.setString("p_order_dir",order_dir);            
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                ACLInfo acl = new ACLInfo();
+                acl.setUserId(rs.getString("user_id"));
+                acl.setUserGroup(rs.getString("user_group"));
+                acl.setDPDeptId(rs.getString("dp_department_id"));
+                acl.setSOADeptId(rs.getString("soa_department_id"));
+                acl.setDeptName(rs.getString("bd_name"));
+                acl.setActiveInd(rs.getInt("active_indicator"));
+                acl.setAccessFailureCount(rs.getInt("access_failure_count"));
+                acl.setEffectiveDate(rs.getDate("effective_date"));
+                acl.setExpiryDate(rs.getDate("expiry_date"));
+                allACLVector.add(acl);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: ACLDataBean:selectACL\n"
+                    + ex.getMessage();
+            logger.error(error, ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allACLVector;
+        
+    }
+    
+    public Vector selectACL() throws SysException {
+        
+        Vector allACLVector = new Vector();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_ACL);
+            cs.setString("p_order_by","");
+            cs.setString("p_order_dir","");
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                ACLInfo acl = new ACLInfo();
+                acl.setUserId(rs.getString("user_id"));
+                acl.setUserGroup(rs.getString("user_group"));
+                acl.setDPDeptId(rs.getString("dp_department_id"));
+                acl.setSOADeptId(rs.getString("soa_department_id"));
+                acl.setDeptName(rs.getString("bd_name"));
+                acl.setAccessFailureCount(rs.getInt("access_failure_count"));
+                acl.setActiveInd(rs.getInt("active_indicator"));
+                acl.setEffectiveDate(rs.getDate("effective_date"));
+                acl.setExpiryDate(rs.getDate("expiry_date"));
+                allACLVector.add(acl);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: ACLDataBean:selectACL\n"
+                    + ex.getMessage();
+            logger.error(error, ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allACLVector;
+        
+    }
+    
+    public Vector selectExpiryDate() throws SysException {
+        
+        Vector allExpiryDateVector = new Vector();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_EXPIRY_DATE);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                String expiryDate = SysManager.getStringfromSQLDate(rs.getDate("expiry_date"));
+                allExpiryDateVector.add(expiryDate);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: ACLDataBean:selectExpiryDate\n"
+                    + ex.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allExpiryDateVector;
+        
+    }
+    
+    public Vector selectAssignedExpiryDate() throws SysException {
+        
+        Vector allExpiryDateVector = new Vector();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_ASSIGNED_EXPIRY_DATE);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                String expiryDate= SysManager.getStringfromSQLDate(rs.getDate("expiry_date"));
+                allExpiryDateVector.add(expiryDate);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: ACLDataBean:selectAssignedExpiryDate\n"
+                    + ex.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allExpiryDateVector;
+        
+    }
+    
+    public int insertACL(ACLInfo acl, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(INSERT_ACL);
+            // get information from info object
+            cs.setString("p_user_id",acl.getUserId());
+            
+            cs.setString("p_firstname",acl.getFirstName());
+            cs.setString("p_lastname",acl.getLastName());
+            cs.setString("p_email",acl.getEmail());
+            cs.setString("p_password",acl.getPassword());
+            cs.setString("p_user_group",acl.getUserGroup());
+            
+            cs.setString("p_user_dp_dept_id",acl.getDPDeptId());
+            cs.setString("p_user_soa_dept_id",acl.getSOADeptId());
+            cs.setDate("p_effective_date",acl.getEffectiveDate());
+            cs.setDate("p_expiry_date",acl.getExpiryDate());
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());            
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            
+            //execute
+            result =cs.executeUpdate();
+            returnCode =cs.getInt("return_code");
+            
+            // check execution result
+            String msg1 = "User already exists in the access control list<BR>User ID: "+acl.getUserId() +"; <BR>"+
+            			 "DP Dept ID: " + acl.getDPDeptId()+"; <BR>"+"SOA Dept ID: " + acl.getSOADeptId()+";";
+            String msg2 = "No record was inserted! <BR>"+"User ID = " + acl.getUserId()+"; <BR>"+
+                    	  "DP Dept ID = " + acl.getDPDeptId()+"; <BR>"+ "SOA Dept ID = " + acl.getSOADeptId()+";";
+            commitResult(returnCode, result, msg1, msg2);
+            
+            return returnCode;
+        } catch (SQLException ex0) {
+            String err = "SQL Error: ACLDataBean:insertACL r\n" +
+                    "SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: ACLDataBean:insertACL.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    public int updateACL(ACLInfo acl, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode =0;
+        
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(UPDATE_ACL);
+            // get information from info object
+            cs.setInt("p_active_ind",acl.getActiveInd()); 
+            cs.setString("p_password",acl.getPassword());  
+            cs.setDate("p_effective_date",acl.getEffectiveDate());
+            cs.setDate("p_expiry_date",acl.getExpiryDate());
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());                        
+            cs.setString("p_key1",acl.getOrgKey1());
+            cs.setString("p_key2", acl.getOrgKey2());
+            cs.setString("p_key3", acl.getOrgKey3());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            
+            //execute
+            result=cs.executeUpdate();
+            returnCode = cs.getInt("return_code");
+            
+            // check execution result
+            String msg1 = "User already exists in the access control list<BR>User ID: "+acl.getUserId() +"; <BR>"+
+            			 "DP Dept ID: " + acl.getDPDeptId()+"; <BR>"+"SOA Dept ID: " + acl.getSOADeptId()+";";
+            String msg2 = "No record was updated! <BR>"+"User ID = " + acl.getUserId()+"; <BR>"+
+                    	  "DP Dept ID = " + acl.getDPDeptId()+"; <BR>"+ "SOA Dept ID = " + acl.getSOADeptId()+";";
+            commitResult(returnCode, result, msg1, msg2);
+            
+            return returnCode;
+            
+        } catch (SQLException ex0) {
+            String err = "SQL Error: ACLDataBean:updateACL \r\n" +
+                    "SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: ACLDataBean:updateACL.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    public int deleteACL(ACLInfo acl, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(DELETE_ACL);
+            // get information from info object
+            cs.setString("p_key1",acl.getOrgKey1());
+            cs.setString("p_key2", acl.getOrgKey2());
+            cs.setString("p_key3", acl.getOrgKey3());
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            
+            //execute
+            result = cs.executeUpdate();
+            returnCode = cs.getInt("return_code");
+            
+            // check execution result
+            String msg1 = "User already exists in the access control list<BR>User ID: "+acl.getUserId() +"; <BR>"+
+            			 "DP Dept ID: " + acl.getDPDeptId()+"; <BR>"+"SOA Dept ID: " + acl.getSOADeptId()+";";
+            String msg2 = "No record was deleted! <BR>"+"User ID = " + acl.getUserId()+"; <BR>"+
+                    	  "DP Dept ID = " + acl.getDPDeptId()+"; <BR>"+ "SOA Dept ID = " + acl.getSOADeptId()+";";
+            commitResult(returnCode, result, msg1, msg2);
+
+            return returnCode;
+            
+        } catch (SQLException ex0) {
+            String err = "SQL Error: ACLDataBean:DeleteACL \r\n"  +
+                    "SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: ACLDataBean:DeleteACL.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    public int unlockUser(Vector ACLVector, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode =0;
+        
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            for (int i =0;i<ACLVector.size();i++){
+                result = 0;
+                returnCode =0;
+                ACLInfo acl = new ACLInfo();
+                acl = (ACLInfo) ACLVector.elementAt(i);
+                cs = connection.prepareCall(UNLOCK_USER);
+                // get information from info object
+                cs.setString("p_user_id",acl.getUserId());
+                cs.setString("p_user_dp_dept_id",acl.getDPDeptId());
+                cs.setString("p_user_soa_dept_id",acl.getSOADeptId());
+                cs.setString("p_admin_id",secCtx.getUserId());
+                cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+                cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+                
+                cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+                
+                //execute
+                result=cs.executeUpdate();
+                returnCode = cs.getInt("return_code");
+                
+                // check execution result
+                String msg1 = "User already exists in the access control list<BR>User ID: "+acl.getUserId() +"; <BR>"+
+                			 "DP Dept ID: " + acl.getDPDeptId()+"; <BR>"+"SOA Dept ID: " + acl.getSOADeptId()+";";
+                String msg2 = "No record was updated! <BR>"+"User ID = " + acl.getUserId()+"; <BR>"+
+                        	  "DP Dept ID = " + acl.getDPDeptId()+"; <BR>"+ "SOA Dept ID = " + acl.getSOADeptId()+";";
+                commitResult(returnCode, result, msg1, msg2);
+            }
+            
+            connection.commit();
+            
+            return returnCode;
+        } catch (SQLException ex0) {
+            String err = "SQL Error: ACLDataBean:unlockUser \r\n" +
+                    "SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: ACLDataBean:unlockUser.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    public int createTempACL() throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        int result=0;
+        
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(CREATE_TEMP_ACL);
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            cs.executeUpdate();
+            result = cs.getInt("return_code");
+            
+        } catch (SQLException ex0) {
+            String error = "ACLDataBean:createTempACL: SQL Error\n" +
+                    "SQLState:"+ ex0.getSQLState() +":"+ex0.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return result;
+    }
+    
+    public int replaceACL(ACLInfo acl, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(REPLACE_ACL);
+            // get information from info object
+            cs.setString("p_user_id",acl.getUserId());
+            cs.setString("p_user_dp_dept_id",acl.getDPDeptId());
+            cs.setString("p_user_soa_dept_id",acl.getSOADeptId());
+            cs.setDate("p_effective_date",acl.getEffectiveDate());
+            cs.setDate("p_expiry_date",acl.getExpiryDate());
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            //execute
+            result =cs.executeUpdate();
+            returnCode =cs.getInt("return_code");
+
+            // check execution result
+            String msg1 = "User already exists in the access control list<BR>User ID: "+acl.getUserId() +"; <BR>"+
+            			 "DP Dept ID: " + acl.getDPDeptId()+"; <BR>"+"SOA Dept ID: " + acl.getSOADeptId()+";";
+            String msg2 = "No record was updated! <BR>"+"User ID = " + acl.getUserId()+"; <BR>"+
+                    	  "DP Dept ID = " + acl.getDPDeptId()+"; <BR>"+ "SOA Dept ID = " + acl.getSOADeptId()+";";
+            commitResult(returnCode, result, msg1, msg2);
+            
+            return returnCode;
+        } catch (SQLException ex0) {
+            String err = "SQL Error: ACLDataBean:replaceACL r\n" +
+                    "SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: ACLDataBean:replaceACL.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    public int deleteTempACL() throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        int result=0;
+        
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(DELETE_TEMP_ACL);
+            cs.executeUpdate();
+            
+        } catch (SQLException ex0) {
+            String error = " SQL Error: ACLDataBean:deleteTempACL:\n" +
+                    "SQLState:"+ ex0.getSQLState() +":" + ex0.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return result;
+    }
+    
+    public int replaceTempACL() throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        int result=0;
+        
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(REPLACE_TEMP_ACL);
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            cs.executeUpdate();
+            result = cs.getInt("return_code");
+            
+        } catch (SQLException ex0) {
+            String error = "ACLDataBean:replaceTempACL: SQL Error\n" +
+                    "SQLState:"+ ex0.getSQLState() +":"+ex0.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return result;
+    }
+    
+    public int unlockSingleUser(ACLInfo acl, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode =0;
+        
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(UNLOCK_USER);
+            // get information from info object            
+            cs.setString("p_user_dp_dept_id",acl.getOrgKey1());
+            cs.setString("p_user_soa_dept_id",acl.getOrgKey2());            
+            cs.setString("p_user_id",acl.getOrgKey3());            
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());                                    
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            //execute
+            result=cs.executeUpdate();
+            returnCode = cs.getInt("return_code");
+
+            // check execution result
+            String msg1 = "User already exists in the access control list<BR>User ID: "+acl.getUserId() +"; <BR>"+
+            			 "DP Dept ID: " + acl.getDPDeptId()+"; <BR>"+"SOA Dept ID: " + acl.getSOADeptId()+";";
+            String msg2 = "No record was updated! <BR>"+"User ID = " + acl.getUserId()+"; <BR>"+
+                    	  "DP Dept ID = " + acl.getDPDeptId()+"; <BR>"+ "SOA Dept ID = " + acl.getSOADeptId()+";";
+            commitResult(returnCode, result, msg1, msg2);
+            
+            return returnCode;
+            
+        } catch (SQLException ex0) {
+            String err = "SQL Error: ACLDataBean:unlockSingleUser \r\n" +
+                    "SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: ACLDataBean:unlockSingleUser.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+        public int writeAuditTrail(ACLInfo acl, SecurityContext secCtx, int uploadStatus) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(WRITE_AUDIT_TRAIL);
+            // get information 
+            String recordId = acl.getDPDeptId()+"+"+acl.getSOADeptId()+"+"+acl.getExpiryDate();
+            cs.setString("p_record_id",recordId);
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());                        
+            if (uploadStatus ==1){
+                cs.setString("p_remarks","USERS IMPORTED SUCCESSFULLY");
+            }else{
+                cs.setString("p_remarks","USERS IMPORTED FAILED");
+            }
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            //execute
+            result = cs.executeUpdate();
+            returnCode =cs.getInt("return_code");
+            
+            connection.commit();
+            return result;
+        } catch (SQLException ex0) {
+            String err = "SQL Error : ACLDataBean:writeAuditTrail\n" +"SQLState:"+ ex0.getSQLState() +":"+  ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: ACLDataBean:writeAuditTrail.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+        
+
+    public int insertUnlockLog(SecurityContext secCtx, String userId, int status) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(INSERT_UNLOCK_LOG);
+            // get information 
+            cs.setString("p_user_id",userId);
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());                        
+            if (status == 0){
+                cs.setString("p_type","L");
+            }else{
+                cs.setString("p_type","E");
+            }
+            result = cs.executeUpdate();
+                      
+            connection.commit();
+            return result;
+        } catch (SQLException ex0) {
+            String err = "SQL Error : ACLDataBean:insertUnlockLog\n" +"SQLState:"+ ex0.getSQLState() +":"+  ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: ACLDataBean:insertUnlockLog.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+}

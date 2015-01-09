@@ -1,0 +1,19 @@
+package qpses.util;
+
+import org.apache.log4j.Logger;
+
+public class DBException extends Exception {
+	
+	// log4j
+	static Logger logger = Logger.getLogger(DBException.class.getName());
+	
+	public DBException(){
+		super();
+	}
+	
+	public DBException(String arg0){
+		super(arg0);
+		logger.error("DateBaseError :" + arg0);
+	}	
+
+}

@@ -1,0 +1,422 @@
+package qpses.business;
+
+import java.sql.Date;
+
+public final class WAChallengeInfo
+{
+    private String serviceCategoryGroup;
+    private String filePartNo;
+    private int fileNo;
+    private String departmentId;
+    private String departmentName;
+    private String title;
+    private String status;
+    private String debarredContractor;
+    private Date issuedDate;
+    private Date closingDate;
+    private String authorizedPerson;
+    private int challengeNo;
+    private String accessFailureCount;
+    private String challengeStatus;
+    private String forwardScreen;
+    private String requestAction;
+    private int noOfInvitedContractor;
+    private String serviceContractNo;
+    private String postRank;
+    private Date AwardedDate;
+    private String AwardedContractor;
+    
+    /**
+     * Constructor for WAChallengeInfo.
+     */
+    public WAChallengeInfo()
+    {
+        this.setChallengeStatus("N");
+    }
+    
+    public int getNoOfInvitedContractor()
+    {
+        return this.noOfInvitedContractor;
+    }
+    
+    public String getChallengeStatus()
+    {
+        return challengeStatus;
+    }
+    
+    /**
+     * Returns the service category.
+     * @return String
+     */
+    public String getServiceCategoryGroup()
+    {
+        return serviceCategoryGroup;
+    }
+    
+    /**
+     * Returns the project file part no
+     * @return String
+     */
+    public String getFilePartNo()
+    {
+        return filePartNo;
+    }
+    
+    /**
+     * Returns the project file no
+     * @return int
+     */
+    public int getFileNo()
+    {
+        return fileNo;
+    }
+    
+    /**
+     * Returns the department id
+     * @return String
+     */
+    public String getDepartmentId()
+    {
+        return departmentId;
+    }
+    
+    /**
+     * Returns the department name
+     * @return String
+     */
+    public String getDepartmentName()
+    {
+        return this.departmentName; }
+    
+    
+    /**
+     * Returns the work assignment title
+     * @return String
+     */
+    public String getTitle()
+    {
+        return title;
+    }
+    
+    /**
+     * Returns the Invitation Issued Date.
+     * @return Date
+     */
+    public Date getIssuedDate()
+    {
+        return issuedDate;
+    }
+    
+    /**
+     * Returns the Invitation closing Date / proposal submission deadline.
+     * @return Date
+     */
+    public Date getClosingDate()
+    {
+        return closingDate;
+    }
+    
+    /**
+     * Returns the status.
+     * @return String
+     */
+    public String getStatus()
+    {
+        return status;
+    }
+    
+    /**
+     * Returns the debarred contractors.
+     * @return String
+     */
+    public String getDebarredContractor()
+    {
+        return debarredContractor;
+    }
+    
+    /**
+     * Returns the authorized person name
+     * @return String
+     */
+    public String getAuthorizedPerson()
+    {
+        return authorizedPerson;
+    }
+    
+    
+    /**
+     * Returns the challenge question no
+     * @return int
+     */
+    public int getChallengeNo()
+    {
+        return challengeNo;
+    }
+    
+    /**
+     * Returns the forward screen
+     * @return String
+     */
+    public String getForwardScreen()
+    {
+        return forwardScreen;
+    }
+    
+    /**
+     * Returns the request action of the forwarded screen
+     * @return String
+     */
+    public String getRequestAction()
+    {
+        return requestAction;
+    }
+    
+    public void setNoOfInvitedContractor(int noOfInvitedContractor)
+    {
+        this.noOfInvitedContractor = noOfInvitedContractor;
+    }
+    
+    /**
+     * Sets the service category.
+     * @param serviceCategory - The Service Category to set
+     */
+    public void setServiceCategoryGroup(String serviceCategoryGroup)
+    {
+        this.serviceCategoryGroup = serviceCategoryGroup;
+    }
+    
+    /**
+     * Sets the project file part no
+     * @param filePartNo - The project file part no to set
+     */
+    public void setFilePartNo(String filePartNo)
+    {
+        this.filePartNo = filePartNo;
+    }
+    
+    
+    /**
+     * Sets the project file no
+     * @param fileNo - The project file no to set
+     */
+    public void setFileNo(int fileNo)
+    {
+        this.fileNo = fileNo;
+    }
+    
+    /**
+     * Sets the Department ID
+     * @param departmentId - The Department ID to set
+     */
+    public void setDepartmentId(String departmentId)
+    {
+        this.departmentId = departmentId;
+    }
+    
+    /**
+     * Sets the Department Name
+     * @param departmentName - The Department Name to set
+     */
+    public void setDepartmentName(String departmentName)
+    {
+        this.departmentName = departmentName; }
+    
+    /**
+     * Sets the status
+     * @param status - The status to set
+     */
+    public void setStatus(String status)
+    {
+        this.status = status;
+    }
+    
+    /**
+     * Sets the title
+     * @param title - The title to set
+     */
+    public void setTitle(String title)
+    {
+        this.title = title;
+    }
+    
+    /**
+     * Sets the Invitation Issued Date.
+     * @param issuedDate - The Invitation Issued Date to set
+     */
+    public void setIssuedDate(Date issuedDate)
+    {
+        this.issuedDate = issuedDate;
+    }
+    
+    /**
+     * Sets the Invitation Closing Date.
+     * @param closingDate - The Invitation Closing Date to set
+     */
+    public void setClosingDate(Date closingDate)
+    {
+        this.closingDate = closingDate;
+    }
+    
+    /**
+     * Sets the debarred contractors
+     * @param debarredContractor - The debarred contractors to set
+     */
+    public void setDebarredContractor(String debarredContractor)
+    {
+        this.debarredContractor = debarredContractor;
+    }
+    
+    /**
+     * Sets the authorized person name
+     * @param authorizedPerson - The authorized person to set
+     */
+    public void setAuthorizedPerson(String authorizedPerson)
+    {
+        this.authorizedPerson = authorizedPerson;
+    }
+    
+    
+    /**
+     * Sets the challenge question no.
+     * @param challengeNo - The  challenge question no. to set
+     */
+    public void setChallengeNo(int challengeNo)
+    {
+        this.challengeNo = challengeNo;
+    }
+    
+    /**
+     * Sets the forward screen
+     * @param forwardScreen - The forward screen to set
+     */
+    public void setForwardScreen(String forwardScreen)
+    {
+        this.forwardScreen = forwardScreen;
+    }
+    
+    /**
+     * Sets the request action of the forward screen
+     * @param requestAction - The request action of forward screen to set
+     */
+    public void setRequestAction(String requestAction)
+    {
+        this.requestAction = requestAction;
+    }
+    
+    public void setChallengeStatus(String challengeStatus)
+    {
+        assert (challengeStatus.equals("Y") || challengeStatus.equals("N"));
+        
+        this.challengeStatus = challengeStatus;
+    }
+    
+    /*
+     * Validate the surname
+     *@param surname - the surname of the authorized person
+     
+    public boolean validateSurname(String surname)
+    {
+        boolean result =false;
+        // Remove salutation if any
+        String authorizedPerson = this.authorizedPerson;
+        if (authorizedPerson.toUpperCase().startsWith("DR") ||
+                authorizedPerson.toUpperCase().startsWith("MR") ||
+                authorizedPerson.toUpperCase().startsWith("MRS") ||
+                authorizedPerson.toUpperCase().startsWith("MS"))
+        {
+            authorizedPerson = authorizedPerson.substring(authorizedPerson.indexOf(" ")+1);
+        }
+        surname = surname + " ";    // to delimit the search string
+        if (authorizedPerson.regionMatches(true,0,surname,0,surname.length()))
+        {
+            result = true;
+        }
+        return result;
+    }
+    */
+    
+    /**
+     * Validate the closing date
+     *@param closingDate - the closing date of the work assignment
+     */
+    public boolean validateClosingDate(Date closingDate)
+    {
+        boolean result =false;
+        if (this.closingDate.equals(closingDate))
+        {
+            result = true;
+        }
+        return result;
+    }
+    
+    /**
+     * Validate the issued date
+     *@param issuedDate - the issued date of the work assignment
+     */
+    public boolean validateIssuedDate(Date issuedDate)
+    {
+        boolean result =false;
+        if (this.issuedDate.equals(issuedDate))
+        {
+            result = true;
+        }
+        return result;
+    }
+
+	/**
+	 * @return the serviceContractNo
+	 */
+	public String getServiceContractNo() {
+		return serviceContractNo;
+	}
+
+	/**
+	 * @param serviceContractNo the serviceContractNo to set
+	 */
+	public void setServiceContractNo(String serviceContractNo) {
+		this.serviceContractNo = serviceContractNo;
+	}
+
+	/**
+	 * @return the postRank
+	 */
+	public String getPostRank() {
+		return postRank;
+	}
+
+	/**
+	 * @param postRank the postRank to set
+	 */
+	public void setPostRank(String postRank) {
+		this.postRank = postRank;
+	}
+
+	/**
+	 * @return the awardedDate
+	 */
+	public Date getAwardedDate() {
+		return AwardedDate;
+	}
+
+	/**
+	 * @param awardedDate the awardedDate to set
+	 */
+	public void setAwardedDate(Date awardedDate) {
+		AwardedDate = awardedDate;
+	}
+
+	/**
+	 * @return the awardedContractor
+	 */
+	public String getAwardedContractor() {
+		return AwardedContractor;
+	}
+
+	/**
+	 * @param awardedContractor the awardedContractor to set
+	 */
+	public void setAwardedContractor(String awardedContractor) {
+		AwardedContractor = awardedContractor;
+	}
+    
+}

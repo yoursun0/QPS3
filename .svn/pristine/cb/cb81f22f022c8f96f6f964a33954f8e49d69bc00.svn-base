@@ -1,0 +1,422 @@
+/*
+ * QualitySubscoreDataBean.java
+ */
+
+package qpses.business;
+
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Vector;
+import org.apache.log4j.Logger;
+import qpses.security.SecurityContext;
+import qpses.util.DataBean;
+import qpses.util.SysException;
+
+
+public class QualitySubscoreDataBean extends DataBean {
+    
+    
+    // log4j
+    static Logger logger = Logger.getLogger(QualitySubscoreDataBean.class.getName());
+    
+    
+    private static final String SELECT_QUALITY_SUBSCORE =
+            "{Call sp_select_quality_subscore()}";
+    private static final String SELECT_QUALITY_SUBSCORE_BY_PERIOD =
+            "{Call sp_select_quality_subscore_by_period(?)}";
+    private static final String GET_QUALITY_SUBSCORE_BY_PERIOD =
+            "{Call sp_get_quality_subscore_by_period(?,?)}";    
+    private static final String SELECT_NEXT_EFFECTIVE_PERIOD =
+            "{Call sp_select_next_effective_period()}";
+    private static final String CREATE_TEMP_QUALITY_SUBSCORE =
+            "{Call sp_create_temp_quality_subscore(?)}";
+    private static final String DELETE_TEMP_QUALITY_SUBSCORE =
+            "{Call sp_delete_temp_quality_subscore(?)}";
+    private static final String REPLACE_TEMP_QUALITY_SUBSCORE =
+            "{Call sp_replace_temp_quality_subscore(?)}";
+    
+    private static final String INSERT_QUALITY_SUBSCORE =
+            "{Call sp_insert_quality_subscore(?,?,?,?,?,?)}";
+    private static final String DELETE_QUALITY_SUBSCORE =
+            "{Call sp_delete_quality_subscore(?,?,?,?,?)}";
+    private static final String WRITE_AUDIT_TRAIL =
+            "{Call sp_write_quality_subscore_audit_trail(?,?,?,?,?,?)}";  
+
+    ResultSet rs = null;
+    
+    /**
+     * Constructor for QualitySubscoreDataBean
+     */
+    public QualitySubscoreDataBean() throws SysException{
+        super("ADMIN");
+    }
+    
+    
+    
+    public QualitySubscoreInfo selectNextEffectivePeriod() throws SysException {
+        
+        QualitySubscoreInfo qs = new QualitySubscoreInfo();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_NEXT_EFFECTIVE_PERIOD);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                qs.setEffectivePeriodID(rs.getInt("effective_period_id"));
+                qs.setPeriodDesc(rs.getString("period_desc"));
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: QualitySubscoreDataBean:selectNextEffectivePeriod\n"
+                    + ex.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return qs;
+        
+    }
+    
+    public Vector selectQualitySubscore() throws SysException {
+        
+        Vector allQualitySubscoreVector = new Vector();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_QUALITY_SUBSCORE);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                QualitySubscoreInfo qs = new QualitySubscoreInfo();
+                qs.setEffectivePeriodID(rs.getInt("effective_period_id"));
+                qs.setPeriodDesc(rs.getString("period_desc"));
+                qs.setCreatedDate(rs.getString("created_datetime"));
+                qs.setLastUpdatedDate(rs.getString("last_updated_datetime"));
+                qs.setLastUpdatedBy(rs.getString("last_updated_by_user"));
+                qs.setOrgKey1(rs.getInt("effective_period_id"));
+                allQualitySubscoreVector.add(qs);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: QualitySubscoreDataBean:selectQualitySubscore\n"
+                    + ex.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allQualitySubscoreVector;
+        
+    }
+    
+    public Vector selectQualitySubscoreByPeriod() throws SysException {
+        
+        Vector allQualitySubscoreVector = new Vector();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_QUALITY_SUBSCORE_BY_PERIOD);
+            cs.setInt("p_period_id",0);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                QualitySubscoreInfo qs = new QualitySubscoreInfo();
+                qs.setEffectivePeriodID(rs.getInt("effective_period_id"));
+                qs.setPeriodDesc(rs.getString("period_desc"));
+                qs.setCreatedDate(rs.getString("create_date"));
+                qs.setLastUpdatedDate(rs.getString("last_update_date"));
+                qs.setLastUpdatedBy(rs.getString("last_updated_by_user"));
+                qs.setOrgKey1(rs.getInt("effective_period_id"));
+                allQualitySubscoreVector.add(qs);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: QualitySubscoreDataBean:selectQualitySubscoreByPeriod\n"
+                    + ex.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allQualitySubscoreVector;
+        
+    }
+    
+    public QualitySubscoreInfo selectQualitySubscoreByPeriod(int period_id) throws SysException {
+        
+        QualitySubscoreInfo qs = new QualitySubscoreInfo();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_QUALITY_SUBSCORE_BY_PERIOD);
+            cs.setInt("p_period_id",period_id);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                qs.setEffectivePeriodID(rs.getInt("effective_period_id"));
+                qs.setPeriodDesc(rs.getString("period_desc"));
+                qs.setCreatedDate(rs.getString("create_date"));
+                qs.setLastUpdatedDate(rs.getString("last_update_date"));
+                qs.setLastUpdatedBy(rs.getString("last_updated_by_user"));
+                qs.setOrgKey1(rs.getInt("effective_period_id"));
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: QualitySubscoreDataBean:selectQualitySubscoreByPeriod\n"
+                    + ex.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return qs;
+        
+    }
+    
+    public Vector<QualitySubscoreInfo> getQualitySubscoreByPeriod(String period_id, String service_category_group) throws SysException {
+        
+        Vector<QualitySubscoreInfo> allQualitySubscoreVector = new Vector<QualitySubscoreInfo>();
+        
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(GET_QUALITY_SUBSCORE_BY_PERIOD);
+            cs.setString("p_period_id",period_id);
+            cs.setString("p_service_category_group",service_category_group);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                QualitySubscoreInfo qs = new QualitySubscoreInfo();
+                qs.setEffectivePeriodID(rs.getInt("effective_period_id"));
+                qs.setPeriodDesc(rs.getString("period_desc"));
+                qs.setScore(Float.valueOf(rs.getString("quality_subscore")).floatValue());                
+                qs.setContractorName(rs.getString("contractor_name"));                
+                qs.setOrgKey1(rs.getInt("effective_period_id"));          
+                allQualitySubscoreVector.add(qs);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: QualitySubscoreDataBean:getQualitySubscoreByPeriod\n"
+                    + ex.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allQualitySubscoreVector;
+        
+    }
+            
+    public int createTempQualitySubscore() throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        int result=0;
+        
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(CREATE_TEMP_QUALITY_SUBSCORE);
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            cs.executeUpdate();
+            result = cs.getInt("return_code");
+            if (result !=1){
+                String error = "Problem in creating temporary Contractor Performance Score file";
+                throw new SysException(error);
+            }
+        } catch (SQLException ex0) {
+            String error = "QualitySubscoreDataBean:createTempQualitySubscore: SQL Error\n" +
+                    "SQLState:"+ ex0.getSQLState() +":"+ex0.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return result;
+    }
+    
+    public int deleteTempQualitySubscore() throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        int result=0;
+        
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(DELETE_TEMP_QUALITY_SUBSCORE);
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            cs.executeUpdate();
+            result = cs.getInt("return_code");
+            if (result !=1){
+                String error = "Problem in deleting temporary Contractor Performance Score file";
+                throw new SysException(error);
+            }
+        } catch (SQLException ex0) {
+            String error = "QualitySubscoreDataBean:deleteTempQualitySubscore: SQL Error\n" +
+                    "SQLState:"+ ex0.getSQLState() +":" + ex0.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return result;
+    }
+    
+    public int replaceTempQualitySubscore() throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        int result=0;
+        
+        try {
+            connection = this.getConnection();
+            cs = connection.prepareCall(REPLACE_TEMP_QUALITY_SUBSCORE);
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            cs.executeUpdate();
+            result = cs.getInt("return_code");
+            if (result !=1){
+                String error = "Problem in replacing temporary Contractor Performance Score file";
+                throw new SysException(error);
+            }            
+        } catch (SQLException ex0) {
+            String error = "QualitySubscoreDataBean:deleteTempQualitySubscore: SQL Error\n" +
+                    "SQLState:"+ ex0.getSQLState() +":" + ex0.getMessage();
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return result;
+    }
+           
+    public int insertQualitySubscore(QualitySubscoreInfo qs) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode =0;
+        
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(INSERT_QUALITY_SUBSCORE);
+            cs.setInt("p_effective_period_id",qs.getEffectivePeriodID());
+            cs.setString("p_service_category_group",qs.getServiceCategory());
+            cs.setString("p_contractor_name",qs.getContractorName());
+            cs.setFloat("p_score",qs.getScore());
+            cs.setString("p_admin_id",qs.getLastUpdatedBy());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            result = cs.executeUpdate();
+            returnCode =cs.getInt("return_code");
+            if (returnCode !=1){
+                if (returnCode == -99){
+                    connection.rollback();
+                    String err = "Duplicate keys found!\r\nFor "+ qs.getContractorName() + " the quality subscore is already exist in this period";
+                    throw new SysException(err);
+                }else{
+                    connection.rollback();
+                    String err = "SQL error! Return Error Code = " + returnCode +"<BR>"+
+                            "Service Contractor: "+qs.getContractorName() + "; Effective Period ID: " + qs.getEffectivePeriodID()+";";
+                    throw new SysException(err);
+                }
+            }
+            if (result != 1){
+                connection.rollback();
+                String err = "No record was inserted! <BR>"+
+                         "Service Contractor: "+qs.getContractorName() + "; Effective Period ID: " + qs.getEffectivePeriodID()+";";                           
+                throw new SysException(err);
+            }                                                
+            connection.commit();
+            return returnCode;
+        } catch (SQLException ex0) {
+            String err = "SQL Error : QualitySubscoreDataBean:insertQualitySubscore:\n" +"SQLState:"+ ex0.getSQLState() +":"+  ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: QualitySubscoreDataBean:insertQualitySubscore:.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } catch (Exception ex1){
+            String err = "QualitySubscoreDataBean:insertQualitySubscore:\n" + ex1.getMessage();
+            if (err.contains("Duplicate keys found!")){
+ // QPS3: Catch the case that CPS table is ended
+            	System.out.println("For Accenture Company Limited the quality subscore is already exist in this period");
+            	return 11;
+            }else{
+            	throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    public int deleteQualitySubscore(QualitySubscoreInfo qs, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        int result = 0;
+        int returnCode =0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(DELETE_QUALITY_SUBSCORE);
+            cs.setInt("p_period_id",qs.getOrgKey1());
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            result = cs.executeUpdate();
+            returnCode =cs.getInt("return_code");
+            if (returnCode !=1){
+                connection.rollback();
+                String err = "SQL error! Effective Period ID: "+ qs.getOrgKey1() + ";";
+                throw new SysException(err);
+            }                                                    
+            connection.commit();
+            return returnCode;
+        } catch (SQLException ex0) {
+            String err = "SQL Error : QualitySubscoreDataBean:deleteQualitySubscore\n" +"SQLState:"+ ex0.getSQLState() +":"+  ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: QualitySubscoreDataBean:deleteQualitySubscore.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+    public int writeAuditTrail(QualitySubscoreInfo qs, SecurityContext secCtx, int uploadStatus) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(WRITE_AUDIT_TRAIL);
+            // get information 
+            int recordId = qs.getEffectivePeriodID();
+            cs.setInt("p_record_id",recordId);
+            cs.setString("p_admin_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            
+            if (uploadStatus ==1){
+                cs.setString("p_remarks","CPS UPLOAD SUCCESSFULLY");
+            }else{
+                cs.setString("p_remarks","CPS UPLOAD FAILED");
+            }
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            //execute
+            result = cs.executeUpdate();
+            returnCode =cs.getInt("return_code");      
+                      
+            connection.commit();
+            return result;
+        } catch (SQLException ex0) {
+            String err = "SQL Error: QualitySubscoreDataBean:writeAuditTrail\n" +"SQLState:"+ ex0.getSQLState() +":"+  ex0.getMessage();
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: QualitySubscoreDataBean:writeAuditTrail.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+}

@@ -1,0 +1,413 @@
+/**
+ ** CPARDataBean.java
+ **/
+
+package qpses.business;
+
+
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.ArrayList;
+import org.apache.log4j.Logger;
+import qpses.security.SecurityContext;
+import qpses.util.SysException;
+import qpses.util.DataBean;
+import qpses.util.SysManager;
+
+
+public class CPARDataBean extends DataBean {
+    
+    
+    // log4j
+    static Logger logger = Logger.getLogger(CPARDataBean.class.getName());
+    
+    private static final String SELECT_CPAR_BY_WA =
+            "{Call sp_select_cpar_by_wa(?,?,?,?)}";
+    private static final String SELECT_CPAR_BY_CPAR_NO =
+            "{Call sp_select_cpar_by_cpar_no(?,?,?,?,?)}";
+    private static final String SELECT_NEXT_CPAR_DATE =
+            "{Call sp_select_next_cpar_date(?,?,?,?)}";
+    private static final String SELECT_CPAR_HISTORY =
+            "{Call sp_select_cpar_history(?,?,?,?,?)}";
+    private static final String INSERT_CPAR =
+            //"{Call sp_insert_cpar(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)}";
+    		"{Call sp_insert_cpar(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)}";
+    private static final String UPDATE_CPAR =
+            //"{Call sp_update_cpar(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)}";
+    		"{Call sp_update_cpar(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)}";
+    private static final String DELETE_CPAR =
+            "{Call sp_delete_cpar(?,?,?,?,?,?,?,?,?,?,?)}";
+    
+    ResultSet rs = null;
+    
+    /**
+     * Constructor for DeptDataBean
+     */
+    public CPARDataBean() throws SysException {
+        super("ADMIN");
+    }
+    
+    public CPARInfo selectCparByCparNo(WAChallengeInfo wac, int cparNo) throws SysException {
+        
+    	CPARInfo cpar = new CPARInfo();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_CPAR_BY_CPAR_NO);
+            cs.setString("p_service_category_group",wac.getServiceCategoryGroup());
+            cs.setString("p_project_file_part",wac.getFilePartNo());
+            cs.setInt("p_project_file_no",wac.getFileNo());
+            cs.setString("p_department_id",wac.getDepartmentId());
+            cs.setInt("p_cpar_no",cparNo);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                cpar.setStartDate(rs.getDate("start_date"));
+                cpar.setEndDate(rs.getDate("end_date"));
+                cpar.setCreatedDate(rs.getTimestamp("created_datetime").toString());
+                cpar.setLastUpdatedDate(rs.getTimestamp("last_updated_datetime").toString());
+                cpar.setLastUpdatedBy(rs.getString("last_updated_by_user"));
+                cpar.setFinalized(rs.getString("finalized"));
+                cpar.setCparNo(rs.getInt("cpar_no"));
+                cpar.setAuthorizedPerson(rs.getString("authorized_person"));
+                cpar.setPostRank(rs.getString("post_rank"));
+                cpar.setStatus(rs.getString("cpar_status"));
+                cpar.setServiceCategoryGroup(wac.getServiceCategoryGroup());
+                cpar.setDepartmentId(wac.getDepartmentId());
+                cpar.setServiceContractNo(wac.getServiceContractNo());
+                cpar.setScore(rs.getInt("score"));
+                cpar.setA1Score(rs.getInt("a1"));
+                cpar.setA2Score(rs.getInt("a2"));
+                cpar.setA3Score(rs.getInt("a3"));
+                cpar.setA4Score(rs.getInt("a4"));
+                cpar.setA5Score(rs.getInt("a5"));
+                cpar.setA6Score(rs.getInt("a6"));
+                cpar.setA7Score(rs.getInt("a7"));
+                cpar.setA8Score(rs.getInt("a8"));
+                cpar.setA9Score(rs.getInt("a9"));
+                
+                cpar.setB1Score(rs.getInt("b1"));
+                cpar.setB2Score(rs.getInt("b2"));
+                cpar.setB3Score(rs.getInt("b3"));
+                cpar.setB4Score(rs.getInt("b4"));
+                cpar.setB5Score(rs.getInt("b5"));
+                
+                cpar.setC1Score(rs.getInt("c1"));
+                cpar.setC2Score(rs.getInt("c2"));
+                cpar.setC3Score(rs.getInt("c3"));
+                cpar.setC4Score(rs.getInt("c4"));
+                cpar.setC5Score(rs.getInt("c5"));
+                
+                cpar.setD1Score(rs.getInt("d1"));
+                cpar.setD2Score(rs.getInt("d2"));
+                cpar.setD3Score(rs.getInt("d3"));
+                
+                cpar.setE1Score(rs.getInt("e1"));
+                cpar.setE2Score(rs.getInt("e2"));
+                cpar.setE3Score(rs.getInt("e3"));
+                cpar.setE4Score(rs.getInt("e4"));
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: CPARDataBean:selectCparByCparNo\n"
+                    + ex.getMessage();
+            logger.error(error, ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return cpar;
+        
+    }
+    
+    public String selectNextCparDate(WAChallengeInfo wac) throws SysException {
+        
+    	String nextDate = "";
+        try {
+        	
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_NEXT_CPAR_DATE);
+            cs.setString("p_service_category_group",wac.getServiceCategoryGroup());
+            cs.setString("p_project_file_part",wac.getFilePartNo());
+            cs.setInt("p_project_file_no",wac.getFileNo());
+            cs.setString("p_department_id",wac.getDepartmentId());
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                nextDate = SysManager.getStringfromSQLDate(rs.getDate("next_date"));
+                
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: CPARDataBean:selectNextCparDate\n"
+                    + ex.getMessage();
+            logger.error(error, ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return nextDate;
+    }
+    
+    public int selectNextCparNo(WAChallengeInfo wac) throws SysException {
+        
+    	int cparNo = 1;
+        try {
+        	
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_NEXT_CPAR_DATE);
+            cs.setString("p_service_category_group",wac.getServiceCategoryGroup());
+            cs.setString("p_project_file_part",wac.getFilePartNo());
+            cs.setInt("p_project_file_no",wac.getFileNo());
+            cs.setString("p_department_id",wac.getDepartmentId());
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                cparNo = rs.getInt("cpar_no")+1;
+                
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: CPARDataBean:selectNextCparDate\n"
+                    + ex.getMessage();
+            logger.error(error, ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return cparNo;
+    }
+    
+    public List<CPARInfo> selectCparByWac(WAChallengeInfo wac) throws SysException {
+        
+        List<CPARInfo> allCPARList = new ArrayList<CPARInfo>();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_CPAR_BY_WA);
+            cs.setString("p_service_category_group",wac.getServiceCategoryGroup());
+            cs.setString("p_project_file_part",wac.getFilePartNo());
+            cs.setInt("p_project_file_no",wac.getFileNo());
+            cs.setString("p_department_id",wac.getDepartmentId());
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                CPARInfo cpar = new CPARInfo();
+                cpar.setStartDate(rs.getDate("start_date"));
+                cpar.setEndDate(rs.getDate("end_date"));
+                cpar.setCreatedDate(rs.getTimestamp("created_datetime").toString());
+                cpar.setLastUpdatedDate(rs.getTimestamp("last_updated_datetime").toString());
+                cpar.setLastUpdatedBy(rs.getString("last_updated_by_user"));
+                cpar.setFinalized(rs.getString("finalized"));
+                cpar.setStatus(rs.getString("cpar_status"));
+                cpar.setCparNo(rs.getInt("cpar_no"));
+                cpar.setAuthorizedPerson(rs.getString("authorized_person"));
+                cpar.setPostRank(rs.getString("post_rank"));
+                cpar.setServiceCategoryGroup(wac.getServiceCategoryGroup());
+                cpar.setServiceContractNo(wac.getServiceContractNo());
+                allCPARList.add(cpar);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: CPARDataBean:selectCparByWA\n"
+                    + ex.getMessage();
+            logger.error(error, ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allCPARList;
+        
+    }
+    
+public List<CPARInfo> selectCparHistory(WAChallengeInfo wac, int cparNo) throws SysException {
+        
+        List<CPARInfo> allCPARList = new ArrayList<CPARInfo>();
+        try {
+            CallableStatement cs = null;
+            cs = getCStmt(SELECT_CPAR_HISTORY);
+            cs.setString("p_service_category_group",wac.getServiceCategoryGroup());
+            cs.setString("p_project_file_part",wac.getFilePartNo());
+            cs.setInt("p_project_file_no",wac.getFileNo());
+            cs.setString("p_department_id",wac.getDepartmentId());
+            cs.setInt("p_cpar_no",cparNo);
+            rs = cs.executeQuery();
+            while (rs.next()) {
+                CPARInfo cpar = new CPARInfo();
+                cpar.setStartDate(rs.getDate("start_date"));
+                cpar.setEndDate(rs.getDate("end_date"));
+                cpar.setCreatedDate(rs.getTimestamp("created_datetime").toString());
+                cpar.setLastUpdatedDate(rs.getTimestamp("last_updated_datetime").toString());
+                cpar.setLastUpdatedBy(rs.getString("last_updated_by_user"));
+                cpar.setFinalized(rs.getString("finalized"));
+                cpar.setCparNo(rs.getInt("cpar_no"));
+                cpar.setAction(rs.getString("action"));
+                cpar.setAuthorizedPerson(rs.getString("authorized_person"));
+                cpar.setPostRank(rs.getString("post_rank"));
+                cpar.setServiceCategoryGroup(wac.getServiceCategoryGroup());
+                cpar.setServiceContractNo(wac.getServiceContractNo());
+                allCPARList.add(cpar);
+            }
+        } catch (Exception ex) {
+            String error =
+                    "DB ERROR: CPARDataBean:selectCparHistory\n"
+                    + ex.getMessage();
+            logger.error(error, ex);
+            throw new SysException(error);
+        } finally {
+            super.close();
+        }
+        return allCPARList;
+        
+    }
+    
+
+    public int insertOrUpdateCPAR(CPARInfo cpar, SecurityContext secCtx, boolean isCreate, String action) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            if (isCreate){
+            	cs = connection.prepareCall(INSERT_CPAR);
+            }else{
+            	cs = connection.prepareCall(UPDATE_CPAR);
+            }
+            // get information from info object
+            cs.setString("p_user_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            cs.setString("p_service_category_group",cpar.getServiceCategoryGroup());
+            cs.setString("p_project_file_part", cpar.getProjectFilePart());
+            cs.setInt("p_project_file_no", cpar.getProjectFileNo());
+            cs.setString("p_department_id",cpar.getDepartmentId());
+            cs.setInt("p_cpar_no",cpar.getCparNo());
+            cs.setDate("p_start_date",cpar.getStartDate());
+            cs.setDate("p_end_date", cpar.getEndDate());
+            cs.setString("p_finalized", cpar.getFinalized());
+            cs.setString("p_cpar_status", cpar.getStatus());
+            cs.setString("p_authorized_person", cpar.getAuthorizedPerson());
+            cs.setString("p_post_rank", cpar.getPostRank());
+            //cs.setInt("p_score",-1);
+            if (isCreate){
+            	cs.setFloat("p_score",-1);
+            	cs.setString("p_service_contract_no", cpar.getServiceContractNo());
+            }else{
+            	cs.setFloat("p_score",cpar.getScore());
+            	cs.setString("p_action", action);
+            }
+            cs.setInt("p_a1",cpar.getA1Score());
+            cs.setInt("p_a2",cpar.getA2Score());
+            cs.setInt("p_a3",cpar.getA3Score());
+            cs.setInt("p_a4",cpar.getA4Score());
+            cs.setInt("p_a5",cpar.getA5Score());
+            cs.setInt("p_a6",cpar.getA6Score());
+            cs.setInt("p_a7",cpar.getA7Score());
+            cs.setInt("p_a8",cpar.getA8Score());
+            cs.setInt("p_a9",cpar.getA9Score());
+            
+            cs.setInt("p_b1",cpar.getB1Score());
+            cs.setInt("p_b2",cpar.getB2Score());
+            cs.setInt("p_b3",cpar.getB3Score());
+            cs.setInt("p_b4",cpar.getB4Score());
+            cs.setInt("p_b5",cpar.getB5Score());
+            
+            cs.setInt("p_c1",cpar.getC1Score());
+            cs.setInt("p_c2",cpar.getC2Score());
+            cs.setInt("p_c3",cpar.getC3Score());
+            cs.setInt("p_c4",cpar.getC4Score());
+            cs.setInt("p_c5",cpar.getC5Score());
+            
+            cs.setInt("p_d1",cpar.getD1Score());
+            cs.setInt("p_d2",cpar.getD2Score());
+            cs.setInt("p_d3",cpar.getD3Score());
+            
+            cs.setInt("p_e1",cpar.getE1Score());
+            cs.setInt("p_e2",cpar.getE2Score());
+            cs.setInt("p_e3",cpar.getE3Score());
+            cs.setInt("p_e4",cpar.getE4Score());
+            
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            //execute
+            result = cs.executeUpdate();
+            returnCode = cs.getInt("return_code");
+            // check execution result
+            if (returnCode !=1){
+                connection.rollback();
+                String err = "SQL Error! Return code= " + returnCode;
+                throw new SysException(err);
+            }
+
+            connection.commit();
+            return returnCode;
+            
+        } catch (SQLException ex0) {
+            String err = "SQL Error: CPARDataBean:InsertOrUpdateCPAR \r\n"  +
+                    "SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            logger.error(err,ex0);
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: CPARDataBean:InsertOrUpdateCPAR.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+
+    public int deleteCPAR(WAChallengeInfo wac, int cparNo, SecurityContext secCtx) throws SysException {
+        
+        Connection connection = null;
+        CallableStatement cs = null;
+        
+        int result = 0;
+        int returnCode=0;
+        try {
+            connection = this.getConnection();
+            connection.setAutoCommit(false);
+            cs = connection.prepareCall(DELETE_CPAR);
+            // get information from info object
+            cs.setString("p_service_category_group",wac.getServiceCategoryGroup());
+            cs.setString("p_project_file_part", wac.getFilePartNo());
+            cs.setInt("p_project_file_no", wac.getFileNo());
+            cs.setString("p_department_id",wac.getDepartmentId());
+            cs.setInt("p_cpar_no",cparNo);
+            cs.setString("p_service_contract_no", wac.getServiceContractNo());
+            cs.setString("p_user_id",secCtx.getUserId());
+            cs.setString("p_dp_dept_id",secCtx.getDPDeptId());
+            cs.setString("p_soa_dept_id",secCtx.getSOADeptId());
+            cs.setString("p_user_role",secCtx.getUserGroup());
+            cs.registerOutParameter("return_code", java.sql.Types.INTEGER);
+            //execute
+            result = cs.executeUpdate();
+            returnCode = cs.getInt("return_code");
+            // check execution result
+            if (returnCode !=1){
+                connection.rollback();
+                String err = "SQL Error! Return code= " + returnCode;
+                throw new SysException(err);
+            }
+
+            connection.commit();
+            return returnCode;
+            
+        } catch (SQLException ex0) {
+            String err = "SQL Error: CPARDataBean:DeleteCPAR \r\n"  +
+                    "SQLState:"+ ex0.getSQLState() +":"+ ex0.getMessage();
+            logger.error(err,ex0);
+            try{
+                connection.rollback();
+                throw new SysException(err);
+            }catch (SQLException ex1){
+                err = "SQL Error: CPARDataBean:DeleteCPAR.rollback\n" + ex1.getMessage();
+                throw new SysException(err);
+            }
+        } finally {
+            super.close();
+        }
+    }
+    
+}

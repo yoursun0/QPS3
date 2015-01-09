@@ -1,0 +1,203 @@
+/**********************************************************************************
+ * Author            : Master Concept Ltd.
+ * Version           : 1.0
+ * Create Date       : June 20, 2013
+ * Last Updated Date : July 14, 2013
+ *********************************************************************************/
+package qpses.util;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.CallableStatement;
+
+import javax.sql.DataSource;
+
+import org.apache.log4j.Logger;
+
+public class DataBean
+{
+    // Get class name
+    private static String MyClassName = DataBean.class.getName();
+    
+    // Set up Log4j
+    private static Logger logger = Logger.getLogger(MyClassName);
+    
+    static
+    { logger.debug("[" + MyClassName + "]" + " " + "started"); }
+    
+    private static DataSource dataSource = null;
+    private Connection connection        = null;
+    private ResultSet rs                 = null;
+    private Statement statement          = null;
+    private PreparedStatement preStmt    = null;
+    private CallableStatement cStmt      = null;
+    private static String connType       = null;
+    
+    /** DataBean Constructor */
+    public DataBean(String aConnType) throws SysException
+    {
+        super();
+        String myName = "[" + MyClassName + "." + "Constructor" + "]";
+        logger.debug(myName + " " + "started");
+        
+        try
+        {
+            if (aConnType == "USER")
+                this.connType = "jdbc/qpsis/user";
+            else if (aConnType == "ADMIN")
+                this.connType = "jdbc/qpsis/admin";
+            else
+                throw new SysException(myName, "Connection Type must be either 'USER' or 'ADMIN'");
+        }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+    }
+    
+    /** Get Auto Commit Connection */
+    public Connection getConnection() throws SysException
+    {
+        String myName = "[" + MyClassName + "." + "getConnection" + "]";
+        logger.debug(myName + " " + "started");
+        
+        try
+        {
+            if (connection != null)
+                return connection;
+            if (dataSource == null)
+                dataSource = (DataSource)SysManager.getResource(this.connType);
+            connection = dataSource.getConnection();
+        }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+        return connection;
+    }
+    
+    /** Get a CallableStatement from current connection */
+    public CallableStatement getCStmt(String sql) throws SysException
+    {
+        String myName = "[" + MyClassName + "." + "getCStmt" + "]";
+        logger.debug(myName + " " + "started");
+        logger.debug(myName + " " + "Preparing CallableStatement: [" + sql + "]");
+        
+        try
+        {
+            if (cStmt == null)
+            {
+                cStmt = getConnection().prepareCall(sql);}
+        }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+        return cStmt;
+    }
+    
+    /** Get a PreparedStatement from current connection */
+    public PreparedStatement getPreStmt(String sql) throws SysException
+    {
+        String myName = "[" + MyClassName + "." + "getPreStmt" + "]";
+        logger.debug(myName + " " + "started");
+        logger.debug(myName + " " + "Preparing PreparedStatement: [" + sql + "]");
+        
+        try
+        {
+            if (preStmt == null)
+            {
+                preStmt = getConnection().prepareStatement(sql);}
+        }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+        return preStmt;
+    }
+    
+    /** Get a Statement from current connection */
+    public Statement getStatement() throws SysException
+    {
+        String myName = "[" + MyClassName + "." + "getStatement" + "]";
+        logger.debug(myName + " " + "started");
+        
+        try
+        {
+            if (statement == null)
+            {
+                statement = getConnection().createStatement();
+            }
+        }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage()); }
+        
+        logger.debug(myName + " " + "ended");
+        return statement;
+    }
+    
+    /** Close Resultset, Statement and connection */
+    public void close() throws SysException
+    {
+        String myName = "[" + MyClassName + "." + "close" + "]";
+        logger.debug(myName + " " + "started");
+        
+        try
+        {
+            if (rs != null)
+            {
+                try
+                { rs.close(); }
+                catch (SQLException e)
+                { ; }
+                rs = null;
+            }
+            if (cStmt != null)
+            {
+                try
+                { cStmt.close(); }
+                catch (SQLException e)
+                { ; }
+                cStmt = null;
+            }
+            if (preStmt != null)
+            {
+                try
+                { preStmt.close(); }
+                catch (SQLException e)
+                { ; }
+                preStmt = null;
+            }
+            if (statement != null)
+            {
+                try
+                { statement.close(); }
+                catch (SQLException e)
+                { ; }
+                statement = null;
+            }
+            if (connection != null)
+            {
+                try
+                { connection.close(); }
+                catch (SQLException e)
+                { ; }
+                connection = null;
+            }
+        }
+        catch (Exception ex)
+        { throw new SysException(myName, ex.getMessage());}
+        
+        logger.debug(myName + " " + "ended");
+    }
+    
+    /** Call close() to close Resultset, Statement and Connection */
+    protected void finalize() throws SysException
+    {
+        this.close();
+        logger.debug("[" + MyClassName + "]" + " " + "ended");
+    }
+}

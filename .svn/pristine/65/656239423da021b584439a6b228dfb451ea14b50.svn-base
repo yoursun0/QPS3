@@ -1,0 +1,857 @@
+package qpses.security;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.RequestDispatcher;
+
+import org.apache.log4j.Logger;
+
+import java.sql.Date;
+import java.util.ArrayList;
+import java.util.List;
+import qpses.business.DeptInfo;
+
+import qpses.business.ACLDataBean;
+import qpses.business.DebarDataBean;
+import qpses.business.DebarInfo;
+import qpses.business.DeptDataBean;
+import qpses.business.LogDataBean;
+import qpses.business.StaffRateValidationDBUser;
+import qpses.business.WAChallengeInfo;
+import qpses.business.WorkAssignmentDataBean;
+import qpses.business.WorkAssignmentInfo;
+
+import qpses.util.SendEmail;
+import qpses.util.SysException;
+import qpses.util.Constant;
+import qpses.util.SysManager;
+
+public class SecurityServlet extends HttpServlet
+{
+    // log4j
+    static Logger logger = Logger.getLogger(SecurityServlet.class.getName());
+    
+    public static final String AdminBaseUrl = "/qpsadmin/";
+    public static final String UserBaseUrl = "/qpsuser/";
+    
+    private static String preScreen = null;
+    private static String actionStatus = null;
+    private static String postScreen = null;
+    private static String requestAction = null;
+    private static String wrongPwdMsg = "Wrong Password! Please enter a correct password to login again.";
+    private static String disableMsg = "You have entered wrong password too many times. Your account will be disabled temporarily." + "<BR />" +
+    									"You may try again after an hour." + "<BR /><BR />" + "In case if you need to reset your password,<BR />please click the [Forgot Password] option in the main login page.";
+    private static String lockedMsg = "Your account's right to access the SOA-QPS3 Quality Professional Services Information System is locked." + "<BR><BR>" +
+            "To request for unlock, please seek approval from SSM+ (or equivalent) and submit your request together with the approval " +
+            "record to QPS3-RRC Secretariat Office by Notes email to " + "<BR />" +
+            "QPS3-RRC Secretariat Office/OGCIO/HKSARG@OGCIO.";
+    
+    public static final String[] challengeQuestion = 
+    {
+        "The invitation issue date of the work assignment", 
+        "The proposal submission deadline of the work assignment"
+    }; 
+    
+    public SecurityDataBean getSecurityDataBean() throws SysException{
+    	return new SecurityDataBean();
+    }
+    
+    public LogDataBean getLogDataBean() throws SysException{
+    	return new LogDataBean();
+    }
+    
+    public WorkAssignmentDataBean getWorkAssignmentDataBean() throws SysException{
+    	return new WorkAssignmentDataBean();
+    }
+    
+    public void doPost(
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws javax.servlet.ServletException, java.io.IOException
+    {
+        requestAction = request.getServletPath();
+        
+        if (requestAction.equals("/QPSESEntry"))
+        {
+            performAuthorization(request,response);
+            return;
+        }
+        if (requestAction.indexOf("/SystemOut.servlet")>0)
+        {
+            performLogOut(request,response);
+            return;
+        }
+        
+        if (requestAction.equals(UserBaseUrl + "WAChallenge.servlet"))
+        {
+            performWAChallenge(request,response);
+            return;
+        }
+        
+        if ((requestAction.equals(UserBaseUrl + "WAChallengeValidation.servlet")) || (requestAction.equals(AdminBaseUrl + "WAChallengeValidation.servlet")))
+        {
+            performWAChallengeValidation(request,response);
+            return;
+        }
+        
+        if (requestAction.equals(UserBaseUrl + "ChangePassword.servlet"))
+        {
+        	performChangePassword(request,response);
+            return;
+        }
+        
+        if (requestAction.equals(AdminBaseUrl + "SwitchUser.servlet"))
+        {
+            performSwitchUser(request,response);
+            return;
+        }
+        
+        //  if (requestAction.equals("/Authentication.servlet"))  {
+        //      performAuthentication(request, response);
+        //      return;
+        //  }
+    }
+    
+    public void doGet(
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws javax.servlet.ServletException, java.io.IOException
+    {
+        doPost(request,response); }
+    
+    private void performAuthorization(
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws javax.servlet.ServletException, java.io.IOException
+    {
+        try
+        {
+            String userId   = "";
+            String dpDeptId = "";
+            String userName = "";
+            String password = "";
+            String forgot = "";
+            
+            
+            if ((request.getParameter("UserId") == null)||(request.getParameter("Password") == null)){
+            	response.sendRedirect("index.jsp");
+                return;
+            }else{
+                // For testing environment, get parameters from authorization.jsp
+                userId = ((String) request.getParameter("UserId")).replaceAll("%20"," ");
+                password = ((String) request.getParameter("Password")).replaceAll("%20"," ");
+                // forgot = request.getParameter("Forgot");
+            }
+            
+            // initialize error message
+            request.getSession().removeAttribute("AUTHORIZATION_MSG");
+            
+            // check whether login DP
+            if (userId == null || password == null || userId == "" || password == "")
+            {
+            	String msg ="You have inputted empty user ID or password.<BR />Please try again.";
+                request.getSession().setAttribute("AUTHORIZATION_MSG",msg);
+                response.sendRedirect("unauthorized.jsp");
+                return;
+            }
+            
+            // check existence of security contexst; if exist, remove it
+            SecurityContext secCtx = (SecurityContext) request.getSession().getAttribute("QPSES_SECURITY_CONTEXT");
+            
+            if (secCtx !=null)
+            {
+                request.getSession().removeAttribute("QPSES_SECURITY_CONTEXT"); }
+            
+            // check user in ACL and put information into security context
+            SecurityDataBean secDB = getSecurityDataBean();
+            LogDataBean logDB = getLogDataBean();
+            secCtx = secDB.selectSecCTX(userId);
+            
+            if (secCtx == null)
+            { // Not authorized if no security context return
+                String msg ="You are not authorised to access the system<BR />since you are not a registered user.";
+                request.getSession().setAttribute("AUTHORIZATION_MSG",msg);
+                response.sendRedirect("unauthorized.jsp");
+                return;
+            }
+            
+         // get user status
+            UserStatus uStatus = secDB.getUserStatus(secCtx,password);
+            
+            if (uStatus == null)
+            { // User ID exists but Wrong Password
+            	
+                int failureCount = secDB.getFailureCount(secCtx,"Login");
+                
+                // accumulate login failure count
+                // failureCount ++;
+                
+                // Redirect to unauthorized page if exceeds limit of access failure
+                if (failureCount >= Constant.QPSIS_WRONG_PASSWORD_ATTEMPT_LIMIT)
+                {
+                    
+                    if (failureCount == Constant.QPSIS_WRONG_PASSWORD_ATTEMPT_LIMIT){
+                    	
+                    	secDB.lockUserAccount(secCtx,0,true);
+                    	List<String> adminEmails = secDB.getAdminEmails();
+                    	
+                    	for (String mailTo : adminEmails){
+                    		SendEmail email = new SendEmail(mailTo,new ArrayList<String>(),userId,secCtx.getFirstname()+" "+secCtx.getLastname(),secCtx.getSOADeptId(),secCtx.getEmail(),1);
+                    		boolean success = email.send();
+                    		if (!success){
+                    			throw new ServletException("System encounters unexpected error when connect to SMTP server.");
+                    		}
+                    	}
+                	}
+
+                    request.getSession().setAttribute("AUTHORIZATION_MSG", disableMsg);
+                    response.sendRedirect("unauthorized.jsp");
+                    return;
+                }
+                else
+                {
+                    // Redirect to wrong password page
+                    request.getSession().setAttribute("AUTHORIZATION_MSG",wrongPwdMsg);
+                    response.sendRedirect("unauthorized.jsp");
+                    return;
+                }
+                
+            }
+            else
+            {
+                
+                // write access log
+                logDB.writeAccessLog(uStatus,secCtx);
+                
+                // check if account is locked OR disabled
+                if (uStatus.isLocked())
+                {
+                    request.getSession().removeAttribute("QPSES_SECURITY_CONTEXT");
+                    if (uStatus.getLoginFailure()>=Constant.QPSIS_WRONG_PASSWORD_ATTEMPT_LIMIT){
+                    	request.getSession().setAttribute("AUTHORIZATION_MSG",disableMsg);
+                    }else{
+                    	request.getSession().setAttribute("AUTHORIZATION_MSG",lockedMsg);
+                    }
+                    response.sendRedirect("unauthorized.jsp");
+                    return;
+                }
+                
+                // check if account is expired
+                if (uStatus.isExpired())
+                {
+                    request.getSession().removeAttribute("QPSES_SECURITY_CONTEXT");
+                    request.getSession().setAttribute("AUTHORIZATION_MSG","Your account was expired on " +
+                            SysManager.getStringfromSQLDate(uStatus.getExpiryDate()) +"!");
+                    response.sendRedirect("unauthorized.jsp");
+                    return;
+                }
+                
+                // update last access date and time
+                secDB.updateLastAccessAttempt(secCtx);
+                secDB.resetFailureCount(secCtx,"Login");
+                
+                // get the access privileges for the user
+                List pvgList = secDB.createAccessPrivileges(secCtx);
+                
+                // check for no access privileges available
+                if (pvgList.isEmpty())
+                { // if empty, no access privileges available for the user
+                    request.getSession().removeAttribute("QPSES_SECURITY_CONTEXT");
+                    request.getSession().setAttribute("AUTHORIZATION_MSG","You have no access privileges.");
+                    response.sendRedirect("unauthorized.jsp");
+                    return;
+                }
+                
+                // save the access privileges into security context
+                secCtx.privileges=pvgList;
+                // get and save the function ID into security context
+                secCtx.functionList = secDB.getAccessibleFunction(secCtx.getUserGroup());
+                
+                // save the security context in session variable
+                request.getSession().setAttribute("QPSES_SECURITY_CONTEXT", secCtx);
+                request.getSession().setAttribute("QPSES_USER_STATUS", uStatus);
+                
+                // redirect to system admin page or user page
+                String postScreen;
+                
+                if (secCtx.getUserGroup().trim().matches("SP|S")){
+                    postScreen = getInitParameter("QPSES_ADMIN_MAIN_PAGE");
+                }else if (secCtx.getUserGroup().trim().matches("M")){
+                	postScreen = getInitParameter("QPSES_MANAGER_MAIN_PAGE");
+                }else{
+                    postScreen = getInitParameter("QPSES_SYSTEM_NOTICE");
+                }
+                
+                response.sendRedirect(postScreen);
+                return;
+            }
+        }
+        catch(SecurityException ex)
+        {
+            throw new ServletException(ex); }
+        catch(SysException ex)
+        {
+            throw new ServletException(ex); }
+    }
+    
+    
+    private void performWAChallenge(
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws javax.servlet.ServletException, java.io.IOException
+    {
+        try
+        {            
+            // get the called program
+            String curServlet = request.getHeader("referer");
+
+            if (curServlet.indexOf("StaffRateValidationSLUser") >= 0)
+            {
+                curServlet    = "StaffRateValidationSLUser";
+                requestAction = "getContractor";
+            }
+            else if (curServlet.indexOf("StaffRateValidationCRSLUser") >= 0)
+            {
+                curServlet    = "StaffRateValidationCRSLUser";
+                requestAction = "getContractor";
+                 
+            }
+            else if (curServlet.indexOf("CPSSLUser") >= 0)
+            {
+                curServlet    = "CPSSLUser";
+                requestAction = "showImagePage";
+            }
+            else
+            {
+                throw new ServletException("Cannot display work assignment challenge page for servlet [" + curServlet + "]."); }
+            
+            // get selected Work Assignment information
+            String serviceCategoryGroup = request.getParameter("scg");
+            String filePartNo           = request.getParameter("wa_file_part");
+            String fileNo               = request.getParameter("wa_file_no");
+            String SOADeptID            = request.getParameter("dept_id");
+            
+            WAChallengeInfo wac = new WAChallengeInfo();
+            wac.setServiceCategoryGroup(serviceCategoryGroup);
+            wac.setFilePartNo(filePartNo);
+            wac.setFileNo(Integer.parseInt(fileNo));
+            wac.setDepartmentId(SOADeptID);
+            wac.setForwardScreen(curServlet);
+            wac.setRequestAction(requestAction);
+            
+            // get access failure count
+            SecurityDataBean secDB = getSecurityDataBean();
+            SecurityContext secCtx =(SecurityContext) request.getSession().getAttribute("QPSES_SECURITY_CONTEXT");
+            
+            int failureCount = secDB.getFailureCount(secCtx,"Access");
+            
+            // if access failure exceed limit of access attempt, lock user account
+            if (failureCount >= Constant.QPSIS_CHALLENGE_ATTEMPT_LIMIT)
+            {
+                secDB.lockUserAccount(secCtx, failureCount, false); }
+            
+            // get WA information
+            WorkAssignmentDataBean waDB = getWorkAssignmentDataBean();
+            wac = waDB.selectWorkAssignmentByKeys(wac);
+            
+            // Get number of invited contractor
+            wac.setNoOfInvitedContractor(waDB.getNoOfInvCont(wac.getServiceCategoryGroup(), wac.getDepartmentId(), wac.getFilePartNo(), wac.getFileNo()));
+            
+            // QPS3 change requirement - Challenge for both issue date and closing date for validation
+
+            // save the wa challenge information
+            request.getSession().setAttribute("QPSES_WA_CHALLENGE", wac);
+            
+            // Insert Log
+            String waType = (String)request.getSession().getAttribute("WA_TYPE");
+            
+            if (waType == null) { throw new ServletException("Session [WAType] is NULL"); }
+            
+            String functionID = "";
+                        
+            if (waType.equals("proposal") || waType.equals("change_request"))
+                functionID = "RATEVALID_CHALLENGE";    
+            else if (waType.equals("quality_subscore"))
+                functionID = "QSENQ_CHALLENGE";
+            else
+                throw new ServletException("Cannot determine work assignment type [" + waType + "]");
+            
+            // Do not add log for "Staff Rate Validation for Change Request"
+            if (!waType.equals("change_request"))
+                secDB.insertChallengeLog(secCtx.getUserId(), secCtx.getDPDeptId(), secCtx.getSOADeptId(), functionID, this.challengeQuestion[0], "", "", "", wac.getServiceCategoryGroup(), wac.getFilePartNo(), wac.getFileNo(), wac.getDepartmentId());
+            
+            // display work assignment challenge page
+            String postScreen = curServlet + "?request_action=waChallenge";
+            response.sendRedirect(postScreen);
+            return;
+        }
+        catch(SecurityException ex)
+        {
+            throw new ServletException(ex); }
+        catch(SysException ex)
+        {
+            throw new ServletException(ex); }
+    }
+    
+    private void performWAChallengeValidation(
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws javax.servlet.ServletException, java.io.IOException
+    {
+        try
+        {
+        	// QPS3 change: Challenge for both start date + end date
+            // initialization
+        	
+        	SecurityDataBean secDB = getSecurityDataBean();
+        	SecurityContext secCtx =(SecurityContext) request.getSession().getAttribute("QPSES_SECURITY_CONTEXT");
+            WorkAssignmentDataBean waDB = getWorkAssignmentDataBean();
+            request.getSession().removeAttribute("WA_CHALLENGE_MSG");
+            
+            String waType = (String)request.getSession().getAttribute("WA_TYPE");
+            if (waType == null) { throw new ServletException("Session [WAType] is NULL"); }
+            String serviceContractNo = request.getParameter("ServiceContractNo");
+            
+            // get inputted Work Assignment information
+            
+            WAChallengeInfo wac = new WAChallengeInfo();
+            boolean validResult     = true;
+            String strValidationMsg = "";
+            
+            if (!("cpar".equals(waType)) && !("acpar".equals(waType))){
+            	wac =	(WAChallengeInfo) request.getSession().getAttribute("QPSES_WA_CHALLENGE");
+            }else{
+            	if (serviceContractNo == null) { throw new ServletException("Service Contract No is NULL"); }
+                wac.setServiceContractNo(Constant.QPSIS_CONTRACT_NO_PREFIX + serviceContractNo); 
+                wac.setDepartmentId(secCtx.getSOADeptId());
+                                
+               
+                
+                if ( ("acpar".equals(waType)) ){
+                	wac = waDB.selectWorkAssignmentForCparByAdmin(wac);
+                } else {
+                	wac = waDB.selectWorkAssignmentForCpar(wac);
+                	if (wac.getStatus() == null){
+	                	strValidationMsg = "There is no work assignment of your department found by this service contractor number. Please retry!";
+	                	validResult     = false;
+	                }
+                }
+
+            }
+            
+            String curServlet    = wac.getForwardScreen();
+            String requestAction = wac.getRequestAction();
+            
+            String issueDateAnswer     = "";   
+            String closeDateAnswer     = "";
+            String functionID    = "";
+            
+            //  QPS3 change: validate both issue date and closing date
+            
+            if(validResult && !("acpar".equals(waType))){
+                    strValidationMsg = "The provided information is incorrect. Please retry!";
+                    issueDateAnswer        = request.getParameter("IssuedDate");
+                    closeDateAnswer        = request.getParameter("ClosingDate");
+                    if ((issueDateAnswer.equals(""))||(closeDateAnswer.equals(""))){
+                    	validResult = false;
+                    }else{
+                    	validResult = (wac.validateIssuedDate(SysManager.getSQLDate(issueDateAnswer)) && wac.validateClosingDate(SysManager.getSQLDate(closeDateAnswer)));
+                    }
+            }   
+            
+            if (waType.equals("proposal") || waType.equals("change_request"))
+                functionID = "RATEVALID_CHALLENGE";    
+            else if (waType.equals("quality_subscore"))
+                functionID = "QSENQ_CHALLENGE";
+            else if (waType.equals("cpar"))
+            	functionID = "CPAR_CHALLENGE";
+            else if (waType.equals("acpar"))
+            	functionID = "CPAR_MAINTENANCE";
+            else
+                throw new ServletException("Cannot determine work assignment type [" + waType + "]");
+            
+            // get access failure count
+            
+            int failureCount = 0;
+            
+            if ("cpar".equals(waType)){
+            	failureCount = secDB.getFailureCount(secCtx,"CPAR");
+            }else if ("acpar".equals(waType)){
+            	failureCount = -1;
+            }else{
+            	failureCount = secDB.getFailureCount(secCtx,"Access");
+            }
+            
+            if (waType.equals("cpar") || waType.equals("acpar")){
+            	if (validResult){
+            		wac.setChallengeStatus("Y");
+                    request.getSession().setAttribute("QPSES_WA_CHALLENGE", wac);
+                    
+                    // if valid, reset access failure count
+                    secDB.resetFailureCount(secCtx,"CPAR");
+                    String postScreen = "CPARList.servlet";
+                    secDB.insertChallengeLog(secCtx.getUserId(), secCtx.getDPDeptId(), secCtx.getSOADeptId(), functionID, this.challengeQuestion[0], issueDateAnswer+"+"+closeDateAnswer, "Y", "N", wac.getServiceCategoryGroup(), wac.getFilePartNo(), wac.getFileNo(), wac.getDepartmentId());
+                    
+                    response.sendRedirect(postScreen);
+                    return;
+            	}else{
+            		failureCount ++;
+                
+            		if (failureCount == Constant.QPSIS_CPAR_ATTEMPT_LIMIT){              
+            			
+            			List<String> adminEmails = secDB.getAdminEmails();
+                	
+                		for (String mailTo : adminEmails){
+                			SendEmail email = new SendEmail(mailTo,new ArrayList<String>(),secCtx.getUserId(),secCtx.getFirstname()+" "+secCtx.getLastname(),secCtx.getSOADeptId(),secCtx.getEmail(),3);
+                			boolean success = email.send();
+                			if (!success){
+                    			throw new ServletException("System encounters unexpected error when connect to SMTP server.");
+                    		}
+                		}
+            		}
+            		
+            		secDB.setFailureCount(secCtx,failureCount,"CPAR");
+            		if (wac.getServiceCategoryGroup()==null){
+            			wac.setServiceCategoryGroup("N/A");
+            			secDB.insertChallengeLog(secCtx.getUserId(), secCtx.getDPDeptId(), secCtx.getSOADeptId(), functionID, challengeQuestion[0], challengeQuestion[1], "N", "N", wac.getServiceCategoryGroup(), wac.getFilePartNo(), wac.getFileNo(), wac.getDepartmentId());
+            		}else{
+            			secDB.insertChallengeLog(secCtx.getUserId(), secCtx.getDPDeptId(), secCtx.getSOADeptId(), functionID, challengeQuestion[0], issueDateAnswer+"+"+closeDateAnswer, "N", "N", wac.getServiceCategoryGroup(), wac.getFilePartNo(), wac.getFileNo(), wac.getDepartmentId());
+            		}                    
+            		// Redirect to wrong password page
+                    request.getSession().setAttribute("WA_CHALLENGE_MSG",strValidationMsg);
+                    response.sendRedirect("CPARSearch.jsp");
+                    return;
+            	}
+            }
+            else if (validResult || waType.equals("change_request"))
+            {
+                wac.setChallengeStatus("Y");
+                String scg = wac.getServiceCategoryGroup();
+                
+                // Get selected work assignment information
+                StaffRateValidationDBUser aSRVDBUser = new StaffRateValidationDBUser();
+                WorkAssignmentInfo aWAInfo           = aSRVDBUser.getWAByKeys(scg, wac.getFilePartNo(), wac.getFileNo(), wac.getDepartmentId());
+
+                if (aWAInfo == null)
+                {throw new ServletException( "Unable to get work assignment information.");}
+
+                String authorizedPerson = aWAInfo.getAuthorizedPerson();     
+                Date awardedDate      = aWAInfo.getAwardedDate();
+                String awardedContractor = aWAInfo.getAwardedContractor();
+
+                if (awardedContractor == null){awardedContractor = "";}
+
+                if (waType.equals("change_request") && awardedContractor.equals("")){
+                	String err = "SecurityServlet:performWAChallengeValidation:Unable to get awarded contractor ID.";
+                	logger.error(err);
+                	throw new ServletException(err);
+               	}
+                
+                // Get Debarred Contractor(s)
+                aSRVDBUser = new StaffRateValidationDBUser();
+                List allDContractorName = aSRVDBUser.getDContractorName(wac.getDebarredContractor());
+
+                String dContractorNameList = "";
+
+                for (int i = 0; i < allDContractorName.size(); i++)
+                {
+                    if (dContractorNameList.equals(""))
+                        dContractorNameList = (String)allDContractorName.get(i);
+                    else
+                        dContractorNameList += ", " + (String)allDContractorName.get(i);
+                }
+
+                String awardedContractorName = "";
+
+                // Get awarded contractor name
+                if (!awardedContractor.equals(""))
+                {
+                    aSRVDBUser = new StaffRateValidationDBUser();
+                    List allContractorName = aSRVDBUser.getDContractorName(awardedContractor);
+
+                    if (allContractorName.size() < 1)
+                    {throw new ServletException("Unable to get contractor name from awarded contractor ID.");}
+
+                    awardedContractorName = (String)allContractorName.get(0);
+                }
+                
+                wac.setAwardedContractor(awardedContractor);
+                wac.setAuthorizedPerson(authorizedPerson);
+                wac.setAwardedDate(awardedDate);
+                wac.setDebarredContractorName(dContractorNameList);
+                wac.setAwardedContractorName(awardedContractorName);
+                
+                if (waType.equals("proposal")){
+                	DebarDataBean debarDB = new DebarDataBean();
+                	List<DebarInfo> debarments = debarDB.selectDebarmentByCat(scg,wac.getClosingDate());
+                	String sysDebarredContractorIds ="";
+                	String sysDebarredContractorNames ="";
+                	for (DebarInfo debarment : debarments){
+                		sysDebarredContractorIds += debarment.getContractorId() + ";";
+                		sysDebarredContractorNames += debarment.getContractorName() + ";";
+                	}
+                	wac.setSysDebarredContractor(sysDebarredContractorIds);
+                    wac.setSysDebarredContractorName(sysDebarredContractorNames);
+                }
+                
+                request.getSession().setAttribute("QPSES_WA_CHALLENGE", wac);
+                
+                // if valid, reset access failure count
+                if (!waType.equals("change_request"))
+                    secDB.resetFailureCount(secCtx,"Access");
+                
+                String postScreen = curServlet + "WAC" + "?request_action=" + requestAction;
+                
+                
+                // Do not add log for "Staff Rate Validation for Change Request"
+                if (!waType.equals("change_request"))
+                    secDB.insertChallengeLog(secCtx.getUserId(), secCtx.getDPDeptId(), secCtx.getSOADeptId(), functionID, this.challengeQuestion[0], issueDateAnswer+"+"+closeDateAnswer, "Y", "N", wac.getServiceCategoryGroup(), wac.getFilePartNo(), wac.getFileNo(), wac.getDepartmentId());
+                
+                response.sendRedirect(postScreen);
+                return;
+            }
+            else
+            {
+                // accumulate access failure count
+                failureCount ++;
+                
+                if (failureCount >= Constant.QPSIS_CHALLENGE_ATTEMPT_LIMIT)
+                {
+                    // Redirect to unauthorized page if exceeds limit of access failure
+                    secDB.lockUserAccount(secCtx,failureCount,false);
+                    List<String> adminEmails = secDB.getAdminEmails();
+                	
+            		for (String mailTo : adminEmails){
+            			SendEmail email = new SendEmail(mailTo,new ArrayList<String>(),secCtx.getUserId(),secCtx.getFirstname()+" "+secCtx.getLastname(),secCtx.getSOADeptId(),secCtx.getEmail(),4);
+            			boolean success = email.send();
+            			if (!success){
+                			throw new ServletException("System encounters unexpected error when connect to SMTP server.");
+                		}
+            		}
+            		
+                    request.getSession().setAttribute("AUTHORIZATION_MSG", lockedMsg);
+                    response.sendRedirect("../unauthorized.jsp");
+                    secDB.insertChallengeLog(secCtx.getUserId(), secCtx.getDPDeptId(), secCtx.getSOADeptId(), functionID, this.challengeQuestion[0], issueDateAnswer+"+"+closeDateAnswer, "N", "Y", wac.getServiceCategoryGroup(), wac.getFilePartNo(), wac.getFileNo(), wac.getDepartmentId());
+                    return;
+                }
+                else
+                {
+                    // Redirect to work assignment challenge page
+                    if (! (secCtx.getUserGroup().equals("SP") || secCtx.getUserGroup().equals("S")))
+                    {
+                        secDB.setFailureCount(secCtx,failureCount,"Access");
+                    }
+                    /***/
+                    request.getSession().setAttribute("WA_CHALLENGE_MSG", strValidationMsg);
+                    //response.sendRedirect("WorkAssignmentChallenge.jsp");
+                    response.sendRedirect(curServlet + "?request_action=waChallenge");
+                    secDB.insertChallengeLog(secCtx.getUserId(), secCtx.getDPDeptId(), secCtx.getSOADeptId(), functionID, this.challengeQuestion[0], issueDateAnswer+"+"+closeDateAnswer, "N", "N", wac.getServiceCategoryGroup(), wac.getFilePartNo(), wac.getFileNo(), wac.getDepartmentId());
+                    return;
+                }
+            }
+        }
+        catch(SecurityException ex)
+        { throw new ServletException(ex); }
+        catch(SysException ex)
+        { throw new ServletException(ex); }
+    }
+    
+    
+    private void performSwitchUser(
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws javax.servlet.ServletException, java.io.IOException
+    {
+        
+        try
+        {
+            // initialization
+            request.getSession().removeAttribute("SW_USER_MSG");
+            
+            // get switching department
+            String deptId = request.getParameter("DeptId");
+            
+            if (deptId == null)
+            {
+                postScreen = "SwitchUser.jsp";
+                String errMsg = "Failed to get Department ID!";
+                request.getSession().setAttribute("SW_USER_MSG",errMsg);
+                request.getSession().setAttribute("SW_USER_MSGTYPE","ERR");
+                //RequestDispatcher dispatcher = request.getRequestDispatcher(postScreen);
+                //dispatcher.forward(request, response);
+                response.sendRedirect(postScreen);
+                return;
+            }
+            
+            // split the dept id
+            DeptInfo dept = new DeptInfo();
+            dept.setSplitDeptId(deptId);
+            String soaDeptId = dept.getSOADeptId();
+            String dpDeptId = dept.getDPDeptId();
+            
+            // get the current security context
+            SecurityContext secCtx =(SecurityContext) request.getSession().getAttribute("QPSES_SECURITY_CONTEXT");
+            
+            // add user's department id to security context
+            secCtx.userSOADeptId = soaDeptId;
+            secCtx.userDPDeptId = dpDeptId;
+            request.getSession().setAttribute("QPSES_SECURITY_CONTEXT",secCtx);
+            response.sendRedirect("../qpsuser/index.jsp");
+            return;
+        }
+        catch(Exception ex)
+        {
+        	String err = "SecurityServlet:performSwitchUser\r\n" + ex.getMessage();
+        	logger.error(err,ex);
+            throw new ServletException(ex); }
+    }
+    
+    private void performLogOut(
+            HttpServletRequest request,
+            HttpServletResponse response)
+            throws javax.servlet.ServletException, java.io.IOException
+    {
+        try
+        {
+            SecurityContext secCtx = (SecurityContext) request.getSession().getAttribute("QPSES_SECURITY_CONTEXT");
+            // check whether security context still exist
+            if (secCtx == null)
+            { // if not exist, nothing to do
+                return;
+            }
+            // write audit trail for logout
+            SecurityDataBean secDB = getSecurityDataBean();
+            secDB.updateSystemOut(secCtx);
+            
+            // remove security context
+            request.getSession().removeAttribute("QPSES_SECURITY_CONTEXT");
+            request.getSession().setAttribute("QPSES_LOGIN_STATUS","LOGOUT");
+            request.getSession().removeAttribute("QPSES_LOGIN_STATUS");
+            request.getSession().invalidate();
+            response.sendRedirect("../logout.jsp");
+            return;
+        }
+        catch(SecurityException ex)
+        {
+            throw new ServletException(ex); }
+        catch(SysException ex)
+        {
+            throw new ServletException(ex); }
+    }
+    
+    private void performChangePassword(HttpServletRequest request, HttpServletResponse response)
+            throws javax.servlet.ServletException, java.io.IOException
+    {
+        try
+        {
+        	
+        	SecurityContext secCtx = (SecurityContext) request.getSession().getAttribute("QPSES_SECURITY_CONTEXT");
+        	String password = request.getParameter("Password");
+        	String oldPassword = request.getParameter("OldPassword");
+            // write audit trail for Forgot Password
+            SecurityDataBean secDB = getSecurityDataBean();
+            LogDataBean logDB = getLogDataBean();
+            secDB.updateSystemOut(secCtx);
+            
+            // get user status
+            UserStatus uStatus = secDB.getUserStatus(secCtx,oldPassword);
+            
+            if (uStatus == null)
+            { // User ID exists but Wrong Password
+            	
+            	if ((password != null)&&(oldPassword != null)){
+            		request.getSession().setAttribute("AUTHORIZATION_MSG","The entered old password is not correct!");
+            		request.getSession().setAttribute("ACL_MSG","The entered old password is not correct!");
+            		request.getSession().setAttribute("ACL_MSGTYPE","ERR");
+            	}
+                
+                logDB.insertChangePasswordLog(secCtx.getUserId(),secCtx.getDPDeptId(),secCtx.getSOADeptId(),"N");
+                
+                postScreen = "ChangePassword.jsp";
+                response.sendRedirect(postScreen);
+                return;
+            }
+            
+            secDB.changePassword(secCtx,password,(byte) -1);
+            
+            // overwrite the user status with the new password and password indicator
+            uStatus = secDB.getUserStatus(secCtx,password);
+            request.getSession().setAttribute("QPSES_USER_STATUS", uStatus);
+            
+            logDB.insertChangePasswordLog(uStatus.getUserId(),uStatus.getDPDeptId(),uStatus.getSOADeptId(),"Y");
+            request.getSession().setAttribute("AUTHORIZATION_MSG","The password is changed successfully!");
+            request.getSession().setAttribute("ACL_MSG","The password is changed successfully!");
+            request.getSession().setAttribute("ACL_MSGTYPE","MSG");
+            
+            postScreen = "ChangePassword.jsp";
+            response.sendRedirect(postScreen);
+            
+            return;
+        }
+        catch(SecurityException ex)
+        {
+            throw new ServletException(ex); }
+        catch(SysException ex)
+        {
+            throw new ServletException(ex); }
+    }
+    
+    public void performForgotPassword(String userId, HttpServletRequest request, HttpServletResponse response)
+            throws javax.servlet.ServletException, java.io.IOException
+    {
+        try
+        {
+        	
+            SecurityDataBean secDB = getSecurityDataBean();
+            SecurityContext secCtx = secDB.selectSecCTX(userId);
+            
+            if (secCtx == null)
+            { // Not authorized if no security context return
+                String msg ="This User ID does not exist. Please try again.";
+                request.getSession().setAttribute("ACL_MSG",msg);
+                request.getSession().setAttribute("ACL_MSGTYPE","ERR");
+
+                return;
+            }
+            
+            // Change Password
+            
+            String password = SysManager.generateRandomPassword(8);
+            secDB.changePassword(secCtx,password,(byte) 0);
+            secDB.resetFailureCount(secCtx,"Login");
+            
+            // write audit trail for Forgot Password
+            // UserStatus uStatus = secDB.getUserStatus(secCtx,password);
+            // secDB.writeAccessLog(uStatus,secCtx);
+            
+            ACLDataBean aclDB = new ACLDataBean();
+            aclDB.insertUnlockLog(secCtx,userId,1);
+
+            // Send Email
+            
+            String mailTo = secCtx.getEmail();
+            
+            List<String> adminEmails = secDB.getAdminEmails();
+            
+        	SendEmail email = new SendEmail(mailTo,adminEmails,userId,secCtx.getFirstname()+" "+secCtx.getLastname(),secCtx.getSOADeptId(),password,2);
+        	boolean success = email.send();
+            
+            if (success){
+            	request.getSession().setAttribute("ACL_MSG","A system generated email is sent to the addresses of user ["+userId+"] and administrators.<br /> Please check your email and use the enclosed password to login QPSIS.");
+            	request.getSession().setAttribute("ACL_MSGTYPE","MSG");
+            }else{
+            	request.getSession().setAttribute("ACL_MSG","System encounters unexpected error when connect to SMTP server.");
+            	request.getSession().setAttribute("ACL_MSGTYPE","ERR");
+            }
+            return;
+        }
+        catch(SecurityException ex)
+        {
+            throw new ServletException(ex); }
+        catch(SysException ex)
+        {
+            throw new ServletException(ex); }
+    }
+}

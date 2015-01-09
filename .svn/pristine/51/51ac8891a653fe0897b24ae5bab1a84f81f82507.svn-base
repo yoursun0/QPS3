@@ -1,0 +1,133 @@
+<%@page contentType="text/html"%>
+<%@page pageEncoding="UTF-8"%>
+<%@ page import="qpses.business.DeptDataBean,
+                                qpses.business.DeptInfo"%>
+<%
+
+    // initialize variable
+    String dp_dept_id = "";
+    String soa_dept_id = "";
+    String dept_name = "";
+    String org_key1="";
+    String org_key2="";
+    
+    // get parameters from previous screen
+    String pre_screen = getValue(request.getParameter("PostScreen"));
+    if (pre_screen.equals("")){
+        pre_screen = (String) session.getAttribute("DEPT_POST_SCREEN");
+    }
+    String order_by = getValue(request.getParameter("OrderBy"));
+    String order_dir = getValue(request.getParameter("OrderDir"));
+
+
+    // check  for message
+    String msg =   getValue((String)  session.getAttribute("DEPARTMENT_MSG"));
+    String msgtype =   getValue((String)  session.getAttribute("DEPARTMENT_MSG_TYPE"));
+    if (!msg.equals("")){
+        session.removeAttribute("DEPARTMENT_MSG");
+        session.removeAttribute("DEPARTMENT_MSG_TYPE");
+    }
+
+    // get last input from session variable, if any
+    DeptInfo dept = new DeptInfo();
+    dept = (DeptInfo) session.getAttribute("DEPARTMENT_DATA");
+    if (dept!=null){
+        org_key1 = getValue(dept.getOrgKey1());
+        org_key2 = getValue(dept.getOrgKey2());
+        session.removeAttribute("DEPARTMENT_DATA");
+    }
+    // get values from database
+    if (org_key1.equals("")||org_key2.equals("")){
+        // check keys passed from DeptList.jsp, if any
+        org_key1 = getValue(request.getParameter("selectedKey1"));
+        org_key2 = getValue(request.getParameter("selectedKey2"));
+
+        // otherwise, check keys passed from this page, if any
+        if (org_key1.equals("")||org_key2.equals("")){
+            org_key1=getValue(request.getParameter("OrgKey1"));
+            org_key2=getValue(request.getParameter("OrgKey2"));
+        }
+
+        // if no keys, force to return to DeptList.jsp
+        if (org_key1.equals("")||org_key2.equals("")){
+            response.sendRedirect("DeptList.jsp");
+            return;
+        }
+    }
+    DeptDataBean deptDB =new DeptDataBean();
+    dept = deptDB.selectDeptByKeys(org_key1,org_key2);
+    if (dept!=null){
+        dp_dept_id = dept.getDPDeptId();
+        soa_dept_id = dept.getSOADeptId();
+        dept_name = dept.getDeptName();
+    }
+
+
+%>
+<%!private String getValue(String temp){ return (temp == null )? "" : temp;}%>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title>SOA-QPS3 Quality Professional Services Information System Administration - Delete Department</title>
+        <link rel="STYLESHEET" type="text/css" href="../styles/style.css">
+        <script language="JavaScript" src="../js/deptcheck.js" type="text/javascript"></script>                   
+    </head>
+    <body>
+        <%@include file="include/header.jsp"%>        
+        <fieldset class="function"> 
+            <table class="function_title"><tr><td>Department Code Maintenance</td></tr></table>            		        
+            <form name="form1" method="POST" action="">
+                <table border="0" cellspacing="0" cellpadding="0" width="98%" class="tableNoBorder" align="center">
+                    <tr class="title1"> 
+                        <td>Delete Department</td>
+                    </tr>
+                    <tr> 
+                        <td> <%= (! msg.equals(""))? "<div class=\"errMessage\">"+ msg + "</div>":""%></td>
+                    </tr>
+                    <tr> 
+                        <td> 
+                            <div align="center"> 
+                                <table  width="98%" cellspacing="1" class="tableBackground">
+                                    <tr width="15%"> 
+                                        <td class="tableVerticalHeaderAlignLeft1" width="26%">Department 
+                                        Code (DP)</td>
+                                        <td class="tableVerticalContentAlignLeft1" width="74%"><%=dp_dept_id%> 
+                                        </td>
+                                    </tr>
+                                    <tr width="15%"> 
+                                        <td class="tableVerticalHeaderAlignLeft1" width="26%">Department 
+                                        Code (SOA-QPS)</td>
+                                        <td class="tableVerticalContentAlignLeft1" width="74%"><%=soa_dept_id%> 
+                                        </td>
+                                    </tr>
+                                    <tr> 
+                                        <td class="tableVerticalHeaderAlignLeft1" width="26%">Department 
+                                        Name</td>
+                                        <td class="tableVerticalContentAlignLeft1" width="74%"><%=dept_name%> 
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+                <div align="center"></div>
+                <table border="0" cellpadding="3" align="center">
+                    <tr> 
+                        <td width="50%">
+                            <div align="center"> <a href="#"><img src="../images/btn_delete.jpg" width="98" height="42" name="ConfirmDelete" onClick="selectaction(form1,this)" border="0" alt="Delete"></a></div>
+                        </td>
+                        <td width="50%">
+                            <div align="center"> <a href="#"><img src="../images/btn_cancel.jpg" width="98" height="42" name="Cancel" onClick="selectaction(form1,this)" border="0" alt="Cancel"></a></div>
+                        </td>
+                    </tr>
+                </table>
+                <input type="hidden" name="OrgKey1" value="<%=org_key1%>">
+                <input type="hidden" name="OrgKey2" value="<%=org_key2%>">
+                <input type="hidden" name="PostScreen" value="<%=pre_screen%>">              
+                <input type="hidden" name="OrderBy" value="<%=order_by%>">
+                <input type="hidden" name="OrderDir" value="<%=order_dir%>">                                                                                     
+            </form>
+        </fieldset>
+    </body>
+</html>

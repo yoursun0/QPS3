@@ -1,0 +1,9 @@
+package qpses.security;
+
+import java.util.Vector;
+
+public interface AuthorizationManager {
+    
+    public boolean isUserAuthorized(Vector pvg, String uri);
+
+}

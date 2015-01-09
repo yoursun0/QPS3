@@ -1,0 +1,945 @@
+-- MySQL stored procedures for QPS3 Database 
+-- Login and Access Log function Procedure
+-- HKMCI appends their change to this DB script after running the SQL init
+-- ------------------------------------------------------
+-- Server version	5.5-community
+
+
+use qpsis;
+
+
+--
+-- Procedure `qpsis`.`sp_reset_login_failure_count`
+--
+
+DROP PROCEDURE IF EXISTS `sp_reset_login_failure_count`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_reset_login_failure_count`(
+ IN  p_user_id varchar(30),
+ OUT return_code INT)
+BEGIN
+DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+
+SET @progID ="UPDATEACCESS";
+SET return_code = 0;
+   UPDATE acl
+      SET login_failure_count = 0, login_failure_date = null
+          WHERE user_id = p_user_id ;
+SET return_code =1;
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_select_login_failure_count`
+--
+
+DROP PROCEDURE IF EXISTS `sp_select_login_failure_count`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_select_login_failure_count`(
+ IN p_user_id varchar(30),
+ OUT return_code INT)
+BEGIN
+DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+SET return_code = 0;
+   SELECT login_failure_count
+          FROM acl
+          WHERE user_id = p_user_id ;
+SET return_code =1;
+END $$
+
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_temp_lock_user_account`
+--
+
+DROP PROCEDURE IF EXISTS `sp_temp_lock_user_account`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_temp_lock_user_account`(
+ IN p_user_id varchar(30),
+ OUT return_code INT)
+BEGIN
+DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+
+SET @progID ="UPDATEACCESS";
+SET return_code = 0;
+   UPDATE acl
+      SET login_failure_date = TIMESTAMPADD(HOUR,1,NOW()),
+          last_updated_by_user = 'SYSTEM LOCKING',
+          last_updated_datetime = SYSDATE()
+      WHERE user_id = p_user_id ;
+SET return_code =1;
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_update_password`
+--
+
+DROP PROCEDURE IF EXISTS `sp_update_password`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_update_password`(
+ IN p_user_id varchar(30),
+ IN p_dp_dept_id varchar(10),
+ IN p_soa_dept_id varchar(10),
+ IN p_password varchar(80),
+ IN p_indicator tinyint(1), 
+ OUT return_code INT)
+BEGIN
+DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+SET return_code = 0;
+SET @progID ="UPDATEACCESS";
+   UPDATE acl
+      SET password = QPSES_ENCRYPT(p_user_id,'password',p_password), password_indicator = p_indicator
+      WHERE user_id = p_user_id AND
+                soa_department_id = p_soa_dept_id AND
+                dp_department_id = p_dp_dept_id;
+SET return_code =1;
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_search_access_log`
+--
+
+DROP PROCEDURE IF EXISTS `sp_search_access_log`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_search_access_log`(
+ IN p_user_id varchar(30),
+ IN p_dp_dept_id varchar(10),
+ IN p_activity varchar(5),
+ IN p_status varchar(80),
+ IN p_from_date Date,
+ IN p_to_date Date,
+ IN p_order_by varchar(20),
+ IN p_order_dir varchar(10),
+ IN p_start_rec int,
+ IN p_page_size int)
+BEGIN
+DECLARE sqlstmt TEXT;
+DECLARE stmt TEXT;
+   IF p_user_id IS NULL THEN
+      SET @p_user_id = '%';
+   ELSE
+      SET @p_user_id = CONCAT('%',p_user_id,'%');
+   END IF;
+   IF p_dp_dept_id IS NULL THEN
+      SET @p_dp_dept_id = '%';
+   ELSE
+      SET @p_dp_dept_id = p_dp_dept_id;
+   END IF;
+   IF p_activity IS NULL THEN
+      SET @p_activity = '%';
+   ELSE
+      SET @p_activity = p_activity;
+   END IF;
+   SET @p_status = p_status;
+   SET @p_order_by = p_order_by;
+   SET @p_order_dir = p_order_dir;
+   SET @sqlcount = 'SELECT Count(*) AS count FROM access_log ';
+   SET @sqlfield = 'SELECT *  FROM access_log ';
+  SET @sqlcondition = concat('WHERE user_id LIKE ? AND ',
+                              'dp_department_id LIKE ? AND ',
+                              'access_type LIKE ? AND ',
+                              'instr(?,access_status) > 0 ');
+  IF p_from_date IS NOT NULL AND p_to_date IS NOT NULL THEN
+    SET @sqlcondition = concat(@sqlcondition, " AND DATE(date_time) BETWEEN '",
+                          p_from_date, "' AND '", p_to_date, "'");
+  ELSE
+    IF p_from_date IS NOT NULL THEN
+      SET @sqlcondition = concat(@sqlcondition, " AND DATE(date_time) >= '", p_from_date, "'");
+    ELSE
+      IF p_to_date IS NOT NULL THEN
+        SET @sqlcondition = concat(@sqlcondition, " AND DATE(date_time) <= '", p_to_date, "'");
+      END IF;
+    END IF;
+  END IF;
+  SET @sqlstmt = concat(@sqlcount,@sqlcondition);
+  Prepare stmt from @sqlstmt;
+  EXECUTE stmt USING @p_user_id, @p_dp_dept_id, @p_activity,@p_status;
+  SET @sqlstmt = concat(@sqlfield, @sqlcondition);
+  SET @sqlstmt = concat(@sqlstmt, ' ORDER BY ', p_order_by);
+  IF p_order_dir = 'DESC' THEN
+      SET @sqlstmt = concat(@sqlstmt, ' DESC');
+  END IF;
+  IF p_order_by <> 'log_id' THEN
+      SET @sqlstmt = concat(@sqlstmt, ' , log_id DESC');
+  END IF;
+  IF p_page_size <> -1 THEN
+    SET @sqlstmt = concat(@sqlstmt, ' LIMIT ', (p_start_rec - 1), ",", p_page_size);
+  END IF;
+  Prepare stmt from @sqlstmt;
+  EXECUTE stmt USING @p_user_id, @p_dp_dept_id, @p_activity,@p_status;
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_select_quality_subscore_user`
+--
+
+DROP PROCEDURE IF EXISTS `sp_select_quality_subscore_user`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_select_quality_subscore_user`(p_closing_date DATE, p_scg VARCHAR(3), p_user_id VARCHAR(30), p_dp_department_id VARCHAR(10), p_soa_department_id VARCHAR(10), p_function_id VARCHAR(30), p_dept_id VARCHAR(10), p_wa_file_part VARCHAR(15), p_wa_file_no INT)
+BEGIN
+
+	INSERT INTO audit_trail (user_id, dp_department_id, soa_department_id, function_id, entity_name, record_id, action_performed, date_time, remarks)
+
+	VALUES (p_user_id, p_dp_department_id, p_soa_department_id, p_function_id, 'quality_subscore', CONCAT(p_closing_date, '+', p_scg, '+', p_dept_id, '+', p_wa_file_part, '+', p_wa_file_no), 'S', NOW(),'Enquire Contractor Performance Scores');
+
+	
+
+	SET @d_contractor_id =
+
+	(
+
+		SELECT debarred_contractor
+
+		FROM work_assignment
+
+		WHERE
+
+			service_category_group = p_scg          AND 
+
+			project_file_part      = p_wa_file_part AND
+
+			project_file_no        = p_wa_file_no   AND
+
+			department_id          = p_dept_id
+
+	);
+
+	
+
+	CALL sp_split_string(@d_contractor_id, ',');
+
+	
+
+	SELECT
+
+		qes.effective_start_date,
+
+		c.contractor_name, 
+
+		QPSES_DECRYPT(CONCAT(q.effective_period_id, q.created_datetime), 'quality_subscore', quality_subscore) AS 'quality_subscore'
+
+	FROM quality_subscore AS q, contractor AS c, quality_subscore_effective_period AS qes
+
+	WHERE 
+
+		q.effective_period_id = qes.effective_period_id AND
+
+		c.contractor_id       = q.contractor_id         AND 
+
+		c.contractor_id NOT IN (SELECT splitted_value FROM tmp_split_values) AND
+
+		p_closing_date BETWEEN qes.effective_start_date AND qes.effective_end_date AND
+
+		(
+
+			
+
+			(p_scg = '1' AND c.1J_indicator = -1) OR
+
+			(p_scg = '2/N' AND c.2N_indicator = -1) OR
+
+			(p_scg = '2/J' AND c.2J_indicator = -1) OR
+
+			(p_scg = '3/N' AND c.3N_indicator = -1) OR
+
+			(p_scg = '3/J' AND c.3J_indicator = -1) OR    			
+
+			(p_scg = '4' AND c.4J_indicator = -1)
+
+		)
+
+	ORDER BY c.contractor_name;
+
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_insert_change_password_log`
+--
+
+DROP PROCEDURE IF EXISTS `sp_insert_change_password_log`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_insert_change_password_log`(
+
+	p_user_id                VARCHAR(30) ,
+
+	p_dp_department_id       VARCHAR(10) ,
+
+	p_soa_department_id      VARCHAR(10) ,
+
+	p_is_success              VARCHAR(1)
+
+)
+BEGIN
+
+	SET @entity_name      = "change_password";
+
+	SET @remarks          = "";
+
+	IF p_is_success = "Y" THEN
+
+		SET @remarks = "Change Password Successfully";
+
+	ELSEIF p_is_success = "N" THEN
+
+		SET @remarks = "Change Password Failed";
+
+	END IF;
+
+	
+
+	INSERT INTO audit_trail
+
+	(
+
+		user_id, dp_department_id, soa_department_id, function_id,
+
+		entity_name, record_id, action_performed, date_time, remarks
+
+	)
+
+	VALUES
+
+	(
+
+		p_user_id, p_dp_department_id, p_soa_department_id, 'CHPWD',
+
+		@entity_name, p_user_id, 'A', SYSDATE(), @remarks
+
+	);
+
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_insert_department`
+--
+
+DROP PROCEDURE IF EXISTS `sp_insert_department`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_insert_department`(IN p_dp_dept_id varchar(10),
+ IN p_soa_dept_id varchar(10),
+ IN p_dept_name varchar(200),
+ IN p_admin_id varchar(30),
+ IN p_admin_dp_dept_id varchar(10),
+ IN p_admin_soa_dept_id varchar(10),
+ OUT return_code INT)
+BEGIN
+DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+SET return_code = 0;
+/* Define variable to be passed to trigger*/
+SET @adminID = p_admin_id;
+SET @dpDeptId = p_admin_dp_dept_id;
+SET @soaDeptId = p_admin_soa_dept_id;
+SET @remarks = concat('ADD Dept DP_id: ',p_dp_dept_id,' + SOA_id: ',p_soa_dept_id,' + Name: ',p_dept_name);
+IF (SELECT COUNT(*) from bd_name WHERE dp_department_id = p_dp_dept_id AND soa_department_id = p_soa_dept_id > 0) THEN
+  SET return_code = -99;
+	INSERT INTO audit_trail(
+		user_id, dp_department_id, soa_department_id, function_id,
+		entity_name, record_id, action_performed, date_time, remarks
+		)
+		VALUES
+		(
+		@adminID, @dpDeptId, @soaDeptId, 'DEPTADD',
+		'Department Code Maintainence', 'Fail', 'A', SYSDATE(), 'Add Department Code fail'
+		);
+ELSE
+  BEGIN
+    INSERT INTO bd_name
+    (dp_department_id,
+     soa_department_id,
+     bd_name)
+    Values
+    (p_dp_dept_id,
+     p_soa_dept_id,
+     p_dept_name);
+    SET return_code = 1;
+		  
+	  INSERT INTO audit_trail(
+		user_id, dp_department_id, soa_department_id, function_id,
+		entity_name, record_id, action_performed, date_time, remarks
+		)
+		VALUES
+		(
+		@adminID, @dpDeptId, @soaDeptId, 'DEPTADD',
+		'Department Code Maintainence', p_dp_dept_id, 'A', SYSDATE(), @remarks
+		);
+  END;
+END IF;
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_delete_department`
+--
+
+DROP PROCEDURE IF EXISTS `sp_delete_department`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_delete_department`(
+ IN p_admin_id varchar(30),
+ IN p_dp_dept_id varchar(10),
+ IN p_soa_dept_id varchar(10),
+ IN p_admin_dp_dept_id varchar(10),
+ IN p_admin_soa_dept_id varchar(10),
+ OUT return_code INT)
+BEGIN
+  DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+  SET return_code =0;
+  /* Define variable to be passed to trigger*/
+  SET @adminID = p_admin_id;
+  SET @dpDeptId = p_admin_dp_dept_id;
+  SET @soaDeptId = p_admin_soa_dept_id;
+  SET @remarks = concat('DELETE Dept ',p_soa_dept_id);
+  DELETE FROM bd_name WHERE dp_department_id = p_dp_dept_id AND soa_department_id = p_soa_dept_id;
+  INSERT INTO audit_trail(
+		user_id, dp_department_id, soa_department_id, function_id,
+		entity_name, record_id, action_performed, date_time, remarks
+		)
+		VALUES
+		(
+		@adminID, @dpDeptId, @soaDeptId, 'DEPTDELETE',
+		'Department Code Maintainence', p_dp_dept_id, 'A', SYSDATE(), @remarks
+		);
+  SET return_code = 1;
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_update_department`
+--
+
+DROP PROCEDURE IF EXISTS `sp_update_department`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_update_department`(IN p_dp_dept_id varchar(10),
+ IN p_soa_dept_id varchar(10),
+ IN p_dept_name varchar(200),
+ IN p_admin_id varchar(30),
+ IN p_admin_dp_dept_id varchar(10),
+ IN p_admin_soa_dept_id varchar(10),
+ IN p_key1 varchar(10),
+ IN p_key2 varchar(10),
+ OUT return_code INT)
+BEGIN
+  DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION SET return_code = -3;
+  /* Define variable to be passed to trigger*/
+  SET @adminID = p_admin_id;
+  SET @dpDeptId = p_admin_dp_dept_id;
+  SET @soaDeptId = p_admin_soa_dept_id;
+  SET @remarks = concat('UPDATE ',p_key1,' to ',p_dp_dept_id,' + ',p_key2,' to ',p_soa_dept_id,' + Name: ',p_dept_name);
+  SET return_code =0;
+  IF p_dp_dept_id <> p_key1 OR p_soa_dept_id <> p_key2 THEN
+    IF (SELECT COUNT(*) from bd_name WHERE dp_department_id = p_dp_dept_id AND soa_department_id = p_soa_dept_id > 0) THEN
+      SET return_code = -99;
+	  INSERT INTO audit_trail(
+		user_id, dp_department_id, soa_department_id, function_id,
+		entity_name, record_id, action_performed, date_time, remarks
+		)
+		VALUES
+		(
+		@adminID, @dpDeptId, @soaDeptId, 'DEPTUPDATE',
+		'Department Code Maintainence', 'Fail', 'A', SYSDATE(), 'Department Code update fail'
+		);
+    END IF;
+  END IF;
+  IF return_code =0 THEN
+    BEGIN
+      UPDATE bd_name SET
+       dp_department_id = p_dp_dept_id,
+       soa_department_id = p_soa_dept_id,
+       bd_name = p_dept_name
+       WHERE dp_department_id = p_key1 AND soa_department_id = p_key2;
+       SET return_code = 1;
+	  
+	  INSERT INTO audit_trail(
+		user_id, dp_department_id, soa_department_id, function_id,
+		entity_name, record_id, action_performed, date_time, remarks
+		)
+		VALUES
+		(
+		@adminID, @dpDeptId, @soaDeptId, 'DEPTUPDATE',
+		'Department Code Maintainence', p_dp_dept_id, 'A', SYSDATE(), @remarks
+		);
+    END;
+  END IF;
+END $$
+
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_insert_contractor`
+--
+
+DROP PROCEDURE IF EXISTS `sp_insert_contractor`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_insert_contractor`(IN p_contractor_id varchar(20),
+ IN p_contractor_name varchar(150),
+ IN p_1N_ind int,
+ IN p_2N_ind int,
+ IN p_3N_ind int,
+ IN p_4N_ind int,
+ IN p_1J_ind int,
+ IN p_2J_ind int,
+ IN p_3J_ind int,
+ IN p_4J_ind int,
+ IN p_admin_id varchar(30),
+ IN p_dp_dept_id varchar(10),
+ IN p_soa_dept_id varchar(10),
+ OUT return_code INT)
+BEGIN
+DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION SET return_code = -3;
+SET return_code = 0;
+/* Define variable to be passed to trigger*/
+SET @adminID = p_admin_id;
+SET @dpDeptId = p_dp_dept_id;
+SET @soaDeptId = p_soa_dept_id;
+IF (SELECT COUNT(*) from contractor WHERE contractor_id = p_contractor_id  > 0) THEN
+  SET return_code = -99;
+ELSE
+  BEGIN
+    INSERT INTO contractor
+    (contractor_id,
+     contractor_name,
+     1N_indicator,
+     1J_indicator,
+     2N_indicator,
+     2J_indicator,
+     3N_indicator,
+     3J_indicator,
+     4N_indicator,
+     4J_indicator)
+    Values
+    (p_contractor_id,
+     p_contractor_name,
+     p_1N_ind,
+     p_1J_ind,
+     p_2N_ind,
+     p_2J_ind,
+     p_3N_ind,
+     p_3J_ind,
+     p_4N_ind,
+     p_4J_ind);
+    SET return_code = 1;
+  END;
+END IF;
+END $$
+
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_update_contractor`
+--
+
+DROP PROCEDURE IF EXISTS `sp_update_contractor`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_update_contractor`(IN p_contractor_id varchar(20),
+ IN p_contractor_name varchar(150),
+ IN p_admin_id varchar(30),
+ IN p_dp_dept_id varchar(10),
+ IN p_soa_dept_id varchar(10),
+ IN p_key1 varchar(20),
+ OUT return_code INT)
+BEGIN
+  DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION SET return_code = -3;
+  /* Define variable to be passed to trigger*/
+  SET @adminID = p_admin_id;
+  SET @dpDeptId = p_dp_dept_id;
+  SET @soaDeptId = p_soa_dept_id;
+  SET @remarks = concat('UPDATE ',p_key1,' to ',p_contractor_id,' +  Name: ',p_contractor_name);
+  SET return_code =0;
+  IF p_contractor_id <> p_key1 THEN
+    IF (SELECT COUNT(*) from contractor WHERE contractor_id = p_contractor_id > 0) THEN
+      SET return_code = -99;
+	  INSERT INTO audit_trail(
+		user_id, dp_department_id, soa_department_id, function_id,
+		entity_name, record_id, action_performed, date_time, remarks
+		)
+		VALUES
+		(
+		@adminID, @dpDeptId, @soaDeptId, 'CONUPDATE',
+		'Contractor Code Maintainence', 'Fail', 'A', SYSDATE(), 'Contractor Code update fail'
+		);
+    END IF;
+  END IF;
+  IF return_code =0 THEN
+    BEGIN
+      UPDATE contractor SET
+       contractor_id = p_contractor_id,
+       contractor_name = p_contractor_name
+       WHERE contractor_id = p_key1;
+      INSERT INTO audit_trail(
+		user_id, dp_department_id, soa_department_id, function_id,
+		entity_name, record_id, action_performed, date_time, remarks
+		)
+		VALUES
+		(
+		@adminID, @dpDeptId, @soaDeptId, 'CONUPDATE',
+		'Contractor Code Maintainence', p_contractor_id, 'A', SYSDATE(), @remarks
+		);
+       SET return_code = 1;
+    END;
+  END IF;
+END $$
+
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_delete_acl`
+--
+
+DROP PROCEDURE IF EXISTS `sp_delete_acl`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_delete_acl`(
+ IN p_admin_id varchar(30),
+ IN p_dp_dept_id varchar(10),
+ IN p_soa_dept_id varchar(10),
+ IN p_key1 varchar(10),
+ IN p_key2 varchar(10),
+ IN p_key3 varchar(30),
+ OUT return_code INT)
+BEGIN
+  DECLARE EXIT HANDLER FOR NOT FOUND
+    BEGIN
+      SET return_code = -2;
+      ROLLBACK;
+    END;
+  SET return_code =0;
+  START TRANSACTION;
+  /* Define variable to be passed to trigger*/
+  SET @adminID = p_admin_id;
+  SET @progID = "ACLDELETE";
+  SET @dpDeptId = p_dp_dept_id;
+  SET @soaDeptId = p_soa_dept_id;
+  SET @remarks = concat('DELETE User ',p_key3);
+  DELETE FROM acl
+      WHERE dp_department_id = p_key1 AND
+            soa_department_id = p_key2 AND
+            user_id = p_key3;
+  INSERT INTO audit_trail(
+		user_id, dp_department_id, soa_department_id, function_id,
+		entity_name, record_id, action_performed, date_time, remarks
+		)
+		VALUES
+		(
+		@adminID, @dpDeptId, @soaDeptId, 'ACLDELETE',
+		'Access Control List Maintainence', p_key3, 'D', SYSDATE(), @remarks
+		);
+
+  COMMIT;
+  SET return_code = 1;
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_delete_ceiling_rate`
+--
+
+DROP PROCEDURE IF EXISTS `sp_delete_ceiling_rate`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_delete_ceiling_rate`(IN p_service_category char(1),
+ IN p_effective_date DATE,
+ IN p_admin_id varchar(30),
+ IN p_dp_dept_id varchar(10),
+ IN p_soa_dept_id varchar(10),
+ OUT return_code INT)
+BEGIN
+DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+/* Define variable to be passed to trigger*/
+SET @adminID = p_admin_id;
+SET @dpDeptId = p_dp_dept_id;
+SET @soaDeptId = p_soa_dept_id;
+SET return_code = 0;
+IF p_service_category = '1' then
+   BEGIN
+     DELETE FROM ceiling_rate_1 WHERE effective_date= p_effective_date;
+     SET return_code = 1;
+   END;
+END IF;
+IF p_service_category = '2' then
+   BEGIN
+     DELETE FROM ceiling_rate_2 WHERE effective_date= p_effective_date;
+     SET return_code = 1;
+   END;
+END IF;
+IF p_service_category = '3' then
+   BEGIN
+     DELETE FROM ceiling_rate_3 WHERE effective_date= p_effective_date;
+     SET return_code = 1;
+   END;
+END IF;
+IF p_service_category = '4' then
+   BEGIN
+     DELETE FROM ceiling_rate_4 WHERE effective_date= p_effective_date;
+     SET return_code = 1;
+   END;
+END IF;
+
+IF return_code = 1 then
+  SET @remarks = CONCAT('effective_date = ', p_effective_date);
+  INSERT INTO audit_trail(
+    user_id, dp_department_id, soa_department_id, function_id,
+    entity_name, record_id, action_performed, date_time, remarks
+    )
+    VALUES
+    (
+    @adminID, @dpDeptId, @soaDeptId, 'CRDELETE',
+    'Delete Ceiling Rate', p_effective_date, 'D', SYSDATE(), @remarks
+    );
+ELSEIF return_code = 0 then
+  INSERT INTO audit_trail(
+    user_id, dp_department_id, soa_department_id, function_id,
+    entity_name, record_id, action_performed, date_time, remarks
+    )
+    VALUES
+    (
+    @adminID, @dpDeptId, @soaDeptId, 'CRDELETE',
+    'Delete Ceiling Rate', p_effective_date, 'D', SYSDATE(), 'Fail'
+    );
+END IF;
+
+END $$
+
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_delete_avg_ceiling_rate`
+--
+
+DROP PROCEDURE IF EXISTS `sp_delete_avg_ceiling_rate`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_delete_avg_ceiling_rate`(IN p_service_category int,
+IN p_effective_date DATE,
+IN p_admin_id varchar(30),
+IN p_dp_dept_id varchar(10),
+IN p_soa_dept_id varchar(10),
+OUT return_code INT)
+BEGIN
+DECLARE EXIT HANDLER FOR NOT FOUND SET return_code = -2;
+/* Define variable to be passed to trigger*/
+SET @adminID = p_admin_id;
+SET @dpDeptId = p_dp_dept_id;
+SET @soaDeptId = p_soa_dept_id;
+SET return_code = 0;
+Delete FROM average_ceiling_rate
+    WHERE effective_date = p_effective_date AND
+          service_category = p_service_category;
+SET return_code = 1;
+
+
+IF return_code = 1 then
+  SET @remarks = CONCAT('effective_date = ', p_effective_date);
+  INSERT INTO audit_trail(
+    user_id, dp_department_id, soa_department_id, function_id,
+    entity_name, record_id, action_performed, date_time, remarks
+    )
+    VALUES
+    (
+    @adminID, @dpDeptId, @soaDeptId, 'ACRDELETE',
+    'Delete Average Ceiling Rate', p_service_category, 'D', SYSDATE(), @remarks
+    );
+ELSEIF return_code = 0 then
+  INSERT INTO audit_trail(
+    user_id, dp_department_id, soa_department_id, function_id,
+    entity_name, record_id, action_performed, date_time, remarks
+    )
+    VALUES
+    (
+    @adminID, @dpDeptId, @soaDeptId, 'ACRDELETE',
+    'Delete Average Ceiling Rate', p_service_category, 'D', SYSDATE(), 'Fail'
+    );
+END IF;
+
+END $$
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_delete_quality_subscore`
+--
+
+DROP PROCEDURE IF EXISTS `sp_delete_quality_subscore`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_delete_quality_subscore`(IN p_period_id int,
+IN p_admin_id varchar(30),
+IN p_dp_dept_id varchar(10),
+IN p_soa_dept_id varchar(10),
+OUT return_code INT)
+BEGIN
+DECLARE EXIT HANDLER FOR NOT FOUND
+BEGIN
+  ROLLBACK;
+  SET return_code = -2;
+END;
+
+/* Define variable to be passed to trigger*/
+SET @adminID = p_admin_id;
+SET @dpDeptId = p_dp_dept_id;
+SET @soaDeptId = p_soa_dept_id;
+SET @progID = "QSDELETE";
+SET return_code = 0;
+START TRANSACTION;
+Delete FROM quality_subscore WHERE effective_period_id = p_period_id;
+SET return_code = 1;
+
+INSERT INTO audit_trail(
+    user_id, dp_department_id, soa_department_id, function_id,
+    entity_name, record_id, action_performed, date_time, remarks
+    )
+    VALUES
+    (
+    @adminID, @dpDeptId, @soaDeptId, 'QSDELETE',
+    'Delete Contractor Performance Scores', p_period_id, 'D', SYSDATE(), 'Delete Contractor Performance Scores'
+    );
+COMMIT;
+
+
+END $$
+
+DELIMITER ;
+
+
+
+--
+-- Procedure `qpsis`.`sp_insert_unlock_log`
+--
+
+DROP PROCEDURE IF EXISTS `sp_insert_unlock_log`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_insert_unlock_log`(
+ IN p_user_id                VARCHAR(30) ,
+ IN p_admin_id               VARCHAR(30) ,
+ IN p_dp_dept_id 			 VARCHAR(10),
+ IN p_soa_dept_id 			 VARCHAR(10),
+ IN p_type                   VARCHAR(1)
+)
+BEGIN
+	IF p_type = "L" THEN
+		BEGIN
+			SET @remarks = concat('Unlock user ',p_user_id,' Successfully');
+			SET @entity_name      = "unlock_user";
+			SET @function_name    = "ACLUNLOCK";
+		END;
+	ELSEIF p_type = "E" THEN
+		BEGIN
+			SET @remarks = concat('Enable user ',p_user_id,' Successfully');
+			SET @entity_name      = "enable_user";
+			SET @function_name    = "ACLENABLE";
+		END;
+	END IF;
+
+	INSERT INTO audit_trail
+	(
+		user_id, dp_department_id, soa_department_id, function_id,
+		entity_name, record_id, action_performed, date_time, remarks
+	)
+	VALUES
+	(
+		p_admin_id, p_dp_dept_id, p_soa_dept_id, @function_name,
+		@entity_name, p_user_id, 'A', SYSDATE(), @remarks
+
+	);
+
+END $$
+
+DELIMITER ;
+
+
+--
+-- Procedure `qpsis`.`sp_insert_srv_log`
+--
+
+DROP PROCEDURE IF EXISTS `sp_insert_srv_log`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_insert_srv_log`(service_category_group VARCHAR(3), contractor_id_list VARCHAR(1000), dept_id VARCHAR(10), closing_date VARCHAR(10), project_file_part VARCHAR(15), project_file_no VARCHAR(10), ceiling_rate_file MediumBlob, show_subscore_rpt VARCHAR(1), user_id VARCHAR(30))
+BEGIN
+
+	INSERT INTO staff_rate_validation_log(service_category_group, contractor_id_list, dept_id, closing_date, project_file_part, project_file_no, ceiling_rate_file, show_subscore_rpt, user_id, date_time)
+
+	VALUES(service_category_group, contractor_id_list, dept_id, closing_date, project_file_part, project_file_no, ceiling_rate_file, show_subscore_rpt, user_id, NOW());
+
+END $$
+
+DELIMITER ;
+
+--
+-- Procedure `qpsis`.`sp_insert_srv_log_user`
+--
+
+DROP PROCEDURE IF EXISTS `sp_insert_srv_log_user`;
+DELIMITER $$
+
+CREATE PROCEDURE `sp_insert_srv_log_user`(service_category_group VARCHAR(3), contractor_id_list VARCHAR(1000), dept_id VARCHAR(10), closing_date VARCHAR(10), project_file_part VARCHAR(15), project_file_no VARCHAR(10), ceiling_rate_file MediumBlob, show_subscore_rpt VARCHAR(1), user_id VARCHAR(30), p_dp_department_id VARCHAR(10), p_soa_department_id VARCHAR(10), OUT log_id INT)
+BEGIN
+
+	INSERT INTO staff_rate_validation_log(service_category_group, contractor_id_list, dept_id, closing_date, project_file_part, project_file_no, ceiling_rate_file, show_subscore_rpt, user_id, dp_department_id, soa_department_id, date_time)
+
+	VALUES(service_category_group, contractor_id_list, dept_id, closing_date, project_file_part, project_file_no, ceiling_rate_file, show_subscore_rpt, user_id, p_dp_department_id, p_soa_department_id, NOW());
+
+	
+
+	SET log_id = @@IDENTITY;
+
+END $$
+
+DELIMITER ;
+
+
+
+COMMIT;
+

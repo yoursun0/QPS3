@@ -1,0 +1,843 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="2.4" xmlns="http://java.sun.com/xml/ns/j2ee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd">
+    
+    <listener>
+        <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+    </listener>
+        
+	<error-page>
+      <error-code>404</error-code>
+      <location>/404.html</location>
+   </error-page>
+   
+    <!-- ****************************** Environment Variables ****************************************** -->
+    <resource-ref>
+        <description>Admin DB Connection</description>
+        <res-ref-name>jdbc/qpsis/admin</res-ref-name>
+        <res-type>javax.sql.DataSource</res-type>
+        <res-auth>Container</res-auth>
+    </resource-ref>
+
+    <resource-ref>
+        <description>User DB Connection</description>
+        <res-ref-name>jdbc/qpsis/user</res-ref-name>
+        <res-type>javax.sql.DataSource</res-type>
+        <res-auth>Container</res-auth>
+    </resource-ref>
+    
+    <env-entry>
+        <description/> 
+        <env-entry-name>UserBaseUrl</env-entry-name> 
+        <env-entry-type>java.lang.String</env-entry-type> 
+        <env-entry-value>/qpsuser/</env-entry-value> 
+    </env-entry>
+    
+    <env-entry>
+        <description/> 
+        <env-entry-name>QPSES_ENVIRONMENT</env-entry-name> 
+        <env-entry-type>java.lang.String</env-entry-type> 
+        <env-entry-value>TESTING</env-entry-value> 
+    </env-entry>    
+  
+    <!-- ************************************ FILTER *************************************************** -->
+    <!-- Authorization Filter -->
+    <filter>        
+        <filter-name>AuthorizationFilter</filter-name>        
+        <filter-class>qpses.security.AuthorizationFilter</filter-class>
+        <init-param>
+            <param-name>error_page</param-name>
+            <param-value>../unauthorized.jsp</param-value>
+        </init-param>
+        <init-param>
+            <param-name>dp_login_page</param-name>
+            <param-value>../login.jsp</param-value>
+        </init-param>
+    </filter>    
+        
+    <filter-mapping>
+        <filter-name>AuthorizationFilter</filter-name>
+        <url-pattern>/qpsadmin/*</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
+        <dispatcher>INCLUDE</dispatcher>
+        <dispatcher>ERROR</dispatcher>
+    </filter-mapping>
+    
+    <filter-mapping>
+        <filter-name>AuthorizationFilter</filter-name>
+        <url-pattern>/qpsuser/*</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
+        <dispatcher>INCLUDE</dispatcher>
+        <dispatcher>ERROR</dispatcher>
+    </filter-mapping>
+
+    
+    <!-- WA Challenge Filter -->
+    <filter>        
+        <filter-name>WAChallengeFilter</filter-name>        
+        <filter-class>qpses.security.WAChallengeFilter</filter-class>
+    </filter>
+
+   
+    <!-- WA Challenge Filter for Staff Rate Validation -->
+    <filter-mapping>
+        <filter-name>WAChallengeFilter</filter-name>
+        <url-pattern>/qpsuser/StaffRateValidationGetContractor.jsp</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
+        <dispatcher>INCLUDE</dispatcher>
+        <dispatcher>ERROR</dispatcher>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>WAChallengeFilter</filter-name>
+        <url-pattern>/qpsuser/StaffRateValidationGetStaffRates1.jsp</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
+        <dispatcher>INCLUDE</dispatcher>
+        <dispatcher>ERROR</dispatcher>
+    </filter-mapping>
+    
+    <filter-mapping>
+        <filter-name>WAChallengeFilter</filter-name>
+        <url-pattern>/qpsuser/StaffRateValidationGetStaffRates2.jsp</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
+        <dispatcher>INCLUDE</dispatcher>
+        <dispatcher>ERROR</dispatcher>
+    </filter-mapping>
+    
+    <filter-mapping>
+        <filter-name>WAChallengeFilter</filter-name>
+        <url-pattern>/qpsuser/StaffRateValidationGetStaffRates3.jsp</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
+        <dispatcher>INCLUDE</dispatcher>
+        <dispatcher>ERROR</dispatcher>
+    </filter-mapping>
+    
+    <filter-mapping>
+        <filter-name>WAChallengeFilter</filter-name>
+        <url-pattern>/qpsuser/StaffRateValidationGetStaffRates4.jsp</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
+        <dispatcher>INCLUDE</dispatcher>
+        <dispatcher>ERROR</dispatcher>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>WAChallengeFilter</filter-name>
+        <url-pattern>/qpsuser/StaffRateValidationShowImage.jsp</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
+        <dispatcher>INCLUDE</dispatcher>
+        <dispatcher>ERROR</dispatcher>
+    </filter-mapping>      
+    
+    <filter-mapping>
+        <filter-name>WAChallengeFilter</filter-name>
+        <url-pattern>/qpsuser/StaffRateValidationSLUserWAC</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
+        <dispatcher>INCLUDE</dispatcher>
+        <dispatcher>ERROR</dispatcher>
+    </filter-mapping>    
+    
+    
+    <!-- WA Challenge Filter for Quality Sub-score Enquiry -->
+    <filter-mapping>
+        <filter-name>WAChallengeFilter</filter-name>
+        <url-pattern>/qpsuser/CPSSLUserWAC</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
+        <dispatcher>INCLUDE</dispatcher>
+        <dispatcher>ERROR</dispatcher>
+    </filter-mapping>
+    
+    <filter-mapping>
+        <filter-name>WAChallengeFilter</filter-name>
+        <url-pattern>/qpsuser/CPSShowImage.jsp</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
+        <dispatcher>INCLUDE</dispatcher>
+        <dispatcher>ERROR</dispatcher>
+    </filter-mapping>
+    
+    <!-- ************************************ ADMIN SERVLET *************************************************** -->    
+    
+    <!-- Admin ACL Servlet --> 
+    <servlet>
+        <servlet-name>AdminACLServlet</servlet-name>
+        <servlet-class>qpses.servlet.AdminACLServlet</servlet-class>
+    </servlet>     
+    
+    <servlet-mapping>
+        <servlet-name>AdminACLServlet</servlet-name>
+        <url-pattern>/qpsadmin/ACLUpdate.servlet</url-pattern>
+    </servlet-mapping>    
+
+    <servlet-mapping>
+        <servlet-name>AdminACLServlet</servlet-name>
+        <url-pattern>/qpsadmin/ACLAdd.servlet</url-pattern>
+    </servlet-mapping>    
+    
+    <servlet-mapping>
+        <servlet-name>AdminACLServlet</servlet-name>
+        <url-pattern>/qpsadmin/ACLDelete.servlet</url-pattern>
+    </servlet-mapping>       
+    
+    <servlet-mapping>
+        <servlet-name>AdminACLServlet</servlet-name>
+        <url-pattern>/qpsadmin/ACLSearch.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>AdminACLServlet</servlet-name>
+        <url-pattern>/qpsadmin/ACLSearchReset.servlet</url-pattern>
+    </servlet-mapping>
+  
+    <servlet-mapping>
+        <servlet-name>AdminACLServlet</servlet-name>
+        <url-pattern>/qpsadmin/InactiveUsersReport.servlet</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>AdminACLServlet</servlet-name>
+        <url-pattern>/qpsadmin/UnlockUser.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>AdminACLServlet</servlet-name>
+        <url-pattern>/qpsadmin/EnableUser.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>AdminACLServlet</servlet-name>
+        <url-pattern>/qpsadmin/UnlockSingleUser.servlet</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>AdminACLServlet</servlet-name>
+        <url-pattern>/qpsadmin/ACLImport.servlet</url-pattern>
+    </servlet-mapping> 
+    
+    
+   <!-- Admin Average Ceiling Rate Servlet -->
+    <servlet>
+        <servlet-name>AdminAvgCeilingRateServlet</servlet-name>
+        <servlet-class>qpses.servlet.AdminAvgCeilingRateServlet</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>AdminAvgCeilingRateServlet</servlet-name>
+        <url-pattern>/qpsadmin/AvgCeilingRateUpload.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>AdminAvgCeilingRateServlet</servlet-name>
+        <url-pattern>/qpsadmin/AvgCeilingRateDelete.servlet</url-pattern>
+    </servlet-mapping>
+   
+    <servlet-mapping>
+        <servlet-name>AdminAvgCeilingRateServlet</servlet-name>
+        <url-pattern>/qpsadmin/AvgCeilingRateRelease.servlet</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>AdminAvgCeilingRateServlet</servlet-name>
+        <url-pattern>/qpsadmin/AvgCeilingRateSearch.servlet</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>AdminAvgCeilingRateServlet</servlet-name>
+        <url-pattern>/qpsadmin/AvgCeilingRateSearchReset.servlet</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>AdminAvgCeilingRateServlet</servlet-name>
+        <url-pattern>/qpsadmin/AvgCeilingRateFile.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <!-- Admin Ceiling Rate Servlet -->   
+    <servlet>
+        <servlet-name>AdminCeilingRateServlet</servlet-name>
+        <servlet-class>qpses.servlet.AdminCeilingRateServlet</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>AdminCeilingRateServlet</servlet-name>
+        <url-pattern>/qpsadmin/CeilingRateUpload.servlet</url-pattern>
+    </servlet-mapping>    
+    
+    <servlet-mapping>
+        <servlet-name>AdminCeilingRateServlet</servlet-name>
+        <url-pattern>/qpsadmin/CeilingRateDelete.servlet</url-pattern>
+    </servlet-mapping>   
+    
+    <servlet-mapping>
+        <servlet-name>AdminCeilingRateServlet</servlet-name>
+        <url-pattern>/qpsadmin/CeilingRateRelease.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>AdminCeilingRateServlet</servlet-name>
+        <url-pattern>/qpsadmin/CeilingRateSearch.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>AdminCeilingRateServlet</servlet-name>
+        <url-pattern>/qpsadmin/CeilingRateSearchReset.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>AdminCeilingRateServlet</servlet-name>
+        <url-pattern>/qpsadmin/CeilingRatePrintReport.servlet</url-pattern>
+    </servlet-mapping>    
+    
+    
+    <!-- Admin Contractor Servlet -->
+    <servlet>
+        <servlet-name>AdminContractorServlet</servlet-name>
+        <servlet-class>qpses.servlet.AdminContractorServlet</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>AdminContractorServlet</servlet-name>
+        <url-pattern>/qpsadmin/ContractorAdd.servlet</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>AdminContractorServlet</servlet-name>
+        <url-pattern>/qpsadmin/ContractorUpdate.servlet</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>AdminContractorServlet</servlet-name>
+        <url-pattern>/qpsadmin/ContractorDelete.servlet</url-pattern>
+    </servlet-mapping>   
+
+
+    <!-- Admin Department Servlet -->
+    <servlet>
+        <servlet-name>AdminDeptServlet</servlet-name>
+        <servlet-class>qpses.servlet.AdminDeptServlet</servlet-class>
+    </servlet>       
+    
+    <servlet-mapping> 
+        <servlet-name>AdminDeptServlet</servlet-name>
+        <url-pattern>/qpsadmin/DeptAdd.servlet</url-pattern>
+    </servlet-mapping>       
+
+    <servlet-mapping>
+        <servlet-name>AdminDeptServlet</servlet-name>
+        <url-pattern>/qpsadmin/DeptUpdate.servlet</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>AdminDeptServlet</servlet-name>
+        <url-pattern>/qpsadmin/DeptDelete.servlet</url-pattern>
+    </servlet-mapping>               
+    
+    <servlet-mapping>
+        <servlet-name>AdminDeptServlet</servlet-name>
+        <url-pattern>/qpsadmin/DeptSearch.servlet</url-pattern>
+    </servlet-mapping> 
+    
+    <servlet-mapping>
+        <servlet-name>AdminDeptServlet</servlet-name>
+        <url-pattern>/qpsadmin/DeptSearchReset.servlet</url-pattern>
+    </servlet-mapping>     
+    
+    
+    <!-- Admin Quality Subscore Servlet -->
+    <servlet>
+        <servlet-name>AdminQualitySubscoreServlet</servlet-name>
+        <servlet-class>qpses.servlet.AdminQualitySubscoreServlet</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>AdminQualitySubscoreServlet</servlet-name>
+        <url-pattern>/qpsadmin/CPSUpload.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>AdminQualitySubscoreServlet</servlet-name>
+        <url-pattern>/qpsadmin/CPSDelete.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>AdminQualitySubscoreServlet</servlet-name>
+        <url-pattern>/qpsadmin/CPSPrintReport.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <!-- Admin Stat Servlet --> 
+    <servlet>
+        <servlet-name>AdminStatServlet</servlet-name>
+        <servlet-class>qpses.servlet.AdminStatServlet</servlet-class>
+    </servlet>     
+    
+    <servlet-mapping>
+        <servlet-name>AdminStatServlet</servlet-name>
+        <url-pattern>/qpsadmin/StatSearch.servlet</url-pattern>
+    </servlet-mapping>    
+
+    <servlet-mapping>
+        <servlet-name>AdminStatServlet</servlet-name>
+        <url-pattern>/qpsadmin/StatSearchReset.servlet</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>AdminStatServlet</servlet-name>
+        <url-pattern>/qpsadmin/StatDownloadReport.servlet</url-pattern>
+    </servlet-mapping>    
+   
+    <!-- Admin Report Servlet -->       
+    
+    <servlet>
+        <servlet-name>ReportSLAdmin</servlet-name>
+        <servlet-class>qpses.servlet.ReportSLAdmin</servlet-class>
+    </servlet>   
+    
+    <servlet-mapping>
+        <servlet-name>ReportSLAdmin</servlet-name>
+        <url-pattern>/qpsadmin/ReportSLAdmin.getExcessWaAccess</url-pattern>
+    </servlet-mapping> 
+    
+    <servlet-mapping>
+        <servlet-name>ReportSLAdmin</servlet-name>
+        <url-pattern>/qpsadmin/ReportSLAdmin.getWaAccessMTOneUser</url-pattern>
+    </servlet-mapping>     
+    
+    
+    <!-- Admin Work Assignment Servlet -->
+    <servlet>
+        <servlet-name>AdminWorkAssignmentServlet</servlet-name>
+        <servlet-class>qpses.servlet.AdminWorkAssignmentServlet</servlet-class>
+    </servlet>
+    
+    <servlet-mapping>
+        <servlet-name>AdminWorkAssignmentServlet</servlet-name>
+        <url-pattern>/qpsadmin/WorkAssignmentUpload.servlet</url-pattern>
+    </servlet-mapping>    
+    
+    <servlet-mapping>
+        <servlet-name>AdminWorkAssignmentServlet</servlet-name>
+        <url-pattern>/qpsadmin/WorkAssignmentSearch.servlet</url-pattern>
+    </servlet-mapping>    
+
+    <servlet-mapping>
+        <servlet-name>AdminWorkAssignmentServlet</servlet-name>
+        <url-pattern>/qpsadmin/WorkAssignmentSearchReset.servlet</url-pattern>
+    </servlet-mapping>    
+
+        <!-- ************************************ LOG SERVLET *************************************************** -->    
+    <servlet>
+        <servlet-name>LogServlet</servlet-name>
+        <servlet-class>qpses.servlet.AdminLogServlet</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>LogServlet</servlet-name>
+        <url-pattern>/qpsadmin/AccessLogEnquiry.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>LogServlet</servlet-name>
+        <url-pattern>/qpsadmin/AccessLogEnquiryReset.servlet</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>LogServlet</servlet-name>
+        <url-pattern>/qpsadmin/UserLogEnquiry.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>LogServlet</servlet-name>
+        <url-pattern>/qpsadmin/UserLogEnquiryReset.servlet</url-pattern>
+    </servlet-mapping>
+
+     <servlet-mapping>
+        <servlet-name>LogServlet</servlet-name>
+        <url-pattern>/qpsadmin/AdminLogEnquiry.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>LogServlet</servlet-name>
+        <url-pattern>/qpsadmin/AdminLogEnquiryReset.servlet</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>LogServlet</servlet-name>
+        <url-pattern>/qpsadmin/SRVLogEnquiry.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>LogServlet</servlet-name>
+        <url-pattern>/qpsadmin/SRVLogEnquiryReset.servlet</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>LogServlet</servlet-name>
+        <url-pattern>/qpsadmin/SRVLogFile.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <!-- ************************************ SECURITY SERVLET *************************************************** -->    
+    <servlet>
+        <servlet-name>SecurityServlet</servlet-name>
+        <servlet-class>qpses.security.SecurityServlet</servlet-class>
+        <init-param>
+            <param-name>QPSES_USER_MAIN_PAGE</param-name>
+            <param-value>qpsuser/index.jsp</param-value>
+        </init-param>
+        <init-param>
+            <param-name>QPSES_ADMIN_MAIN_PAGE</param-name>
+            <param-value>qpsadmin/index.jsp</param-value>
+        </init-param>
+        <init-param>
+            <param-name>QPSES_SYSTEM_NOTICE</param-name>
+            <param-value>qpsuser/SystemNotices.jsp</param-value>
+        </init-param>
+        <init-param>
+            <param-name>QPSES_MANAGER_MAIN_PAGE</param-name>
+            <param-value>qpsadmin/Statistics.jsp</param-value>
+        </init-param>    
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>SecurityServlet</servlet-name>
+        <url-pattern>/QPSESEntry</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>SecurityServlet</servlet-name>
+        <url-pattern>/Authorization.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>SecurityServlet</servlet-name>
+        <url-pattern>/qpsuser/SystemOut.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>SecurityServlet</servlet-name>
+        <url-pattern>/qpsuser/WAChallenge.servlet</url-pattern>
+    </servlet-mapping>         
+    
+    <servlet-mapping>
+        <servlet-name>SecurityServlet</servlet-name>
+        <url-pattern>/qpsuser/WAChallengeValidation.servlet</url-pattern>
+    </servlet-mapping>  
+    
+    <servlet-mapping>
+        <servlet-name>SecurityServlet</servlet-name>
+        <url-pattern>/qpsuser/ChangePassword.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>SecurityServlet</servlet-name>
+        <url-pattern>/qpsadmin/SystemOut.servlet</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>SecurityServlet</servlet-name>
+        <url-pattern>/qpsadmin/SwitchUser.servlet</url-pattern>
+    </servlet-mapping>
+    
+     <servlet-mapping>
+        <servlet-name>SecurityServlet</servlet-name>
+        <url-pattern>/qpsadmin/WAChallengeValidation.servlet</url-pattern>
+    </servlet-mapping>  
+
+    <!-- ************************************ USER SERVLET *************************************************** -->        
+    
+    <!-- User Average Ceiling Rate Servlet -->
+    <servlet>
+        <servlet-name>AvgCeilingRateSLUser</servlet-name>
+        <servlet-class>qpses.servlet.AvgCeilingRateSLUser</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>AvgCeilingRateSLUser</servlet-name>
+        <url-pattern>/qpsuser/AvgCeilingRateSLUser</url-pattern>
+    </servlet-mapping>   
+
+    <servlet-mapping>
+        <servlet-name>AvgCeilingRateSLUser</servlet-name>
+        <url-pattern>/qpsuser/AvgCeilingRateSLUser.pdf</url-pattern>
+    </servlet-mapping>
+    
+    
+    <!-- User Discount Rate Servlet -->    
+    <servlet>
+        <servlet-name>DiscountRateSLUser</servlet-name>
+        <servlet-class>qpses.servlet.DiscountRateSLUser</servlet-class>
+    </servlet> 
+
+    <servlet-mapping>
+        <servlet-name>DiscountRateSLUser</servlet-name>
+        <url-pattern>/qpsuser/DiscountRateSLUser</url-pattern>
+    </servlet-mapping>
+
+    
+    <!-- User Contractor Performance Score Servlet -->
+    <servlet>
+        <servlet-name>CPSSLUser</servlet-name>
+        <servlet-class>qpses.servlet.QualitySubscoreSLUser</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>CPSSLUser</servlet-name>
+        <url-pattern>/qpsuser/CPSSLUser</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>CPSSLUser</servlet-name>
+        <url-pattern>/qpsuser/CPSSLUserWAC</url-pattern>
+    </servlet-mapping>
+        
+    <!-- User Staff Rate Validation Servlet -->
+    <servlet>
+        <servlet-name>StaffRateValidationSLUser</servlet-name>
+        <servlet-class>qpses.servlet.StaffRateValidationSLUser</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>StaffRateValidationSLUser</servlet-name>
+        <url-pattern>/qpsuser/StaffRateValidationSLUser</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>StaffRateValidationSLUser</servlet-name>
+        <url-pattern>/qpsuser/StaffRateValidationSLUserWAC</url-pattern>
+    </servlet-mapping>
+ 
+    <servlet-mapping>
+        <servlet-name>StaffRateValidationSLUser</servlet-name>
+        <url-pattern>/qpsuser/StaffRateValidationCRSLUser</url-pattern>
+    </servlet-mapping>    
+    
+    <servlet-mapping>
+        <servlet-name>StaffRateValidationSLUser</servlet-name>
+        <url-pattern>/qpsuser/StaffRateValidationCRSLUserWAC</url-pattern>
+    </servlet-mapping>    
+    
+    <!-- User CPAR Servlet -->
+    <servlet>
+        <servlet-name>CPARSLUser</servlet-name>
+        <servlet-class>qpses.servlet.CPARSLUser</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>CPARSLUser</servlet-name>
+        <url-pattern>/qpsuser/CPARSLUser</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>CPARSLUser</servlet-name>
+        <url-pattern>/qpsuser/CPARList.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>CPARSLUser</servlet-name>
+        <url-pattern>/qpsuser/CPARDelete.servlet</url-pattern>
+    </servlet-mapping>
+    
+    
+    <servlet-mapping>
+        <servlet-name>CPARSLUser</servlet-name>
+        <url-pattern>/qpsuser/CPARCreate.servlet</url-pattern>
+    </servlet-mapping>
+    
+    
+    <servlet-mapping>
+        <servlet-name>CPARSLUser</servlet-name>
+        <url-pattern>/qpsuser/CPARUpdate.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>CPARSLUser</servlet-name>
+        <url-pattern>/qpsuser/CPARConfirmDelete.servlet</url-pattern>
+    </servlet-mapping>
+        
+    <servlet-mapping>
+        <servlet-name>CPARSLUser</servlet-name>
+        <url-pattern>/qpsuser/CPARSave.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>CPARSLUser</servlet-name>
+        <url-pattern>/qpsuser/CPARPrint.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <!-- Admin CPAR Servlet -->
+    <servlet>
+        <servlet-name>CPARAdmin</servlet-name>
+        <servlet-class>qpses.servlet.AdminCPARServlet</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>CPARAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPARAdmin</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>CPARAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPARList.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>CPARAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPARDelete.servlet</url-pattern>
+    </servlet-mapping>
+    
+    
+    <servlet-mapping>
+        <servlet-name>CPARAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPARCreate.servlet</url-pattern>
+    </servlet-mapping>
+    
+    
+    <servlet-mapping>
+        <servlet-name>CPARAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPARUpdate.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>CPARAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPARConfirmDelete.servlet</url-pattern>
+    </servlet-mapping>
+        
+    <servlet-mapping>
+        <servlet-name>CPARAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPARSave.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>CPARAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPARPrint.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>CPARAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPARHistory.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>CPARAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPARReleaseInList.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>CPARAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPARUnreleaseInList.servlet</url-pattern>
+    </servlet-mapping>    
+    
+     <!-- Admin CPAR List Servlet -->
+    <servlet>
+        <servlet-name>CPARListAdmin</servlet-name>
+        <servlet-class>qpses.servlet.AdminCPARListServlet</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>CPARListAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPAROutstandingList.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>CPARListAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPAROutstandingDownload.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>CPARListAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPARRecordSearch.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>CPARListAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPARRecordSearchReset.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>CPARListAdmin</servlet-name>
+        <url-pattern>/qpsadmin/CPARRecordDownload.servlet</url-pattern>
+    </servlet-mapping>
+    
+    
+    <!-- Admin Debarment Servlet -->
+    <servlet>
+        <servlet-name>DebarAdmin</servlet-name>
+        <servlet-class>qpses.servlet.AdminDebarServlet</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>DebarAdmin</servlet-name>
+        <url-pattern>/qpsadmin/DebarAdmin</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>DebarAdmin</servlet-name>
+        <url-pattern>/qpsadmin/DebarList.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>DebarAdmin</servlet-name>
+        <url-pattern>/qpsadmin/DebarDelete.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>DebarAdmin</servlet-name>
+        <url-pattern>/qpsadmin/DebarRelease.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>DebarAdmin</servlet-name>
+        <url-pattern>/qpsadmin/DebarCreate.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <servlet-mapping>
+        <servlet-name>DebarAdmin</servlet-name>
+        <url-pattern>/qpsadmin/DebarConfirmDelete.servlet</url-pattern>
+    </servlet-mapping>
+        
+    <servlet-mapping>
+        <servlet-name>DebarAdmin</servlet-name>
+        <url-pattern>/qpsadmin/DebarSave.servlet</url-pattern>
+    </servlet-mapping>
+    
+    <!-- Admin Generate CPS Servlet --> 
+    <servlet>
+        <servlet-name>AdminCPSServlet</servlet-name>
+        <servlet-class>qpses.servlet.AdminCPSServlet</servlet-class>
+    </servlet>     
+    
+    <servlet-mapping>
+        <servlet-name>AdminCPSServlet</servlet-name>
+        <url-pattern>/qpsadmin/CPSSearch.servlet</url-pattern>
+    </servlet-mapping>    
+
+    <servlet-mapping>
+        <servlet-name>AdminCPSServlet</servlet-name>
+        <url-pattern>/qpsadmin/CPSSearchReset.servlet</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>AdminCPSServlet</servlet-name>
+        <url-pattern>/qpsadmin/CPSDownload.servlet</url-pattern>
+    </servlet-mapping>    
+    
+    <!-- <security-constraint>
+		<web-resource-collection>
+			<web-resource-name>Wildcard means whole app requires authentication</web-resource-name>
+			<url-pattern>/*</url-pattern>
+			<http-method>GET</http-method>
+			<http-method>POST</http-method>
+		</web-resource-collection>
+		<auth-constraint>
+			<role-name>tomcat</role-name>
+		</auth-constraint>
+
+		<user-data-constraint>
+			<transport-guarantee>NONE</transport-guarantee>
+		</user-data-constraint>
+	</security-constraint>
+
+	<login-config>
+		<auth-method>BASIC</auth-method>
+	</login-config> -->
+</web-app>

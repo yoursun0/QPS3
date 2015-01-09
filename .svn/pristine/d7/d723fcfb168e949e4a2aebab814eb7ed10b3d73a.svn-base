@@ -1,0 +1,132 @@
+package qpses.security;
+
+import java.io.IOException;
+import java.util.Vector;
+
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.apache.log4j.Logger;
+import org.springframework.context.ApplicationContext;
+import org.springframework.web.context.support.WebApplicationContextUtils;
+
+import qpses.util.SysManager;
+
+public class AuthorizationFilter implements Filter
+{   
+    static Logger logger = Logger.getLogger(AuthorizationFilter.class.getName());
+
+    private FilterConfig fc = null;
+    private String errorPage;
+    private String dpLoginPage;
+    
+    /**
+     * @see javax.servlet.Filter#void (javax.servlet.ServletRequest, javax.servlet.ServletResponse, javax.servlet.FilterChain)
+     */
+    public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
+    throws ServletException, IOException
+    {
+        HttpServletRequest request = (HttpServletRequest) req;
+        HttpServletResponse response = (HttpServletResponse) resp;
+        
+        if (errorPage == null)
+        {
+            returnError(request, response, "AuthorizationFilter (error page) is not properly configured!  Please contact System Administrator.");
+            return;
+        }
+        
+        // get the Security Context
+        HttpSession session = request.getSession(false);
+        
+        if (session == null)
+        {  // no session set up
+            returnLoginPage(request,response);
+            return;
+        }
+        
+        SecurityContext secCtx = (SecurityContext) session.getAttribute("QPSES_SECURITY_CONTEXT");
+        
+        if (secCtx == null)
+        {   // no login information or unauthorized user
+            response.sendRedirect("../QPSESEntry");
+            return;
+        }
+        else
+        {
+            // get the relevant URI and filename
+            String url= request.getServletPath();
+            
+            Vector privilege = secCtx.getPrivileges();
+            // Obtain AuthorizationManager singleton from Spring ApplicationContext
+            
+            ApplicationContext ctx = WebApplicationContextUtils.getWebApplicationContext(session.getServletContext());
+            AuthorizationManager authMgr = (AuthorizationManager) ctx.getBean("AuthorizationManager");
+            
+            // Invoke Authorization Manager to see if user can access resources.
+            boolean authorized = authMgr.isUserAuthorized(privilege, url);
+            
+            if (authorized)
+            { chain.doFilter(request,response); }
+            else
+            {
+                String errMsg = "You are not authorized to access the file";
+                returnError(request, response, errMsg);
+            }
+        }
+    }
+    
+    /**
+     * Method init.
+     * @param config
+     * @throws javax.servlet.ServletException
+     */
+    public void init(FilterConfig filterconfig) throws ServletException
+    {
+        if (filterconfig != null)
+        { errorPage= filterconfig.getInitParameter("error_page"); }
+        
+        this.fc = filterconfig;
+    }
+    
+    /**
+     * @see javax.servlet.Filter#void ()
+     */
+    public void destroy()
+    { this.fc = null; }
+    
+    private void returnError(HttpServletRequest request, HttpServletResponse response,String errorString)
+    throws ServletException, IOException
+    {
+        request.getSession().setAttribute("AUTHORIZATION_MSG",errorString);
+        response.sendRedirect(errorPage);
+    }
+    
+    private void returnLoginPage(HttpServletRequest request, HttpServletResponse response)
+    throws ServletException, IOException
+    {
+        try
+        {
+            String env = (String)SysManager.getResource("QPSES_ENVIRONMENT");
+            
+            if (env != null && env.equals("LOCAL"))
+            { dpLoginPage = "../index_local.jsp"; }
+            else
+            { dpLoginPage = "../index.jsp"; }
+            
+            response.sendRedirect(dpLoginPage);
+            
+            //request.getRequestDispatcher(dpLoginPage).forward(request,response);
+        }
+        catch(Exception ex){ 
+        	logger.error(ex);
+        	throw new ServletException(ex.getMessage());
+        }
+    }
+}

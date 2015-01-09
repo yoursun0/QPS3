@@ -1,0 +1,110 @@
+package qpses.servlet;
+
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.isA;
+import static org.easymock.EasyMock.lt;
+import static org.easymock.EasyMock.replay;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.easymock.EasyMock.*;
+import org.junit.Test;
+
+import qpses.business.CPARDataBean;
+import qpses.business.CPARInfo;
+import qpses.business.LogDataBean;
+import qpses.business.StatDataBean;
+import qpses.business.WAChallengeInfo;
+import qpses.security.SecurityContext;
+import qpses.security.SecurityDataBean;
+import qpses.security.SecurityServlet;
+import qpses.security.UserStatus;
+import qpses.servlet.CPARSLUser;
+import qpses.util.Constant;
+import qpses.util.SysException;
+import qpses.util.SysManager;
+
+public final class TestForAdminStatServlet extends AdminStatServlet {
+
+	private ServletContext servCtx; 
+	private SecurityDataBean secDB; 
+	private LogDataBean logDB; 
+	private StatDataBean statDB;
+	private RequestDispatcher dispatcher;
+	protected UserStatus uStatus;
+	
+	@Override
+	public ServletContext getServletContext(){
+		try{
+			InputStream is = new FileInputStream("pom.xml");
+			dispatcher = createMock(RequestDispatcher.class);
+			servCtx = createMock(ServletContext.class);
+			expect(servCtx.getRequestDispatcher(isA(String.class))).andReturn(dispatcher);
+			dispatcher.forward(isA(HttpServletRequest.class), isA(HttpServletResponse.class));
+			expectLastCall().times(0,10);
+			expect(servCtx.getResourceAsStream(isA(String.class))).andReturn(is).times(0,9);
+		
+			replay(servCtx);
+			replay(dispatcher);
+		}catch(ServletException e){
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return servCtx;
+	}
+	
+    @Override
+	public LogDataBean getLogDataBean() throws SysException{
+    	// Pass a Mock DataBean
+		logDB = createMock(LogDataBean.class);
+		
+		logDB.insertAdminLog(isA(String.class),isA(String.class),isA(String.class),isA(String.class),isA(String.class),isA(String.class),isA(String.class));
+		expectLastCall().times(0,10);
+
+		replay(logDB);
+        return logDB;
+    }
+    
+    @Override
+    public StatDataBean getStatDataBean() throws SysException{
+    	try {
+    		List<CPARInfo> allCPARList = new ArrayList<CPARInfo>();
+    		CPARInfo cpar = new CPARInfo();
+    		cpar.setStartDate(SysManager.getCurDateTime());
+    		cpar.setCreatedDate("2012-12-12 12:12:12.2");
+    		cpar.setLastUpdatedDate("2032-12-12 12:12:12.2");
+    		cpar.setFinalized("f");
+    		uStatus = new UserStatus();
+
+    		// Pass a Mock DataBean
+    		statDB = createMock(StatDataBean.class);
+    		expect(statDB.genWorkAssignmentValue(isA(List.class),isA(String.class),isA(String.class),isA(String.class),isA(String.class))).andReturn("1").times(0,100);
+    		expect(statDB.genNoOfCpars(isA(List.class))).andReturn("1").times(0,100);
+			replay(statDB);
+		} catch (SecurityException e) {
+			throw new SysException(e.getMessage());
+		}
+        return statDB;
+    }
+    
+    @Test
+    public void test() throws SysException{
+    	StatDataBean statDB = getStatDataBean();
+    	LogDataBean logDB = getLogDataBean();
+    	statDB = null;
+    	logDB = null;
+    }
+}

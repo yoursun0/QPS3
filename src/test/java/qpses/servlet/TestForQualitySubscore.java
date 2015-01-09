@@ -1,0 +1,106 @@
+package qpses.servlet;
+
+import static org.easymock.EasyMock.*;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.sql.rowset.serial.SerialException;
+
+import org.junit.Test;
+
+import qpses.business.ContractorDataBean;
+import qpses.business.DeptDataBean;
+import qpses.business.DeptInfo;
+import qpses.business.QualitySubscoreDBUser;
+import qpses.business.QualitySubscoreInfo;
+import qpses.business.WorkAssignmentInfo;
+import qpses.security.UserStatus;
+import qpses.util.SysException;
+
+public final class TestForQualitySubscore extends QualitySubscoreSLUser {
+
+	private ServletContext servCtx; 
+	private DeptDataBean deptDB; 
+	private ContractorDataBean conDB;
+	private RequestDispatcher dispatcher;
+	private QualitySubscoreDBUser dbUser;
+	protected UserStatus uStatus;
+	
+	@Override
+	public ServletContext getServletContext(){
+		try{
+			InputStream is = new FileInputStream("pom.xml");
+			dispatcher = createMock(RequestDispatcher.class);
+			servCtx = createMock(ServletContext.class);
+			expect(servCtx.getRequestDispatcher(isA(String.class))).andReturn(dispatcher);
+			dispatcher.forward(isA(HttpServletRequest.class), isA(HttpServletResponse.class));
+			expectLastCall().times(0,10);
+			expect(servCtx.getResourceAsStream(isA(String.class))).andReturn(is).times(0,9);
+		
+			replay(servCtx);
+			replay(dispatcher);
+		}catch(ServletException e){
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return servCtx;
+	}
+	
+    @Override
+	public QualitySubscoreDBUser getQualitySubscoreDBUser() throws SysException, SerialException, SQLException{
+    	List<WorkAssignmentInfo> infoList = new ArrayList<WorkAssignmentInfo>() ;
+    	WorkAssignmentInfo aWAInfo = new WorkAssignmentInfo();
+    	infoList.add(aWAInfo);
+    	
+    	List<QualitySubscoreInfo> qList = new ArrayList<QualitySubscoreInfo>() ;
+    	QualitySubscoreInfo aQualitySubscoreInfo = new QualitySubscoreInfo();
+		aQualitySubscoreInfo.setContractorName("HKMCI");
+		aQualitySubscoreInfo.setScore(30);
+		qList.add(aQualitySubscoreInfo);
+		
+		// Pass a Mock DataBean
+		dbUser = createMock(QualitySubscoreDBUser.class);
+		
+		expect(dbUser.getWA(isA(String.class))).andReturn(infoList).anyTimes();
+		expect(dbUser.getQualitySubscore(isA(String.class), isA(String.class), isA(String.class), isA(String.class), isA(String.class), isA(String.class), isA(String.class), isA(String.class))).andReturn(qList).anyTimes();
+		expect(dbUser.getDContractorNameList(isA(String.class),isA(String.class),isA(String.class),isA(String.class))).andReturn("HKMCI,HP").anyTimes();
+		replay(dbUser);
+        return dbUser;
+    }
+
+    @Override
+	public DeptDataBean getDeptDataBean() throws SysException{
+    	try {
+    		
+    		DeptInfo aDeptInfo = new DeptInfo(); 
+    		aDeptInfo.setDeptName("OGCIO");
+    		// Pass a Mock DataBean
+    		deptDB = createMock(DeptDataBean.class);
+    		expect(deptDB.selectDeptByKeys(isA(String.class), isA(String.class))).andReturn(aDeptInfo).anyTimes();
+    		
+			replay(deptDB);
+		} catch (SecurityException e) {
+			throw new SysException(e.getMessage());
+		}
+        return deptDB;
+    }
+    
+    
+    @Test
+    public void test() throws SysException, SerialException, SQLException{
+    	QualitySubscoreDBUser db = getQualitySubscoreDBUser();
+    	db = null;
+    }
+    
+}

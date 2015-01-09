@@ -1,0 +1,75 @@
+package qpses.security;
+
+/**
+ * SecurityServletTest.java
+ * @author Helic Leung
+ * @version 1.0
+ */
+
+import static org.easymock.EasyMock.*;
+import static org.junit.Assert.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.easymock.EasyMock;
+import org.easymock.IAnswer;
+import org.easymock.IMocksControl;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
+public class SecurityServletTest {
+
+    private SecurityServlet servlet;
+    private IMocksControl control;
+    private HttpServletRequest request;
+    private HttpServletResponse response;
+    private RequestDispatcher dispatcher;
+    private SecurityDataBean secDB;
+    private SecurityContext secCtx;
+    private HttpSession session;
+
+    @Before
+    public void setup() {
+    	servlet = new SecurityServlet();
+    	control = createControl();
+        request = control.createMock(HttpServletRequest.class);
+        response = control.createMock(HttpServletResponse.class);
+        dispatcher = control.createMock(RequestDispatcher.class);
+        secDB = control.createMock(SecurityDataBean.class);
+        session = control.createMock(HttpSession.class);
+        secCtx = new SecurityContext();
+        
+    }
+
+    @After
+    public void tearDown() {
+    	servlet = null;
+    	control = null;
+    	request = null;
+    	response = null;
+    	dispatcher = null; 
+    	secDB = null;
+    	secCtx = null;
+    	session = null;
+    }
+    
+    @Test
+    public void testLogoutSuccess() throws Throwable {
+    	
+        expect(request.getServletPath()).andReturn("/SystemOut.servlet");
+        // expect(request.getSession()).andReturn(session);
+        // expect(request.getRequestDispatcher("../logout.jsp")).andReturn(dispatcher);
+        // expect(session.getAttribute("QPSES_SECURITY_CONTEXT")).andReturn(secCtx);
+        control.replay();
+    	
+        servlet.doPost(request, null);
+        verify(secDB);
+    }
+}
